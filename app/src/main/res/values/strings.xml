@@ -649,7 +649,7 @@
     <string name="settings_cat_general_sub">Theme, accent color, language</string>
     <string name="settings_cat_player_sub">Player cover, cover shape</string>
     <string name="settings_cat_screensaver_sub">Background, clock, greeting, now playing, charging screensaver</string>
-    <string name="settings_cat_online_sub">YouTube key, AI, data saver, Last.fm, song detection</string>
+    <string name="settings_cat_online_sub">YouTube key, AI, search tabs, audio quality, data saver, Last.fm, song detection</string>
     <string name="settings_cat_advanced_sub">Auto preset, preset notification, root mode, storage, about &amp; help</string>
     <string name="home_playlist_reco">Recommended playlists</string>
     <string name="home_playlist_popular">Popular playlists</string>
@@ -903,4 +903,37 @@
     <string name="listen_search_none">No songs found</string>
     <string name="listen_request_sent">Sent to the host\'s queue</string>
     <string name="listen_remove_song">Remove from queue</string>
+    <string name="np_info_quality">Quality</string>
+    <string name="radio_origin_browser">Radio Browser</string>
+    <string name="radio_origin_collection">StarryNight collection</string>
+    <string name="radio_origin_link">Direct link</string>
+    <string name="radio_origin_from">from %1$s</string>
+    <string name="quality_youtube_player">Lossy · YouTube player</string>
+    <!-- Settings > Online music > Audio quality -->
+    <string name="audio_quality_title">Audio quality</string>
+    <string name="audio_quality_auto">Automatic</string>
+    <string name="audio_quality_low">Low</string>
+    <string name="audio_quality_normal">Normal</string>
+    <string name="audio_quality_high">High</string>
+    <string name="audio_quality_auto_desc">Follows Data saver: low on saver, highest otherwise</string>
+    <string name="audio_quality_low_desc">About 48–70 kbps · least data</string>
+    <string name="audio_quality_normal_desc">About 128 kbps · balanced</string>
+    <string name="audio_quality_high_desc">Highest available · most data</string>
+    <string name="audio_quality_applies_next">Applies from the next song. Local files always play at their original quality.</string>
+    <string name="audio_quality_row_desc">Streaming quality for YouTube and radio</string>
+    <!-- Settings > Online music > Search tabs -->
+    <string name="search_tabs_title">Search tabs</string>
+    <string name="search_tabs_desc">Choose which online tabs show on the Search screen. The Device tab is always shown.</string>
+    <string name="search_tabs_none">Device only</string>
+    <string name="source_online">Online</string>
+    <string name="online_archive_hint">Search Internet Archive, Audius, Jamendo, ccMixter and Openverse</string>
+    <string name="online_src_archive">Internet Archive</string>
+    <string name="online_src_audius">Audius</string>
+    <string name="online_src_ccmixter">ccMixter</string>
+    <string name="online_src_jamendo">Jamendo</string>
+    <string name="online_src_openverse">Openverse</string>
+    <string name="jamendo_key_title">Jamendo client ID</string>
+    <string name="jamendo_key_hint">Client ID</string>
+    <string name="jamendo_key_msg">Free at developer.jamendo.com (create an app, copy its Client ID). Needed to search Jamendo, which has full-length Creative Commons music.</string>
+    <string name="online_need_jamendo_key">Add your Jamendo client ID in Settings to search Jamendo.</string>
 </resources>

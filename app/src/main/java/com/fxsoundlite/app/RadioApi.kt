@@ -62,7 +62,7 @@ object RadioApi {
 
     fun search(context: Context, query: String, source: Int = SRC_BROWSER): List<Track> {
         // A pasted stream link plays as a station of its own.
-        LinkTracks.radioUrl(query)?.let { return listOf(LinkTracks.radioTrack(it)) }
+        LinkTracks.radioUrl(query)?.let { return RadioOrigin.tag(context, listOf(LinkTracks.radioTrack(it)), RadioOrigin.LINK) }
         return load(context, query.trim(), source)
     }
 
@@ -74,7 +74,7 @@ object RadioApi {
      *  when a key is saved. Fails only when every directory fails. */
     fun searchAll(context: Context, query: String): List<Track> {
         val q = query.trim()
-        LinkTracks.radioUrl(q)?.let { return listOf(LinkTracks.radioTrack(it)) }
+        LinkTracks.radioUrl(q)?.let { return RadioOrigin.tag(context, listOf(LinkTracks.radioTrack(it)), RadioOrigin.LINK) }
         val sources = mutableListOf(SRC_BROWSER, SRC_GARDEN, SRC_COLLECTION, SRC_SOMA, SRC_ICECAST, SRC_PARADISE)
         if (MusicPrefs.shoutcastKey(context).isNotBlank()) sources.add(SRC_SHOUTCAST)
         val results = arrayOfNulls<Result<List<Track>>>(sources.size)
@@ -116,7 +116,11 @@ object RadioApi {
         return out
     }
 
-    private fun load(context: Context, query: String, source: Int): List<Track> = when (source) {
+    /** One directory's stations, each remembered as coming from it (shown in the player). */
+    private fun load(context: Context, query: String, source: Int): List<Track> =
+        RadioOrigin.tag(context, loadRaw(context, query, source), source)
+
+    private fun loadRaw(context: Context, query: String, source: Int): List<Track> = when (source) {
         SRC_SOMA -> RadioSources.soma(context, query)
         SRC_ICECAST -> RadioSources.icecast(query)
         SRC_GARDEN -> RadioSources.garden(query)
@@ -130,10 +134,10 @@ object RadioApi {
      *  best-voted stations of the device's country. Parts that fail are simply left out. */
     fun recommended(context: Context): List<Track> {
         val curated = listOf(
-            runCatching { RadioSources.paradise(context, "") }.getOrDefault(emptyList()),
-            runCatching { RadioSources.soma(context, "").take(8) }.getOrDefault(emptyList())
+            RadioOrigin.tag(context, runCatching { RadioSources.paradise(context, "") }.getOrDefault(emptyList()), SRC_PARADISE),
+            RadioOrigin.tag(context, runCatching { RadioSources.soma(context, "").take(8) }.getOrDefault(emptyList()), SRC_SOMA)
         )
-        val voted = runCatching { fetch(context, "", "votes") }.getOrDefault(emptyList())
+        val voted = RadioOrigin.tag(context, runCatching { fetch(context, "", "votes") }.getOrDefault(emptyList()), SRC_BROWSER)
         val seen = HashSet<String>()
         val out = ArrayList<Track>()
         var i = 0
@@ -152,8 +156,8 @@ object RadioApi {
      */
     fun popularMixed(context: Context): List<Track> {
         val cc = Locale.getDefault().country.takeIf { it.length == 2 }
-        val local = if (cc != null) runCatching { fetch(context, "", "clickcount", cc) }.getOrDefault(emptyList()) else emptyList()
-        val global = runCatching { fetch(context, "", "clickcount", "") }.getOrDefault(emptyList())
+        val local = if (cc != null) RadioOrigin.tag(context, runCatching { fetch(context, "", "clickcount", cc) }.getOrDefault(emptyList()), SRC_BROWSER) else emptyList()
+        val global = RadioOrigin.tag(context, runCatching { fetch(context, "", "clickcount", "") }.getOrDefault(emptyList()), SRC_BROWSER)
         if (local.isEmpty() && global.isEmpty()) throw ApiException(RemoteEngine.ERR_NETWORK, "network error")
         val localName = cc?.let { Locale("", it).getDisplayCountry(Locale.ENGLISH) }.orEmpty() // radio-browser uses English names
         val seen = HashSet<String>()
@@ -170,8 +174,8 @@ object RadioApi {
     private fun fetch(context: Context, query: String, order: String = "clickcount", country: String? = null): List<Track> {
         val limit = if (MusicPrefs.saver(context)) LIMIT_SAVER else LIMIT
         val path = StringBuilder("/json/stations/search?hidebroken=true&order=$order&reverse=true&limit=$limit")
-        // Saver mode: only stations of at most 96 kbps (unknown bitrates, 0, still match) = far less data per hour.
-        if (MusicPrefs.saver(context)) path.append("&bitrateMax=96")
+        // Audio quality (Settings): Low / Saver = stations of at most 96 kbps, Normal = 160 kbps (unknown bitrates, 0, still match).
+        StreamQuality.radioMaxKbps(context).takeIf { it > 0 }?.let { path.append("&bitrateMax=").append(it) }
         if (query.isNotEmpty()) {
             path.append("&name=").append(URLEncoder.encode(query, "UTF-8"))
         } else {

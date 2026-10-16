@@ -57,8 +57,8 @@ class YouTubeStreamEngine(
         private val cache = LinkedHashMap<String, Cached>(16, 0.75f, true)
         private val prefetchTried = HashMap<String, Long>()
 
-        private fun key(videoId: String, saver: Boolean, lang: String = "") =
-            (if (saver) "$videoId#s" else videoId) + (if (lang.isEmpty()) "" else "#$lang")
+        private fun key(videoId: String, q: StreamQuality.Level, lang: String = "") =
+            (if (q == StreamQuality.Level.HIGH) videoId else "$videoId#${q.tag}") + (if (lang.isEmpty()) "" else "#$lang")
 
         private fun cached(key: String): String? = synchronized(cache) {
             val c = cache[key] ?: return null
@@ -78,24 +78,42 @@ class YouTubeStreamEngine(
 
         private fun forget(key: String) { synchronized(cache) { cache.remove(key) } }
 
-        /** Blocking: video id -> best audio stream URL (null if it has none). */
-        private fun fetchUrl(videoId: String, saver: Boolean, lang: String): String? {
-            val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
-            return pickAudio(info.audioStreams, saver, lang)?.content
+        /** What the chosen stream is (AAC / Opus + bitrate), by the same key as the link cache; shown in the player. */
+        private val infoCache = java.util.concurrent.ConcurrentHashMap<String, AudioInfo>()
+
+        private fun infoOf(a: AudioStream): AudioInfo {
+            val codec = when (val sfx = a.format?.suffix.orEmpty().lowercase()) {
+                "m4a", "mp4" -> "AAC"
+                "webm", "opus" -> "OPUS" // YouTube's WebM audio is always Opus
+                "mp3" -> "MP3"
+                "ogg" -> "OGG"
+                "" -> "?"
+                else -> sfx.uppercase()
+            }
+            return AudioInfo(codec, false, 0, 0, 0, a.averageBitrate.coerceAtLeast(0))
         }
 
-        /** MediaPlayer is happiest with AAC/M4A; take the highest bitrate of those, else any audio. */
-        private fun pickAudio(list: List<AudioStream>, saver: Boolean, lang: String): AudioStream? {
+        /** Blocking: video id -> best audio stream URL (null if it has none). */
+        private fun fetchUrl(videoId: String, q: StreamQuality.Level, lang: String): String? {
+            val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+            val best = pickAudio(info.audioStreams, q, lang) ?: return null
+            infoCache[key(videoId, q, lang)] = infoOf(best)
+            return best.content
+        }
+
+        /** MediaPlayer is happiest with AAC/M4A; take the stream matching the chosen quality of those, else any audio. */
+        private fun pickAudio(list: List<AudioStream>, q: StreamQuality.Level, lang: String): AudioStream? {
             val usable = list.filter { it.isUrl && !it.content.isNullOrBlank() }
             // The chosen dub language if this video has it, otherwise the original audio.
             val wanted = if (lang.isEmpty()) emptyList() else usable.filter { it.audioLocale?.language == lang }
             val ok = wanted.ifEmpty { originalTrackOnly(usable) }
             val m4a = ok.filter { it.format?.suffix.equals("m4a", true) }
             val pool = m4a.ifEmpty { ok }
-            // Saver mode: the smallest stream (about 48-70 kbps) = far less data and radio time.
-            return if (saver) pool.filter { it.averageBitrate > 0 }.minByOrNull { it.averageBitrate }
-                ?: pool.firstOrNull()
-            else pool.maxByOrNull { it.averageBitrate }
+            // Low (also Data saver in Auto): the smallest stream (about 48-70 kbps) = far less data and radio time.
+            // Normal: closest to 128 kbps. High: the biggest.
+            val want = StreamQuality.pickBitrate(q, pool.map { it.averageBitrate })
+            return pool.firstOrNull { it.averageBitrate > 0 && it.averageBitrate == want }
+                ?: if (q == StreamQuality.Level.LOW) pool.firstOrNull() else pool.maxByOrNull { it.averageBitrate }
         }
 
         /**
@@ -105,9 +123,9 @@ class YouTubeStreamEngine(
          */
         fun prefetch(context: Context, videoId: String) {
             if (!videoId.matches(ID_RE)) return
-            val saver = MusicPrefs.saver(context)
+            val q = StreamQuality.effective(context)
             val lang = MusicPrefs.audioLang(context)
-            val k = key(videoId, saver, lang)
+            val k = key(videoId, q, lang)
             if (cached(k) != null) return
             synchronized(prefetchTried) {
                 val last = prefetchTried[k]
@@ -118,7 +136,7 @@ class YouTubeStreamEngine(
                 prefetchExecutor.execute {
                     try {
                         if (cached(k) != null) return@execute
-                        fetchUrl(videoId, saver, lang)?.let { store(k, it) }
+                        fetchUrl(videoId, q, lang)?.let { store(k, it) }
                     } catch (e: Throwable) {
                         Log.w(TAG, "prefetch failed for $videoId", e)
                     }
@@ -130,6 +148,10 @@ class YouTubeStreamEngine(
     override val needsAudioFocus = true
 
     private val appContext = context.applicationContext
+    /** Format of the stream playing now (null until the link is resolved). */
+    val currentInfo: AudioInfo?
+        get() = curId?.let { infoCache[key(it, StreamQuality.effective(appContext), MusicPrefs.audioLang(appContext))] }
+
     private var mp: MediaPlayer? = null
     private var prepared = false
     private var released = false
@@ -178,7 +200,7 @@ class YouTubeStreamEngine(
         }
         curId = track.remoteId
         playing = true // optimistic, like play(): MusicService calls play() right after load()
-        val hit = cached(key(track.remoteId, MusicPrefs.saver(appContext), MusicPrefs.audioLang(appContext)))
+        val hit = cached(key(track.remoteId, StreamQuality.effective(appContext), MusicPrefs.audioLang(appContext)))
         if (hit != null) { // link already known (e.g. prefetched): no waiting
             startPlayer(hit, my)
             return
@@ -196,16 +218,16 @@ class YouTubeStreamEngine(
 
     /** Background thread: video id -> best audio stream URL (cached; [fresh] skips the cache). */
     private fun resolve(videoId: String, my: Int, fresh: Boolean) {
-        val saver = MusicPrefs.saver(appContext)
+        val q = StreamQuality.effective(appContext)
         val lang = MusicPrefs.audioLang(appContext)
-        val k = key(videoId, saver, lang)
+        val k = key(videoId, q, lang)
         if (fresh) forget(k)
         var url: String? = cached(k)
         var err = RemoteEngine.ERR_YT_UNPLAYABLE
         var network = false
         if (url == null) {
             try {
-                url = fetchUrl(videoId, saver, lang)
+                url = fetchUrl(videoId, q, lang)
                 if (url != null) store(k, url)
             } catch (e: IOException) {
                 Log.w(TAG, "resolve failed (network)", e)

@@ -64,6 +64,12 @@ class YouTubeEngine(
         cb.onStateChanged()
     }
 
+    /** Format of the direct stream, or null while resolving / when a WebView player is in use (format unknown). */
+    val audioInfo: AudioInfo? get() = if (useEmbed || useWeb) null else stream.currentInfo
+
+    /** True when playing through the embedded / youtube.com player: YouTube picks the audio itself. */
+    val usingWebPlayer: Boolean get() = useEmbed || useWeb
+
     override val needsAudioFocus get() = true
     override val isPlaying get() = active.isPlaying
     override val position get() = active.position

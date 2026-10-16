@@ -643,7 +643,7 @@
     <string name="settings_cat_general_sub">Tema, warna aksen, bahasa</string>
     <string name="settings_cat_player_sub">Cover pemutar, bentuk cover</string>
     <string name="settings_cat_screensaver_sub">Latar, jam, sapaan, lagu yang diputar, screensaver saat mengisi daya</string>
-    <string name="settings_cat_online_sub">Kunci YouTube, AI, hemat data, Last.fm, deteksi lagu</string>
+    <string name="settings_cat_online_sub">Kunci YouTube, AI, tab pencarian, kualitas audio, hemat data, Last.fm, deteksi lagu</string>
     <string name="settings_cat_advanced_sub">Preset otomatis, notifikasi preset, mode root, penyimpanan, tentang &amp; bantuan</string>
     <string name="home_playlist_reco">Playlist yang direkomendasikan</string>
     <string name="home_playlist_popular">Playlist populer</string>
@@ -896,4 +896,37 @@
     <string name="listen_search_none">Lagu tidak ditemukan</string>
     <string name="listen_request_sent">Terkirim ke antrean host</string>
     <string name="listen_remove_song">Hapus dari antrean</string>
+    <string name="np_info_quality">Kualitas</string>
+    <string name="radio_origin_browser">Radio Browser</string>
+    <string name="radio_origin_collection">Koleksi StarryNight</string>
+    <string name="radio_origin_link">Tautan langsung</string>
+    <string name="radio_origin_from">dari %1$s</string>
+    <string name="quality_youtube_player">Lossy · pemutar YouTube</string>
+    <!-- Pengaturan > Musik online > Kualitas audio -->
+    <string name="audio_quality_title">Kualitas audio</string>
+    <string name="audio_quality_auto">Otomatis</string>
+    <string name="audio_quality_low">Rendah</string>
+    <string name="audio_quality_normal">Normal</string>
+    <string name="audio_quality_high">Tinggi</string>
+    <string name="audio_quality_auto_desc">Mengikuti Hemat data: rendah saat hemat, tertinggi jika tidak</string>
+    <string name="audio_quality_low_desc">Sekitar 48–70 kbps · paling hemat data</string>
+    <string name="audio_quality_normal_desc">Sekitar 128 kbps · seimbang</string>
+    <string name="audio_quality_high_desc">Tertinggi yang tersedia · paling boros data</string>
+    <string name="audio_quality_applies_next">Berlaku mulai lagu berikutnya. File lokal selalu diputar dengan kualitas aslinya.</string>
+    <string name="audio_quality_row_desc">Kualitas streaming untuk YouTube dan radio</string>
+    <!-- Pengaturan > Musik online > Tab pencarian -->
+    <string name="search_tabs_title">Tab pencarian</string>
+    <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>
+    <string name="search_tabs_none">Hanya perangkat</string>
+    <string name="source_online">Online</string>
+    <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo, ccMixter dan Openverse</string>
+    <string name="online_src_archive">Internet Archive</string>
+    <string name="online_src_audius">Audius</string>
+    <string name="online_src_ccmixter">ccMixter</string>
+    <string name="online_src_jamendo">Jamendo</string>
+    <string name="online_src_openverse">Openverse</string>
+    <string name="jamendo_key_title">Client ID Jamendo</string>
+    <string name="jamendo_key_hint">Client ID</string>
+    <string name="jamendo_key_msg">Gratis di developer.jamendo.com (buat aplikasi, salin Client ID-nya). Diperlukan untuk mencari di Jamendo, yang berisi musik Creative Commons berdurasi penuh.</string>
+    <string name="online_need_jamendo_key">Tambahkan Client ID Jamendo di Pengaturan untuk mencari di Jamendo.</string>
 </resources>

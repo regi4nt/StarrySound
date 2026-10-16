@@ -430,6 +430,12 @@ class MusicService : MediaBrowserService() {
 
     val current: Track? get() = queue.getOrNull(index)
 
+    /** YouTube: format of the direct audio stream playing now (null while unknown). */
+    val youtubeAudioInfo: AudioInfo? get() = (remote as? YouTubeEngine)?.audioInfo
+
+    /** YouTube: the WebView player is in use, so the exact format is up to YouTube. */
+    val youtubeWebPlayer: Boolean get() = (remote as? YouTubeEngine)?.usingWebPlayer == true
+
     /** Read-only view of the play queue and the position of the current track in it. */
     val queueTracks: List<Track> get() = queue
     val queueIndex: Int get() = index
@@ -1107,7 +1113,11 @@ class MusicService : MediaBrowserService() {
         }
 
         val mp = try {
-            createPlayer().also { it.setDataSource(applicationContext, track.uri) }
+            createPlayer().also {
+                // Online-tab song (Internet Archive, Audius, Jamendo, ccMixter, Openverse): a plain https file link (seekable), not a content:// uri.
+                if (track.source == Track.SOURCE_ONLINE) it.setDataSource(track.remoteId)
+                else it.setDataSource(applicationContext, track.uri)
+            }
         } catch (e: Exception) {
             onPlaybackError()
             return
@@ -1177,6 +1187,10 @@ class MusicService : MediaBrowserService() {
                         }
                         onPlaybackError()
                         return@post
+                    }
+                    if (fl != null) {
+                        // Downloaded copy on disk: read format / bit depth / sample rate for the player's quality badge.
+                        try { artExecutor.execute { AudioQuality.probeFile(applicationContext, track, fl); handler.post { notifyListeners() } } } catch (_: Exception) { }
                     }
                     val mp = try {
                         createPlayer().also {

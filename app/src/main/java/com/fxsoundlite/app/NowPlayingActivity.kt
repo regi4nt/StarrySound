@@ -269,6 +269,50 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             ColorStateList.valueOf(if (s.repeatMode == MusicService.REPEAT_OFF) inactive else accent)
         updateLikeButton()
         updateProgress()
+        updateQualityBadge(t)
+    }
+
+    private var qualityKey: String? = null
+
+    /** Shows the file's format / sample rate / bitrate under the artist (read once per song, then cached). */
+    private fun updateQualityBadge(t: Track) {
+        val tv = binding.npQuality
+        fun showText(text: String?) {
+            if (text.isNullOrEmpty()) { tv.visibility = View.GONE; return }
+            tv.text = text
+            tv.visibility = View.VISIBLE
+        }
+        // Radio: also say which directory the station came from (Radio Browser, SomaFM, ...).
+        val origin = RadioOrigin.label(this, t)?.let { getString(R.string.radio_origin_from, it) }
+        fun show(info: AudioInfo?) {
+            val quality = info?.let { if (it.hiRes) "${it.badge()}  \u2022 Hi-Res" else it.badge() }
+            showText(listOfNotNull(quality, origin).joinToString(" \u00B7 "))
+        }
+        // YouTube: the format can change while playing (stream resolved, or a fall-back to the web player),
+        // and nothing needs reading from disk, so it is refreshed on every update.
+        if (t.source == Track.SOURCE_YOUTUBE) {
+            val svc = MusicService.instance
+            val info = svc?.youtubeAudioInfo
+            when {
+                info != null -> show(info)
+                svc?.youtubeWebPlayer == true -> showText(getString(R.string.quality_youtube_player))
+                else -> showText(null)
+            }
+            return
+        }
+        if (qualityKey == t.key && tv.visibility == View.VISIBLE) return
+        qualityKey = t.key
+        if (t.source == Track.SOURCE_RADIO) { show(AudioQuality.radioInfo(t)); return }
+        if (AudioQuality.isCached(t)) { show(AudioQuality.cached(t)); return }
+        tv.visibility = View.GONE
+        // Only device files can be probed on the spot; other sources fill the cache themselves
+        // (a downloaded Drive copy).
+        if (t.source != Track.SOURCE_LOCAL) return
+        val ctx = applicationContext
+        lyricsExecutor.execute {
+            val info = AudioQuality.probe(ctx, t)
+            runOnUiThread { if (!isDestroyed && qualityKey == t.key) show(info) }
+        }
     }
 
     /** Filled accent heart when the current song is in "Liked songs", outline otherwise. */
@@ -801,14 +845,15 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         if (t.album.isNotBlank()) rows += getString(R.string.np_info_album) to t.album
         val dur = MusicService.instance?.duration?.toLong()?.takeIf { it > 0 } ?: t.durationMs
         if (dur > 0) rows += getString(R.string.np_info_duration) to formatDuration(dur)
-        rows += getString(R.string.np_info_source) to getString(
+        AudioQuality.cached(t)?.let { rows += getString(R.string.np_info_quality) to it.details() }
+        rows += getString(R.string.np_info_source) to (getString(
             when (t.source) {
                 Track.SOURCE_YOUTUBE -> R.string.source_youtube
                 Track.SOURCE_RADIO -> R.string.source_radio
                 Track.SOURCE_DRIVE -> R.string.source_drive
                 else -> R.string.source_local
             }
-        )
+        ) + (RadioOrigin.label(this, t)?.let { " \u00B7 $it" } ?: ""))
         trackLink(t).takeIf { it.isNotBlank() }?.let { rows += getString(R.string.np_info_link) to it }
         AlertDialog.Builder(this)
             .setTitle(R.string.np_info)
