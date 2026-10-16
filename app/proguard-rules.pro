@@ -17,3 +17,6 @@
 -dontwarn org.jsoup.**
 -dontwarn com.google.re2j.**
 -dontwarn org.schabi.newpipe.extractor.**
+
+# Rhino (used by NewPipeExtractor) references JDK-only dynalink classes that don't exist on Android
+-dontwarn jdk.dynalink.**
