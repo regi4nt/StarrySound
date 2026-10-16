@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stop the release resource shrinker from dropping the app logo / launcher icon art. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/ic_launcher*,@drawable/ic_launcher_background,@drawable/logo_mark,@drawable/logo_round_bg" />
