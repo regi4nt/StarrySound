@@ -54,7 +54,7 @@ jobs:
           name: StarrySound
           path: out/*.apk
 
-      The app checks this release ("build-<N>") for updates.
+      # The app checks this release ("build-<N>") for updates.
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
