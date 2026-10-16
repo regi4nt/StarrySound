@@ -27,21 +27,22 @@ jobs:
         with:
           gradle-version: 8.4
 
-      - name: Use the newest NewPipeExtractor
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          latest=$(gh api repos/TeamNewPipe/NewPipeExtractor/releases/latest --jq .tag_name || true)
-          if [ -n "$latest" ]; then
-            echo "NewPipeExtractor -> $latest"
-            sed -i -E "s#(TeamNewPipe:NewPipeExtractor:)v[0-9.]+#\1$latest#" app/build.gradle
-          fi
+      # DISABLED: auto-upgrade can break R8 / API. Re-enable once the build is stable.
+      # - name: Use the newest NewPipeExtractor
+      #   env:
+      #     GH_TOKEN: ${{ github.token }}
+      #   run: |
+      #     latest=$(gh api repos/TeamNewPipe/NewPipeExtractor/releases/latest --jq .tag_name || true)
+      #     if [ -n "$latest" ]; then
+      #       echo "NewPipeExtractor -> $latest"
+      #       sed -i -E "s#(TeamNewPipe:NewPipeExtractor:)v[0-9.]+#\1$latest#" app/build.gradle
+      #     fi
 
       - name: Build release APK
         run: |
           N=$((100 + ${{ github.run_number }}))
           echo "BUILD_NUMBER=$N" >> "$GITHUB_ENV"
-          gradle --no-daemon :app:assembleRelease \
+          gradle --no-daemon --stacktrace :app:assembleRelease \
             -PbuildNumber=$N -PupdateRepo=${{ github.repository }}
 
       - name: Collect APK
