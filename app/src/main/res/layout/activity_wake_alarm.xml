@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shown over the lock screen when the wake-up alarm rings (WakeAlarmActivity). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- The chosen Screensaver background (video / photo / animated style), see WakeAlarmActivity. -->
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/wakeBackground"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Extra scrim so the time, song and buttons stay readable on any background. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#59000000" />
+
+    <LinearLayout
+        android:id="@+id/wakeContent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="28dp">
+
+    <!-- Clock block: same spot and look as the Screensaver (top, light 64sp with shadow). -->
+    <TextView
+        android:id="@+id/wakeTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="68dp"
+        android:fontFamily="sans-serif-light"
+        android:shadowColor="#B0000000"
+        android:shadowDy="2"
+        android:shadowRadius="12"
+        android:textColor="#FFFFFFFF"
+        android:textSize="64sp" />
+
+    <!-- Song title + artist: directly under the clock. -->
+    <TextView
+        android:id="@+id/wakeSong"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="2"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:shadowColor="#B0000000"
+        android:shadowDy="1"
+        android:shadowRadius="8"
+        android:textAlignment="center"
+        android:textColor="#E6FFFFFF"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/wakeArtist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:shadowColor="#B0000000"
+        android:shadowDy="1"
+        android:shadowRadius="8"
+        android:textAlignment="center"
+        android:textColor="#E6FFFFFF"
+        android:textSize="14sp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:shadowColor="#B0000000"
+        android:shadowDy="1"
+        android:shadowRadius="8"
+        android:text="@string/alarm_notif_text"
+        android:textColor="#E6FFFFFF"
+        android:textSize="16sp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <TextView
+        android:id="@+id/wakeSnooze"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@drawable/alarm_snooze_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:textColor="#FFFFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/wakeStop"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/alarm_stop_bg"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:text="@string/alarm_dismiss"
+        android:textColor="#FF000000"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+</LinearLayout>
+</FrameLayout>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Quick-controls widget, ONE cell tall (resizable horizontally only): on/off button, the
+    current preset (tap to cycle) with an ON/OFF status line and, on wide sizes, previous / next
+    buttons. updatePeriodMillis is 0 because we never need to poll: every state change (from the
+    app UI, from the widget itself, or restored at boot) pushes a fresh RemoteViews update itself
+    (see EqWidgetProvider.updateAllWidgets(), called from AudioEffectManager whenever
+    isEnabled or the active preset changes).
+
+    Cell math is "70*cells - 30" dp: 40dp = 1 cell, 110dp = 2, 180dp = 3, 250dp = 4.
+    EqWidgetProvider swaps layouts by width:
+        1 cell   -> widget_eq_power     (on/off button only)
+        2 cells  -> widget_eq_row       (on/off, preset)
+        3 cells  -> widget_eq_row_wide  (on/off, preset, next arrow)
+        4+ cells -> widget_eq_row_xwide (on/off, preset, previous, next)
+    Widgets placed by an older version keep working: the layout is re-picked from their
+    current size on every update.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeHeight="40dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_eq_row_wide"
+    android:previewLayout="@layout/widget_eq_row_wide"
+    android:resizeMode="horizontal"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_eq_description" />

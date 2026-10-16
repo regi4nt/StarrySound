@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the app icon: Search, Playlist, Quick, Screensaver. MainActivity.handleLaunchIntent()
+     maps each action to its page. targetPackage = applicationId in app/build.gradle. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="open_search"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_search"
+        android:shortcutShortLabel="@string/shortcut_search"
+        android:shortcutLongLabel="@string/shortcut_search">
+        <intent
+            android:action="com.fxsoundlite.app.ACTION_OPEN_MUSIC_SEARCH"
+            android:targetClass="com.fxsoundlite.app.MainActivity"
+            android:targetPackage="com.starrysound.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_playlist"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_playlist"
+        android:shortcutShortLabel="@string/shortcut_playlist"
+        android:shortcutLongLabel="@string/shortcut_playlist">
+        <intent
+            android:action="com.fxsoundlite.app.ACTION_OPEN_PLAYLIST"
+            android:targetClass="com.fxsoundlite.app.MainActivity"
+            android:targetPackage="com.starrysound.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_quick"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_quick"
+        android:shortcutShortLabel="@string/shortcut_quick"
+        android:shortcutLongLabel="@string/shortcut_quick">
+        <intent
+            android:action="com.fxsoundlite.app.ACTION_OPEN_QUICK"
+            android:targetClass="com.fxsoundlite.app.MainActivity"
+            android:targetPackage="com.starrysound.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="open_screensaver"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_screensaver"
+        android:shortcutShortLabel="@string/shortcut_screensaver"
+        android:shortcutLongLabel="@string/shortcut_screensaver">
+        <intent
+            android:action="com.fxsoundlite.app.ACTION_OPEN_SCREENSAVER"
+            android:targetClass="com.fxsoundlite.app.MainActivity"
+            android:targetPackage="com.starrysound.app" />
+    </shortcut>
+</shortcuts>

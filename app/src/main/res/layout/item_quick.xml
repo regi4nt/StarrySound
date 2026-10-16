@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One full-page reel in the Quick feed (QuickAdapter). Tap anywhere = pause / resume. -->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/quickRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- Backdrop: the cover, enlarged (blurred on Android 12+) and darkened. -->
+    <ImageView
+        android:id="@+id/quickBg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:background="@drawable/quick_scrim"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <ImageView
+        android:id="@+id/quickCover"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginEnd="44dp"
+        android:background="@drawable/quick_cover_bg"
+        android:contentDescription="@string/quick_cover"
+        android:scaleType="centerCrop"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.34" />
+
+    <ProgressBar
+        android:id="@+id/quickSpinner"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:indeterminateTint="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="@id/quickCover"
+        app:layout_constraintEnd_toEndOf="@id/quickCover"
+        app:layout_constraintStart_toStartOf="@id/quickCover"
+        app:layout_constraintTop_toTopOf="@id/quickCover" />
+
+    <ImageView
+        android:id="@+id/quickPausedIcon"
+        android:layout_width="76dp"
+        android:layout_height="76dp"
+        android:background="@drawable/quick_action_bg"
+        android:contentDescription="@string/quick_play_pause"
+        android:padding="18dp"
+        android:src="@drawable/ic_play"
+        android:tint="#FFFFFF"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@id/quickCover"
+        app:layout_constraintEnd_toEndOf="@id/quickCover"
+        app:layout_constraintStart_toStartOf="@id/quickCover"
+        app:layout_constraintTop_toTopOf="@id/quickCover" />
+
+    <!-- Lyrics under the cover: previous / current / next line, filled by QuickFragment.applyLyrics -->
+    <LinearLayout
+        android:id="@+id/quickLyrics"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="44dp"
+        android:layout_marginTop="12dp"
+        android:layout_marginEnd="44dp"
+        android:layout_marginBottom="10dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/quickInfo"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/quickCover">
+
+        <TextView
+            android:id="@+id/quickLyPrev"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            android:shadowColor="#99000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:textColor="#80FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="normal" />
+        <TextView
+            android:id="@+id/quickLyCur"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            android:shadowColor="#99000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:layout_marginTop="6dp"
+            android:layout_marginBottom="6dp" />
+        <TextView
+            android:id="@+id/quickLyNext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            android:shadowColor="#99000000"
+            android:shadowDx="0"
+            android:shadowDy="1"
+            android:shadowRadius="4"
+            android:textColor="#80FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="normal" />
+    </LinearLayout>
+
+    <!-- Title block, bottom-left -->
+    <LinearLayout
+        android:id="@+id/quickInfo"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="18dp"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="22dp"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/quickRail"
+        app:layout_constraintStart_toStartOf="parent">
+
+        <TextView
+            android:id="@+id/quickBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/quick_badge_bg"
+            android:paddingStart="10dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="3dp"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/quickTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/quickArtist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Action rail, bottom-right (reels style): full song, playlist, queue (download / share are in the three-dot menu in the page header) -->
+    <LinearLayout
+        android:id="@+id/quickRail"
+        android:layout_width="64dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="10dp"
+        android:layout_marginBottom="22dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/actFull"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/quick_action_accent_bg"
+            android:padding="16dp"
+            android:contentDescription="@string/quick_action_full"
+            android:src="@drawable/ic_play"
+            android:tint="?attr/colorOnAccent" />
+
+
+        <!-- Liked songs: outline heart, filled + accent colour once liked (QuickFragment.applyState) -->
+        <ImageButton
+            android:id="@+id/actLike"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/quick_action_like"
+            android:src="@drawable/ic_heart_outline"
+            android:tint="#FFFFFF" />
+
+
+        <ImageButton
+            android:id="@+id/actPlaylist"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/quick_action_playlist"
+            android:src="@drawable/ic_playlist_add"
+            android:tint="#FFFFFF" />
+
+
+        <ImageButton
+            android:id="@+id/actQueue"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/quick_action_queue"
+            android:src="@drawable/ic_queue"
+            android:tint="#FFFFFF" />
+
+
+        <!-- Three-dot menu at the bottom-right corner (like YouTube Music): download / share -->
+        <ImageButton
+            android:id="@+id/actMore"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:padding="12dp"
+            android:scaleType="fitCenter"
+            android:contentDescription="@string/np_more"
+            android:src="@drawable/ic_more_vert"
+            android:tint="#FFFFFF" />
+
+    </LinearLayout>
+
+    <!-- Thin progress of the chorus clip along the very bottom edge -->
+    <ProgressBar
+        android:id="@+id/quickProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="3dp"
+        android:max="1000"
+        android:progressBackgroundTint="#33FFFFFF"
+        android:progressTint="#FFFFFF"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

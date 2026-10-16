@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Full-player cover placeholder background; radius matches NowPlayingActivity.coverCornerPx (24dp). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="?attr/colorSurfaceRaised" />
+    <corners android:radius="24dp" />
+</shape>

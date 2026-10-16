@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode overrides (active when AppCompatDelegate's night mode is
+         YES, or FOLLOW_SYSTEM and the system is in dark mode). Only the
+         palette differs from values/themes.xml — accent overlays are
+         defined once and reused for both. -->
+    <style name="Theme.FXSoundLite" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent_default</item>
+        <item name="colorPrimaryDark">@color/dark_bg</item>
+        <item name="colorAccent">@color/accent_default</item>
+        <item name="android:windowBackground">?attr/colorBg</item>
+
+        <item name="colorBg">@color/dark_bg</item>
+        <item name="colorSurface">@color/dark_surface</item>
+        <item name="colorSurfaceRaised">@color/dark_surface_raised</item>
+        <item name="colorTextPrimary">@color/dark_text_primary</item>
+        <item name="colorTextSecondary">@color/dark_text_secondary</item>
+        <item name="colorDivider">@color/dark_divider</item>
+        <item name="colorTrackBg">@color/dark_track_bg</item>
+        <item name="colorDanger">@color/danger</item>
+        <item name="colorOnAccent">@color/dark_on_accent</item>
+    </style>
+</resources>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Default (day/light) values. android:theme's DayNight parent swaps
+         this out for values-night/themes.xml automatically based on
+         AppCompatDelegate's night mode — see ThemeHelper.applyMode(). -->
+    <style name="Theme.FXSoundLite" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/accent_default</item>
+        <item name="colorPrimaryDark">@color/light_bg</item>
+        <item name="colorAccent">@color/accent_default</item>
+        <item name="android:windowBackground">?attr/colorBg</item>
+
+        <item name="colorBg">@color/light_bg</item>
+        <item name="colorSurface">@color/light_surface</item>
+        <item name="colorSurfaceRaised">@color/light_surface_raised</item>
+        <item name="colorTextPrimary">@color/light_text_primary</item>
+        <item name="colorTextSecondary">@color/light_text_secondary</item>
+        <item name="colorDivider">@color/light_divider</item>
+        <item name="colorTrackBg">@color/light_track_bg</item>
+        <item name="colorDanger">@color/danger</item>
+        <item name="colorOnAccent">@color/light_on_accent</item>
+    </style>
+
+    <!-- Accent sub-theme overlays: applied on top of Theme.FXSoundLite at
+         runtime (ThemeHelper.applyAccent) to repaint colorAccent/colorPrimary
+         without needing a light x dark x color matrix of concrete themes.
+         parent="" is required here: AAPT infers an implicit parent from a
+         dotted style name (stripping the last segment), so without it the
+         build would look for a nonexistent "ThemeOverlay.Accent" style and
+         fail to link. Only Default overrides colorOnAccent — its fill flips
+         between black/white per mode, so the text/icon drawn on top must
+         flip with it. The other six are bright/saturated in both modes, so
+         they keep inheriting the base theme's dark colorOnAccent unchanged. -->
+    <style name="ThemeOverlay.Accent.Default" parent="">
+        <item name="colorAccent">@color/accent_default</item>
+        <item name="colorPrimary">@color/accent_default</item>
+        <item name="colorOnAccent">@color/accent_default_on</item>
+    </style>
+    <style name="ThemeOverlay.Accent.Red" parent="">
+        <item name="colorAccent">@color/accent_red</item>
+        <item name="colorPrimary">@color/accent_red</item>
+    </style>
+    <style name="ThemeOverlay.Accent.Yellow" parent="">
+        <item name="colorAccent">@color/accent_yellow</item>
+        <item name="colorPrimary">@color/accent_yellow</item>
+    </style>
+    <style name="ThemeOverlay.Accent.Blue" parent="">
+        <item name="colorAccent">@color/accent_blue</item>
+        <item name="colorPrimary">@color/accent_blue</item>
+    </style>
+    <style name="ThemeOverlay.Accent.Orange" parent="">
+        <item name="colorAccent">@color/accent_orange</item>
+        <item name="colorPrimary">@color/accent_orange</item>
+    </style>
+    <style name="ThemeOverlay.Accent.Green" parent="">
+        <item name="colorAccent">@color/accent_green</item>
+        <item name="colorPrimary">@color/accent_green</item>
+    </style>
+    <style name="ThemeOverlay.Accent.Purple" parent="">
+        <item name="colorAccent">@color/accent_purple</item>
+        <item name="colorPrimary">@color/accent_purple</item>
+    </style>
+
+    <!-- Small white caption under each Quick-tab action button. -->
+    <style name="QuickActionLabel">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">1dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:shadowColor">#99000000</item>
+        <item name="android:shadowRadius">3</item>
+    </style>
+</resources>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EQ widget, ONE cell tall, 3 cells wide: on/off circle + preset block with a next arrow.
+     Height budget: 4dp padding + 32dp controls + 4dp padding = 40dp = one cell.
+     Tap the circle = effects on/off, tap the preset block = next preset, tap elsewhere = open the app.
+     RemoteViews-safe views and literal colors only. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetCompactRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_bg"
+    android:paddingLeft="4dp"
+    android:paddingRight="4dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <ImageView
+        android:id="@+id/widgetPowerButton"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:padding="7dp"
+        android:src="@drawable/ic_widget_power"
+        android:background="@drawable/widget_power_bg_off"
+        android:contentDescription="@string/enable_effects" />
+
+    <LinearLayout
+        android:id="@+id/widgetPresetRow"
+        android:layout_width="0dp"
+        android:layout_weight="1"
+        android:layout_height="32dp"
+        android:layout_marginLeft="8dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/widget_preset_bg"
+        android:paddingLeft="12dp"
+        android:paddingRight="6dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/widgetStatusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/widget_status_off"
+                android:textColor="#8A91A0"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:textAllCaps="true"
+                android:letterSpacing="0.1"
+                android:maxLines="1" />
+
+            <TextView
+                android:id="@+id/widgetPresetName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="Default"
+                android:textColor="#F2F4F5"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end" />
+        </LinearLayout>
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginLeft="2dp"
+            android:src="@drawable/ic_widget_next" />
+    </LinearLayout>
+</LinearLayout>

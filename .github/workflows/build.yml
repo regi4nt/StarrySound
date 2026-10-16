@@ -1,0 +1,63 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"   # every Monday: rebuild with the newest NewPipeExtractor
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.4
+
+      - name: Use the newest NewPipeExtractor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api repos/TeamNewPipe/NewPipeExtractor/releases/latest --jq .tag_name || true)
+          if [ -n "$latest" ]; then
+            echo "NewPipeExtractor -> $latest"
+            sed -i -E "s#(TeamNewPipe:NewPipeExtractor:)v[0-9.]+#\1$latest#" app/build.gradle
+          fi
+
+      - name: Build release APK
+        run: |
+          N=$((100 + ${{ github.run_number }}))
+          echo "BUILD_NUMBER=$N" >> "$GITHUB_ENV"
+          gradle --no-daemon :app:assembleRelease \
+            -PbuildNumber=$N -PupdateRepo=${{ github.repository }}
+
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/release/*.apk out/StarrySound-${BUILD_NUMBER}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StarrySound
+          path: out/*.apk
+
+      # The app checks this release ("build-<N>") for updates.
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${BUILD_NUMBER}" out/*.apk \
+            --title "Build ${BUILD_NUMBER}" --notes "Automatic build ${BUILD_NUMBER}" --latest

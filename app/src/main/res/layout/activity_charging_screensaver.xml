@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hosts the same ScreensaverFragment the main screen uses, so the clock,
+     greeting and chosen background look identical. See ChargingScreensaverActivity. -->
+<androidx.fragment.app.FragmentContainerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/chargingScreensaverContainer"
+    android:name="com.fxsoundlite.app.ScreensaverFragment"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent" />

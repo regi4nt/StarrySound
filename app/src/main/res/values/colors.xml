@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode palette (referenced from values-night/themes.xml) -->
+    <color name="dark_bg">#0E1013</color>
+    <color name="dark_surface">#1A1D21</color>
+    <color name="dark_surface_raised">#22262B</color>
+    <color name="dark_text_primary">#F2F4F5</color>
+    <color name="dark_text_secondary">#8A9199</color>
+    <color name="dark_divider">#2A2E33</color>
+    <color name="dark_track_bg">#33383E</color>
+    <color name="dark_on_accent">#0E1013</color>
+
+    <!-- Light mode palette (referenced from values/themes.xml, the default) -->
+    <color name="light_bg">#F5F6F7</color>
+    <color name="light_surface">#FFFFFF</color>
+    <color name="light_surface_raised">#E9ECEF</color>
+    <color name="light_text_primary">#14171A</color>
+    <color name="light_text_secondary">#5B6268</color>
+    <color name="light_divider">#DCE0E3</color>
+    <color name="light_track_bg">#D6DADE</color>
+    <color name="light_on_accent">#0E1013</color>
+
+    <color name="danger">#FF6B6B</color>
+
+    <!-- StarrySound app icon palette — deliberately separate from the
+         theme/accent colors above: the launcher icon must look the same
+         regardless of the user's Light/Dark mode or accent sub-theme
+         choice in Settings, so it gets its own fixed colors instead of
+         reusing colorBg/colorAccent. Picked to match the in-app "Night
+         Sky" animated screensaver background (see SleepBackgroundView)
+         for a consistent brand feel between the icon and that feature. -->
+    <color name="brand_icon_bg">#0B1330</color>
+    <color name="brand_icon_moon">#F6F1DE</color>
+    <color name="brand_icon_star">#FFF3D6</color>
+    <color name="brand_icon_spark">#FFD873</color>
+    <color name="brand_icon_wave">#59D9C9</color>
+
+    <!-- Accent sub-themes: "Default" isn't a fixed color — it's black in
+         Light mode and white in Dark mode (overridden per-mode in
+         values-night/colors.xml). The other six are the colored sub-themes
+         added in Settings and stay the same color in both modes. -->
+    <color name="accent_default">#000000</color>
+    <!-- Text/icon drawn on a Default-accent-filled surface (e.g. the
+         selected preset chip, the selected swatch checkmark) — needs to be
+         the opposite of accent_default: white here, black in dark mode. -->
+    <color name="accent_default_on">#FFFFFF</color>
+    <color name="accent_red">#FF5A5F</color>
+    <color name="accent_yellow">#FFC93C</color>
+    <color name="accent_blue">#3D8BFF</color>
+    <color name="accent_orange">#FF8A3D</color>
+    <color name="accent_green">#3DDC6B</color>
+    <color name="accent_purple">#B266FF</color>
+</resources>

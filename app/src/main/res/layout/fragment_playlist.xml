@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Page 2 of MainActivity's pager: playlists + liked songs. See PlaylistFragment. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorBg"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="18dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="8dp">
+
+        <!-- Header row: "Playlist" title + count on the left, "Create playlist" button on the
+             right, vertically centred and positioned like the Settings / Data saver buttons. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <!-- Inside an opened list: plain back arrow (no box). -->
+            <ImageButton
+                android:id="@+id/plBackButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="4dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/playlist_back"
+                android:padding="10dp"
+                android:src="@drawable/ic_arrow_back"
+                android:tint="?attr/colorAccent"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <!-- "Playlist" on the overview, the playlist's own name inside an opened list. -->
+                <TextView
+                    android:id="@+id/plTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/source_playlist"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <!-- Overview: "N playlists". Inside a list: "N songs". -->
+                <TextView
+                    android:id="@+id/plCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/plAddButton"
+                android:visibility="visible"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/playlist_create"
+                android:padding="10dp"
+                android:src="@drawable/ic_add"
+                android:tint="?attr/colorTextSecondary" />
+
+            <!-- Import / export / backup menu (see PlaylistFragment.showMoreMenu). -->
+            <ImageButton
+                android:id="@+id/plMoreButton"
+                android:visibility="visible"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/playlist_more"
+                android:padding="10dp"
+                android:src="@drawable/ic_more_vert"
+                android:tint="?attr/colorTextSecondary" />
+
+            <!-- Inside an opened list: play it, and edit its name / description / cover. -->
+            <ImageButton
+                android:id="@+id/plEditBtn"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/playlist_edit"
+                android:padding="10dp"
+                android:src="@drawable/ic_edit"
+                android:tint="?attr/colorTextSecondary"
+                android:visibility="gone" />
+
+            <ImageButton
+                android:id="@+id/plPlayBtn"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/playlist_play"
+                android:padding="10dp"
+                android:src="@drawable/ic_play"
+                android:tint="?attr/colorAccent"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/plSearchInput"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="44dp"
+                            android:background="@drawable/input_bg"
+                android:hint="@string/playlist_search_hint"
+                android:imeOptions="actionSearch"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingHorizontal="14dp"
+                android:textColor="?attr/colorTextPrimary"
+                android:textColorHint="?attr/colorTextSecondary"
+                android:textSize="14sp" />
+
+            <!-- Overview: which kinds of playlist to show. Open list: source / length / artist of its songs. -->
+            <ImageButton
+                android:id="@+id/plFilterButton"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginStart="6dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/filter_title"
+                android:padding="10dp"
+                android:src="@drawable/ic_filter"
+                android:tint="?attr/colorTextSecondary" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/plList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="74dp" />
+
+        <LinearLayout
+            android:id="@+id/plEmptyPanel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="32dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/plEmptyText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

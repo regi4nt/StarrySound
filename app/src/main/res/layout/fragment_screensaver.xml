@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Looping, muted background video (chosen in Settings). Sized in code
+         to fill the screen (center-crop) once its real dimensions are known. -->
+    <VideoView
+        android:id="@+id/screensaverVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- Still-image background (chosen in Settings), shown instead of the
+         VideoView when the picked media is a photo rather than a video. -->
+    <ImageView
+        android:id="@+id/screensaverImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Code-drawn animated background (Rain / Night Sky / Starfield), shown
+         instead of the VideoView/ImageView when the user picked one of the
+         built-in animated styles in Settings instead of a photo/video. -->
+    <com.fxsoundlite.app.SleepBackgroundView
+        android:id="@+id/screensaverAnimatedBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Shown instead of the VideoView/ImageView/animated background when no
+         background has been picked yet. -->
+    <View
+        android:id="@+id/screensaverFallbackBg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/colorBg" />
+
+    <!-- Dark scrim so the clock stays readable over bright video frames. -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#40000000" />
+
+    <LinearLayout
+        android:id="@+id/screensaverTopBlock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|top"
+        android:layout_marginTop="96dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <TextView
+            android:id="@+id/screensaverClock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-light"
+            android:text="00:00"
+            android:textColor="#FFFFFFFF"
+            android:textSize="64sp"
+            android:shadowColor="#B0000000"
+            android:shadowRadius="12"
+            android:shadowDy="2" />
+
+        <!-- Analog face; shown instead of the digital clock above when the
+             "Analog" clock style is picked in Settings. -->
+        <com.fxsoundlite.app.AnalogClockView
+            android:id="@+id/screensaverAnalogClock"
+            android:layout_width="240dp"
+            android:layout_height="240dp"
+            android:visibility="gone" />
+
+        <!-- Date, with the nearest alarm set in the app to its right (hidden when no alarm is on). -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/screensaverDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Sunday, 1 January"
+                android:textColor="#E6FFFFFF"
+                android:textSize="16sp"
+                android:shadowColor="#B0000000"
+                android:shadowRadius="8"
+                android:shadowDy="1" />
+
+            <LinearLayout
+                android:id="@+id/screensaverAlarmBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_alarm"
+                    android:tint="#E6FFFFFF" />
+
+                <TextView
+                    android:id="@+id/screensaverAlarm"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:textColor="#E6FFFFFF"
+                    android:textSize="16sp"
+                    android:shadowColor="#B0000000"
+                    android:shadowRadius="8"
+                    android:shadowDy="1" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Custom greeting message (edited in Settings); hidden when empty. -->
+        <TextView
+            android:id="@+id/screensaverGreeting"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:maxWidth="320dp"
+            android:maxLines="3"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:textAlignment="center"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:visibility="gone"
+            android:shadowColor="#B0000000"
+            android:shadowRadius="10"
+            android:shadowDy="1" />
+    </LinearLayout>
+
+    <!-- Bottom block: battery indicator (always visible, charging or not) with the
+         title of the audio currently playing underneath it ("Title • Artist").
+         The title is hidden when nothing is playing or notification access isn't
+         granted (see NowPlayingTracker); the battery row stays. -->
+    <LinearLayout
+        android:id="@+id/screensaverBottomBlock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <com.fxsoundlite.app.BatteryIndicatorView
+                android:id="@+id/screensaverBatteryIcon"
+                android:layout_width="26dp"
+                android:layout_height="13dp" />
+
+            <TextView
+                android:id="@+id/screensaverBatteryText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textColor="#E6FFFFFF"
+                android:textSize="14sp"
+                android:shadowColor="#B0000000"
+                android:shadowRadius="8"
+                android:shadowDy="1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/screensaverNowPlaying"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:paddingStart="32dp"
+            android:paddingEnd="32dp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:textAlignment="center"
+            android:textColor="#E6FFFFFF"
+            android:textSize="14sp"
+            android:visibility="gone"
+            android:shadowColor="#B0000000"
+            android:shadowRadius="8"
+            android:shadowDy="1" />
+    </LinearLayout>
+
+    <!-- Swallows every touch while the Screensaver is locked (see ScreensaverFragment.applyLock). -->
+    <View
+        android:id="@+id/screensaverTouchShield"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="true"
+        android:focusable="false"
+        android:visibility="gone" />
+
+    <!-- Lock swipe + touch. Same spot as Home's Settings and Music's Data saver buttons
+         (top-right, 44dp). Tap = lock, long-press = unlock. Kept above the shield. -->
+    <ImageButton
+        android:id="@+id/screensaverLockButton"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="12dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/screensaver_lock_desc"
+        android:padding="10dp"
+        android:src="@drawable/ic_lock_open"
+        android:tint="#B3FFFFFF" />
+
+    <!-- Opens the full-screen player. Sits just left of the lock button. -->
+    <ImageButton
+        android:id="@+id/screensaverPlayerButton"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="56dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/screensaver_player_desc"
+        android:padding="10dp"
+        android:src="@drawable/ic_music"
+        android:tint="#B3FFFFFF" />
+
+</FrameLayout>

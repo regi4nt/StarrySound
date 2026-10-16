@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Crescent moon -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12.5,3.5C10.15,4.53 8.5,6.88 8.5,9.6C8.5,13.28 11.48,16.26 15.16,16.26C16.36,16.26 17.48,15.94 18.45,15.38C17.13,18.11 14.34,20 11.1,20C6.57,20 2.9,16.33 2.9,11.8C2.9,7.55 6.13,4.05 10.27,3.63C10.99,3.56 11.75,3.55 12.5,3.5z" />
+    <!-- Stars -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M18.2,4l0.62,1.53L20.35,6.15l-1.53,0.62L18.2,8.3l-0.62,-1.53L16.05,6.15l1.53,-0.62z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M20.6,10.2l0.4,1L22,11.6l-1,0.4l-0.4,1l-0.4,-1l-1,-0.4l1,-0.4z" />
+</vector>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded outline so the square app logo is clipped to a soft rounded square (clipToOutline). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF0B1230" />
+    <corners android:radius="22dp" />
+</shape>

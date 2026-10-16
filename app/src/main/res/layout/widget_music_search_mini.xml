@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music-search widget, 1 cell x 1 cell: just the search button, centered on the card.
+     Tap = open the Music page with the search box focused. RemoteViews-safe, literal colors. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/musicSearchRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/widget_bg">
+
+    <ImageView
+        android:id="@+id/musicSearchPill"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="10dp"
+        android:src="@drawable/ic_widget_search"
+        android:background="@drawable/widget_search_circle_bg"
+        android:contentDescription="@string/widget_search_hint" />
+</LinearLayout>

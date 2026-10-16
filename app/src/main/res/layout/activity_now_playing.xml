@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Full-screen player opened from the mini player. See NowPlayingActivity. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorBg">
+
+    <!-- Optional player background: the Screensaver's picture / animated style (see NowPlayingActivity.applyPlayerBackground). -->
+    <ImageView
+        android:id="@+id/npBgImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <com.fxsoundlite.app.SleepBackgroundView
+        android:id="@+id/npBgAnimated"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <!-- Keeps text and buttons readable over the background. -->
+    <View
+        android:id="@+id/npBgScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+<LinearLayout
+    android:id="@+id/npContent"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingStart="24dp"
+    android:paddingTop="12dp"
+    android:paddingEnd="24dp"
+    android:paddingBottom="24dp">
+
+    <!-- Top bar: collapse on the left, overflow (sleep timer / share / song info) on the right. -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageButton
+            android:id="@+id/npClose"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_close"
+            android:rotation="-90"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="?attr/colorTextPrimary" />
+
+        <ImageButton
+            android:id="@+id/npVolume"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_toStartOf="@id/npMore"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_volume"
+            android:src="@drawable/ic_volume"
+            android:tint="?attr/colorTextPrimary" />
+
+        <ImageButton
+            android:id="@+id/npMore"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_alignParentEnd="true"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_more"
+            android:src="@drawable/ic_more_vert"
+            android:tint="?attr/colorTextPrimary" />
+    </RelativeLayout>
+
+    <!-- Lyrics mode only: show the lyrics as written, romanized, or translated to Indonesian. -->
+    <LinearLayout
+        android:id="@+id/npLyricsModes"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/npModeOriginal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="4dp"
+            android:background="@drawable/chip_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="7dp"
+            android:text="@string/np_lyrics_original"
+            android:textColor="@color/chip_text_color"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/npModeRoman"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="4dp"
+            android:background="@drawable/chip_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="7dp"
+            android:text="@string/np_lyrics_roman"
+            android:textColor="@color/chip_text_color"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/npModeTranslate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="4dp"
+            android:background="@drawable/chip_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="7dp"
+            android:text="@string/np_lyrics_translate"
+            android:textColor="@color/chip_text_color"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="8dp">
+
+        <!-- Gelombang di sekitar cover kotak (lihat CoverWaveView / NowPlayingActivity.updateCoverFx). -->
+        <com.fxsoundlite.app.CoverWaveView
+            android:id="@+id/npWaves"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="-24dp"
+            android:importantForAccessibility="no" />
+
+        <!-- Square size is set in NowPlayingActivity (fits the free space, max 360dp);
+             the outline is clipped to a circle there. -->
+        <ImageView
+            android:id="@+id/npArt"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_gravity="center"
+            android:background="@drawable/np_art_bg"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop" />
+
+        <!-- Lyrics mode: replaces the cover (toggle button below the player controls). -->
+        <ScrollView
+            android:id="@+id/npLyricsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fadingEdgeLength="40dp"
+            android:overScrollMode="ifContentScrolls"
+            android:requiresFadingEdge="vertical"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/npLyrics"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:lineSpacingMultiplier="1.25"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="100dp"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="18sp" />
+        </ScrollView>
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/npTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="2"
+        android:textColor="?attr/colorTextPrimary"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/npArtist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/colorTextSecondary"
+        android:textSize="15sp" />
+
+    <SeekBar
+        android:id="@+id/npSeek"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:progressTint="?attr/colorAccent"
+        android:thumbTint="?attr/colorAccent" />
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="4dp">
+
+        <TextView
+            android:id="@+id/npElapsed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0:00"
+            android:textColor="?attr/colorTextSecondary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/npTotal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:text="0:00"
+            android:textColor="?attr/colorTextSecondary"
+            android:textSize="12sp" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/npShuffle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/music_shuffle"
+            android:padding="12dp"
+            android:src="@drawable/ic_shuffle"
+            android:tint="?attr/colorTextSecondary" />
+
+        <ImageButton
+            android:id="@+id/npPrev"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/music_previous"
+            android:padding="12dp"
+            android:src="@drawable/ic_prev"
+            android:tint="?attr/colorTextPrimary" />
+
+        <ImageButton
+            android:id="@+id/npPlay"
+            android:layout_width="68dp"
+            android:layout_height="68dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="@drawable/eq_button_bg"
+            android:contentDescription="@string/music_play_pause"
+            android:padding="18dp"
+            android:src="@drawable/ic_play"
+            android:tint="?attr/colorOnAccent" />
+
+        <ImageButton
+            android:id="@+id/npNext"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/music_next"
+            android:padding="12dp"
+            android:src="@drawable/ic_next"
+            android:tint="?attr/colorTextPrimary" />
+
+        <ImageButton
+            android:id="@+id/npRepeat"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/music_repeat"
+            android:padding="12dp"
+            android:src="@drawable/ic_repeat"
+            android:tint="?attr/colorTextSecondary" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageButton
+            android:id="@+id/npLike"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_like"
+            android:padding="12dp"
+            android:src="@drawable/ic_heart_outline"
+            android:tint="?attr/colorTextSecondary" />
+
+        <ImageButton
+            android:id="@+id/npAddPlaylist"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_add_playlist"
+            android:padding="12dp"
+            android:src="@drawable/ic_playlist_add"
+            android:tint="?attr/colorTextSecondary" />
+
+
+        <ImageButton
+            android:id="@+id/npBg"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_bg_toggle"
+            android:padding="12dp"
+            android:src="@drawable/ic_screensaver"
+            android:tint="?attr/colorTextSecondary" />
+
+        <ImageButton
+            android:id="@+id/npQueue"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_queue"
+            android:padding="12dp"
+            android:src="@drawable/ic_queue"
+            android:tint="?attr/colorTextSecondary" />
+
+        <ImageButton
+            android:id="@+id/npLyricsBtn"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_lyrics"
+            android:padding="12dp"
+            android:src="@drawable/ic_lyrics"
+            android:tint="?attr/colorTextSecondary" />
+    </LinearLayout>
+</LinearLayout>
+</FrameLayout>

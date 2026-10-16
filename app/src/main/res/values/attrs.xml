@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Custom theme attributes so layouts/drawables resolve colors through
+         the active theme instead of hardcoded @color refs. This is what lets
+         Dark/Light mode (day/night qualified themes.xml) and the accent
+         sub-theme (a ThemeOverlay applied at runtime, see ThemeHelper.kt)
+         repaint the whole UI without touching any XML at runtime. -->
+    <attr name="colorBg" format="color" />
+    <attr name="colorSurface" format="color" />
+    <attr name="colorSurfaceRaised" format="color" />
+    <attr name="colorTextPrimary" format="color" />
+    <attr name="colorTextSecondary" format="color" />
+    <attr name="colorDivider" format="color" />
+    <attr name="colorTrackBg" format="color" />
+    <attr name="colorDanger" format="color" />
+    <!-- Text/icon color drawn on top of a solid accent-colored surface (e.g.
+         the selected preset chip) — kept themeable in case a future accent
+         color needs light-on-accent instead of dark-on-accent. -->
+    <attr name="colorOnAccent" format="color" />
+</resources>

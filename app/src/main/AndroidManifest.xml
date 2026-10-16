@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Online music source (YouTube search + playback). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Song detection by singing / humming (SongDetectActivity): asked when the mic is tapped. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Required on Android 14+ (targetSdk 34) for foregroundServiceType="specialUse".
+         The old "mediaPlayback" type was wrong for this app (we don't play media
+         ourselves) and Android 14 enforces that mismatch by refusing to start the
+         service at all — which meant the effect engine never even booted. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Only used when the user turns Root Mode ON; app works fully without it -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Charging screensaver: opens over the lock screen through a full-screen-intent
+         notification (the only way to start an Activity from the background on Android 10+).
+         Android 14+ additionally needs the user to allow it in system settings. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+
+    <!-- Music player: read the device's audio files, and keep playing with the app closed. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Saving downloaded songs into Music/ on Android 8-9 (Android 10+ needs no permission for this). -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Android 11+: lets SpeechRecognizer see the device's speech service (sung-lyrics detection). -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.FXSoundLite"
+        android:usesCleartextTraffic="true">
+
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Playlist share links: starrysound://playlist?d=... -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="starrysound" android:host="playlist" />
+            </intent-filter>
+            <!-- Listen together invites: starrysound://room?id=ABC123 -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="starrysound" android:host="room" />
+            </intent-filter>
+            <!-- Long-press launcher shortcuts (res/xml/shortcuts.xml) -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <activity
+            android:name=".NowPlayingActivity"
+            android:exported="false" />
+
+        <!-- "Listen together": full-screen, Discord-style room screen (create / join / members / now playing). -->
+        <activity
+            android:name=".ListenTogetherActivity"
+            android:exported="false"
+            android:label="@string/listen_title"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".EqualizerActivity"
+            android:exported="false"
+            android:label="@string/equalizer_label" />
+
+        <activity
+            android:name=".SongDetectActivity"
+            android:exported="false"
+            android:label="@string/detect_title" />
+
+        <!-- "Wrapped": monthly / yearly listening recap. -->
+        <activity
+            android:name=".WrappedActivity"
+            android:exported="false"
+            android:label="@string/wrapped_title" />
+
+        <activity
+            android:name=".BedtimeActivity"
+            android:exported="false"
+            android:label="@string/bedtime_title" />
+
+        <!-- Wake-up alarm with a song: settings screen + the screen shown over the lock screen when it rings. -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:label="@string/alarm_title" />
+
+        <activity
+            android:name=".WakeAlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:turnScreenOn="true" />
+
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title" />
+
+        <!-- Screensaver shown over the lock screen while charging (ChargingScreensaver).
+             Own task + not in Recents so it never drags the main app forward. -->
+        <activity
+            android:name=".ChargingScreensaverActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:turnScreenOn="true" />
+
+        <service
+            android:name=".EffectService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="audio_effects_processing" />
+        </service>
+
+        <!-- Music player: playback lives here so it survives closing the app (see MusicService). -->
+        <service
+            android:name=".MusicService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
+            <!-- Lets Android Auto, Bluetooth head units and Assistant browse + control the player. -->
+            <intent-filter>
+                <action android:name="android.media.browse.MediaBrowserService" />
+            </intent-filter>
+        </service>
+
+        <!-- Bedtime sounds: countdown + fade-out + pause for the playing YouTube / device music (SleepTimerService). -->
+        <service
+            android:name=".SleepTimerService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Lets AndroidX AppCompat persist the user's chosen in-app language
+             (see LocaleHelper / SettingsActivity) across process restarts on
+             devices below Android 13, and defers to the platform's own
+             per-app language storage on Android 13+. Without this the
+             language choice would reset every time the app process dies. -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
+
+        <!-- Notification access, used ONLY so the Screensaver can read the title of
+             the audio playing on the device via MediaSessionManager (NowPlayingTracker).
+             Notifications themselves are never read. -->
+        <service
+            android:name=".NowPlayingListenerService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".AlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Home-screen widget: on/off toggle + tap-to-cycle preset shortcut,
+             see EqWidgetProvider. Must be exported so the launcher
+             (a different process) can deliver APPWIDGET_UPDATE broadcasts. -->
+        <receiver
+            android:name=".EqWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_eq_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_eq_info" />
+        </receiver>
+
+        <!-- Home-screen widget #2: one-cell music search with a Detect song button,
+             see MusicSearchWidgetProvider. -->
+        <receiver
+            android:name=".MusicSearchWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_music_search_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_music_search_info" />
+        </receiver>
+
+        <!-- Home-screen widget #3: 1x1 shortcut to the Screensaver page, see ScreensaverWidgetProvider. -->
+        <receiver
+            android:name=".ScreensaverWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_screensaver_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_screensaver_info" />
+        </receiver>
+
+        <!-- Shares the downloaded update APK with the system installer (UpdateChecker). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
+
+    </application>
+</manifest>

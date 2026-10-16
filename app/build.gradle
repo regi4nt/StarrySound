@@ -1,0 +1,92 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.fxsoundlite.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.starrysound.app"
+        minSdk 26          // Android 8.0 Oreo
+        targetSdk 34
+        // CI passes -PbuildNumber=N (and -PupdateRepo=owner/repo); local builds keep the defaults.
+        def buildNumber = (project.findProperty('buildNumber') ?: '2').toInteger()
+        // Only the languages the app ships (en + Indonesian) and the two ARM ABIs: drops the
+        // translations bundled in AndroidX / Material / Play Services and x86 native libs.
+        resourceConfigurations += ['en', 'in', 'id']
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a' }
+        versionCode buildNumber
+        versionName "2.0.${buildNumber}"
+        // GitHub repo the in-app updater checks for new releases ("" = updater off).
+        buildConfigField 'String', 'UPDATE_REPO', "\"${project.findProperty('updateRepo') ?: ''}\""
+    }
+
+    // One fixed key for every build, so a new APK can install over the previous one.
+    signingConfigs {
+        starry {
+            storeFile file('starrysound.jks')
+            storePassword 'starrysound'
+            keyAlias 'starrysound'
+            keyPassword 'starrysound'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.starry
+        }
+        release {
+            signingConfig signingConfigs.starry
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        coreLibraryDesugaringEnabled true
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    // Keep APK small: no ML kit, no heavy media libs, no multidex needed
+    packagingOptions {
+        resources {
+            excludes += ['DebugProbesKt.bin', 'META-INF/*.kotlin_module']
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    // Powers the swipeable Home <-> Screensaver pages on the main screen.
+    implementation 'androidx.viewpager2:viewpager2:1.1.0'
+    implementation 'androidx.fragment:fragment-ktx:1.6.2'
+    // CreateDocument(mimeType) for exporting playlists (needs 1.7+; made explicit so it never resolves lower).
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+    // Song list in the Music page (already pulled in transitively by viewpager2; declared explicitly).
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    // Official YouTube IFrame player wrapper: backup when the extractor cannot play a video.
+    implementation 'com.pierfrancescosoffritti.androidyoutubeplayer:core:13.0.0'
+    // YouTube search + audio stream extraction (no embedded player, no API key, no error 153).
+    implementation 'com.github.TeamNewPipe:NewPipeExtractor:v0.26.5'
+    // Lyrics translation uses the web endpoint (LyricsText); ML Kit was removed to keep the app small.
+    // Google sign-in + Drive backup of playlists/history (REST over our own Http helper, no Drive SDK).
+    implementation 'com.google.android.gms:play-services-auth:20.7.0'
+    // NewPipeExtractor uses java.time etc.; desugaring backports them to minSdk 26.
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs_nio:2.1.5'
+    // No third-party root library -> we shell out to "su" directly to keep APK size minimal (~2-3 MB total)
+}

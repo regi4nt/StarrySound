@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Full equalizer screen, opened from the EQ button on Home. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorBg"
+    android:orientation="vertical">
+
+    <!-- Header stays pinned: only the content below scrolls. -->
+    <!-- Header: back button + title -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/backButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/back_button_desc"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/equalizer_label"
+            android:textColor="?attr/colorTextPrimary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- Master on/off for every effect (moved here from Home). -->
+        <Switch
+            android:id="@+id/masterSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:thumbTint="?attr/colorAccent"
+            android:trackTint="?attr/colorTrackBg" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="18dp">
+
+
+        <!-- Dims/disables when the master switch is off -->
+        <LinearLayout
+            android:id="@+id/controlsPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Presets -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/presetChipContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- Equalizer card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="16dp"
+                android:layout_marginTop="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/equalizer_label"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <!-- Master Gain -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/master_gain_label"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                    <TextView
+                        android:id="@+id/masterGainValueLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0 dB"
+                        android:textColor="?attr/colorAccent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/masterGainSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="30dp"
+                    android:progressDrawable="@drawable/eq_track"
+                    android:thumb="@drawable/eq_thumb"
+                    android:splitTrack="false" />
+
+                <LinearLayout
+                    android:id="@+id/eqContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="14dp"
+                    android:gravity="bottom" />
+            </LinearLayout>
+
+            <!-- Sound effects card: Bass, Surround, Loudness, Ambience, Volume Leveling -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:background="@drawable/card_bg"
+                android:padding="16dp"
+                android:layout_marginTop="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="10dp"
+                    android:text="@string/sound_effects_label"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <!-- Bass Boost -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/bass_boost_label"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/bassValueLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="?attr/colorAccent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/bassSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:progressDrawable="@drawable/eq_track"
+                    android:thumb="@drawable/eq_thumb"
+                    android:splitTrack="false" />
+
+                <!-- Surround / Virtualizer -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/virtualizer_label"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/virtualizerValueLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="?attr/colorAccent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/virtualizerSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:progressDrawable="@drawable/eq_track"
+                    android:thumb="@drawable/eq_thumb"
+                    android:splitTrack="false" />
+
+                <!-- Loudness -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/loudness_label"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/loudnessValueLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+0 dB"
+                        android:textColor="?attr/colorAccent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/loudnessSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:progressDrawable="@drawable/eq_track"
+                    android:thumb="@drawable/eq_thumb"
+                    android:splitTrack="false" />
+
+                <!-- Ambience -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/ambience_label"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/ambienceValueLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="?attr/colorAccent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/ambienceSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:progressDrawable="@drawable/eq_track"
+                    android:thumb="@drawable/eq_thumb"
+                    android:splitTrack="false" />
+
+                <!-- Volume Leveling -->
+                <LinearLayout
+                    android:id="@+id/volumeLevelingRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="horizontal">
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/volume_leveling_label"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/volumeLevelingValueLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0%"
+                        android:textColor="?attr/colorAccent"
+                        android:textSize="12sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+                <SeekBar
+                    android:id="@+id/volumeLevelingSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="34dp"
+                    android:progressDrawable="@drawable/eq_track"
+                    android:thumb="@drawable/eq_thumb"
+                    android:splitTrack="false" />
+                <TextView
+                    android:id="@+id/volumeLevelingUnsupportedText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="@string/volume_leveling_unsupported"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="24dp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
+</LinearLayout>

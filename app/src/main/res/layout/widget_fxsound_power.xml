@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 1 cell x 1 cell: ONLY the on/off button, centered on the card. Nothing else
+     fits or is needed at this size. Tap the circle to switch effects on/off, tap
+     the card background to open the app.
+
+     40dp = exactly the content height one cell guarantees ("70*cells - 30" dp, see
+     widget_fxsound_info.xml), so the circle is never clipped; the card is
+     centered around it when the cell is bigger.
+     Only RemoteViews-safe views and literal colors are used (see widget_fxsound.xml). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetCompactRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@drawable/widget_bg">
+
+    <ImageView
+        android:id="@+id/widgetPowerButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:padding="9dp"
+        android:src="@drawable/ic_widget_power"
+        android:background="@drawable/widget_power_bg_off"
+        android:contentDescription="@string/enable_effects" />
+</LinearLayout>

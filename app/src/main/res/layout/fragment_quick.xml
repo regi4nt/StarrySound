@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Quick tab: a vertical, full-page "reels" feed of chorus previews. Wired up in QuickFragment.
+     Always dark / immersive, whatever the app theme is. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- Keeps up / down swipes from leaking into the horizontal tab pager (see NestedVerticalHost). -->
+    <com.fxsoundlite.app.NestedVerticalHost
+        android:id="@+id/quickHost"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/quickPager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </com.fxsoundlite.app.NestedVerticalHost>
+
+    <!-- Floating header: title + lock + refresh -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="18dp">
+
+        <!-- Same 22sp title, left edge and top as the Search / Playlist headers (top-aligned, since
+             this page has no subtitle line under it). -->
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:layout_weight="1"
+            android:text="@string/quick_title"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/quickRefresh"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/quick_refresh"
+            android:padding="10dp"
+            android:src="@drawable/ic_refresh"
+            android:tint="#FFFFFF" />
+
+        <!-- Lock: Quick then only scrolls up / down (no sideways swipe to another tab) -->
+        <ImageButton
+            android:id="@+id/quickLock"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/quick_lock_desc"
+            android:padding="10dp"
+            android:src="@drawable/ic_lock_open"
+            android:tint="#FFFFFF" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/quickLoading"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="center"
+        android:indeterminateTint="#FFFFFF"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/quickEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/quick_empty"
+            android:textColor="#CCFFFFFF"
+            android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/quickRetry"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/quick_retry" />
+    </LinearLayout>
+</FrameLayout>

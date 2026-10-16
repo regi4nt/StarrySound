@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music-search widget, ONE cell tall: search pill (opens the Music page with the keyboard up)
+     + a "Detect song" button (opens SongDetectActivity).
+     Height budget: 4dp + 32dp + 4dp = 40dp = one cell.
+     RemoteViews-safe views and literal colors only. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/musicSearchRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_bg"
+    android:paddingLeft="4dp"
+    android:paddingRight="4dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+    <LinearLayout
+        android:id="@+id/musicSearchPill"
+        android:layout_width="0dp"
+        android:layout_height="32dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@drawable/widget_search_pill_bg"
+        android:contentDescription="@string/widget_search_hint">
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_widget_search" />
+    </LinearLayout>
+    <ImageView
+        android:id="@+id/musicDetectButton"
+        android:layout_width="wrap_content"
+        android:layout_height="32dp"
+        android:layout_marginLeft="6dp"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:src="@drawable/ic_mic"
+        android:background="@drawable/widget_detect_bg"
+        android:contentDescription="@string/detect_tile" />
+</LinearLayout>

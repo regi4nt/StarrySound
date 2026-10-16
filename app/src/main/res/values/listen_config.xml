@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Firebase Realtime Database URL used by "Listen together", e.g.
+         https://your-project-default-rtdb.firebaseio.com  (or ...firebasedatabase.app).
+         Leave empty to let each user type it in the Listen together dialog (Server settings). -->
+    <string name="listen_default_db_url" translatable="false">https://starrysound-default-rtdb.asia-southeast1.firebasedatabase.app</string>
+</resources>

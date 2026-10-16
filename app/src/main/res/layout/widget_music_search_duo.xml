@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Music-search widget, ONE cell tall, 2 cells wide: two equal buttons, Search and Detect song.
+     Height budget: 4dp + 32dp + 4dp = 40dp = one cell. RemoteViews-safe, literal colors. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/musicSearchRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_bg"
+    android:paddingLeft="4dp"
+    android:paddingRight="4dp"
+    android:paddingTop="4dp"
+    android:paddingBottom="4dp">
+
+    <ImageView
+        android:id="@+id/musicSearchPill"
+        android:layout_width="0dp"
+        android:layout_height="32dp"
+        android:layout_weight="1"
+        android:padding="8dp"
+        android:src="@drawable/ic_widget_search"
+        android:background="@drawable/widget_search_pill_bg"
+        android:contentDescription="@string/widget_search_hint" />
+
+    <ImageView
+        android:id="@+id/musicDetectButton"
+        android:layout_width="0dp"
+        android:layout_height="32dp"
+        android:layout_weight="1"
+        android:layout_marginLeft="6dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_mic"
+        android:background="@drawable/widget_detect_bg"
+        android:contentDescription="@string/detect_tile" />
+</LinearLayout>

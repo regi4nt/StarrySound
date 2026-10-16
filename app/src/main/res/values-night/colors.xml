@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode override for the "Default" accent sub-theme: white instead
+         of the light-mode black, so it always contrasts with the page
+         background. Every other color name falls back to values/colors.xml
+         unchanged — only accent_default/_on need a night-specific value. -->
+    <color name="accent_default">#FFFFFF</color>
+    <color name="accent_default_on">#000000</color>
+</resources>

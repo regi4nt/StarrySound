@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The hidden YouTube player owned by MusicService (see YouTubeEngine).
+     enableAutomaticInitialization MUST be false here: a YouTubePlayerView created in code
+     initializes itself inside its constructor, so setting the flag afterwards is too late and
+     YouTubeEngine's own initialize() call would start a second, conflicting initialization. -->
+<com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:enableAutomaticInitialization="false" />
