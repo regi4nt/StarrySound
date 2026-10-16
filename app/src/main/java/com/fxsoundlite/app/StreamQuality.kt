@@ -58,10 +58,10 @@ object StreamQuality {
         val known = available.filter { it > 0 }
         if (known.isEmpty()) return null
         return when (level) {
-            Level.LOW -> known.min()
-            Level.HIGH, Level.AUTO -> known.max()
+            Level.LOW -> (known.minOrNull() ?: known[0])
+            Level.HIGH, Level.AUTO -> (known.maxOrNull() ?: known[0])
             // Closest to 128 kbps without going above 160; if everything is bigger, take the smallest.
-            Level.NORMAL -> known.filter { it <= NORMAL_MAX_KBPS }.maxOrNull() ?: known.min()
+            Level.NORMAL -> known.filter { it <= NORMAL_MAX_KBPS }.maxOrNull() ?: (known.minOrNull() ?: known[0])
         }
     }
 
