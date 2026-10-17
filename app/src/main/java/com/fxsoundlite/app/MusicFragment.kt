@@ -141,7 +141,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
             if (actionId == EditorInfo.IME_ACTION_SEARCH || enter) {
                 handler.removeCallbacks(liveSearch)
-                if (source != Track.SOURCE_LOCAL) runOnlineSearch()
+                if (source != Track.SOURCE_LOCAL && source != Track.SOURCE_ONLINE) runOnlineSearch()
                 hideKeyboard()
                 true
             } else false
@@ -151,10 +151,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
         // Drive songs are part of the Device list now (labelled "Drive"), so there is no Drive tab.
         source = MusicPrefs.lastSource(requireContext()).let { if (it == Track.SOURCE_DRIVE) Track.SOURCE_LOCAL else it }
+        if (!tabAllowed(source)) source = Track.SOURCE_LOCAL
         loadSortModes()
         binding.filterButton.setOnClickListener { showFilterDialog() }
         binding.tabLocal.setOnClickListener { selectSource(Track.SOURCE_LOCAL) }
         binding.tabYoutube.setOnClickListener { selectSource(Track.SOURCE_YOUTUBE) }
+        binding.tabOnline.setOnClickListener { selectSource(Track.SOURCE_ONLINE) }
         binding.tabRadio.setOnClickListener { selectSource(Track.SOURCE_RADIO) }
         binding.radioSourceButton.setOnClickListener { showRadioSourceDialog() }
         updateSaverButton()
@@ -200,6 +202,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
         requireContext().bindService(
             Intent(requireContext(), MusicService::class.java), connection, Context.BIND_AUTO_CREATE
         )
+        // Settings > Search tabs may have switched the current tab off meanwhile.
+        if (!tabAllowed(source)) { source = Track.SOURCE_LOCAL; MusicPrefs.setLastSource(requireContext(), source); refreshList() }
+        updateTabs()
         if (source == Track.SOURCE_LOCAL) refreshList() // the user may have signed in or out of Google meanwhile
         // Re-check on every start: the user may have granted access in system settings meanwhile.
         if (!loadedOnce || loadedVersion != MusicLibrary.version ||
@@ -229,6 +234,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        onlineView = null // its container goes away with the binding
         _binding = null
     }
 
@@ -278,6 +284,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 binding.musicCount.text = ""
                 showEmpty(R.string.music_need_permission, R.string.music_allow_access) { requestLibraryAccess() }
             }
+        } else if (source == Track.SOURCE_ONLINE) {
+            showOnlineTab()
         } else {
             showOnline()
         }
@@ -456,7 +464,29 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     // ------------------------------------------------------------------ sources + online search
 
+    /** Device is always there; the online tabs can be switched off in Settings > Search tabs. */
+    private fun tabAllowed(src: Int): Boolean = when (src) {
+        Track.SOURCE_YOUTUBE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.YOUTUBE)
+        Track.SOURCE_ONLINE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.ONLINE)
+        Track.SOURCE_RADIO -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.RADIO)
+        else -> true
+    }
+
+    private var onlineView: OnlineTabView? = null
+
+    /** Online tab: shows its own page instead of the list below the shared search box. */
+    private fun showOnlineTab() {
+        val b = _binding ?: return
+        val v = onlineView ?: OnlineTabView(requireContext()).also {
+            onlineView = it
+            b.onlineContainer.addView(it, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        }
+        v.visibility = View.VISIBLE
+        b.musicCount.text = getString(R.string.source_online)
+    }
+
     private fun sourceName(src: Int): String = when (src) {
+        Track.SOURCE_ONLINE -> getString(R.string.source_online)
         Track.SOURCE_YOUTUBE -> getString(R.string.source_youtube)
         Track.SOURCE_RADIO -> getString(R.string.source_radio)
         else -> getString(R.string.source_local)
@@ -466,6 +496,22 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabLocal.isSelected = source == Track.SOURCE_LOCAL
         binding.tabYoutube.isSelected = source == Track.SOURCE_YOUTUBE
         binding.tabRadio.isSelected = source == Track.SOURCE_RADIO
+        binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
+        val ctx = requireContext()
+        binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
+        binding.tabOnline.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.ONLINE)) View.VISIBLE else View.GONE
+        binding.tabRadio.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.RADIO)) View.VISIBLE else View.GONE
+        // The Online page has its own search box and list, so the shared ones step aside.
+        val online = source == Track.SOURCE_ONLINE
+        binding.searchRow.visibility = if (online) View.GONE else View.VISIBLE
+        binding.onlineContainer.visibility = if (online) View.VISIBLE else View.GONE
+        if (online) {
+            binding.trackList.visibility = View.GONE
+            binding.emptyPanel.visibility = View.GONE
+            binding.searchProgress.visibility = View.GONE
+        } else {
+            binding.trackList.visibility = View.VISIBLE
+        }
         updateFilterButton()
         binding.radioSourceButton.visibility = View.GONE // radio searches every directory at once
         binding.radioSourceButton.text =
@@ -555,6 +601,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     /** Online tab: prompts for what is missing (key / login), otherwise shows the last results. */
     private fun showOnline() {
+        if (source == Track.SOURCE_ONLINE) { showOnlineTab(); return }
         val ctx = requireContext()
         val src = source
         val blocker: Blocker? = when {
@@ -621,7 +668,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private class Blocker(val text: Int, val actionText: Int, val action: () -> Unit)
 
     private val liveSearch = Runnable {
-        if (_binding != null && source != Track.SOURCE_LOCAL) runOnlineSearch()
+        if (_binding != null && source != Track.SOURCE_LOCAL && source != Track.SOURCE_ONLINE) runOnlineSearch()
     }
 
     /** Radio tab, nothing typed: popular stations (loaded once, with a retry button on failure). */
@@ -740,6 +787,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     }
 
     private fun runOnlineSearch() {
+        if (source == Track.SOURCE_ONLINE) return // the Online page searches by itself
         val q = binding.searchInput.text?.toString()?.trim().orEmpty()
         if (q.isEmpty()) return
         val src = source

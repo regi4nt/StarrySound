@@ -59,7 +59,9 @@ object ListenTogether {
         val vid: String, val title: String, val artist: String, val art: String, val dur: Long,
         val playing: Boolean, val pos: Long, val ref: Long,
         /** Search text for songs that are not on YouTube (local / Drive): the guest looks them up there. */
-        val q: String = ""
+        val q: String = "",
+        /** "" = YouTube, "online" = Online-tab song, "radio" = live radio station. For the last two [vid] is "u:" + the audio link. */
+        val src: String = ""
     )
 
     private const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -266,10 +268,14 @@ object ListenTogether {
         // A local / Drive song cannot be streamed to guests: they search it on YouTube instead.
         val alt = !yt && svc != null && t != null && t.title.isNotBlank() &&
             (t.source == Track.SOURCE_LOCAL || t.source == Track.SOURCE_DRIVE)
-        val has = yt || alt
-        val vid = if (yt) t!!.remoteId else if (alt) "q:" + t!!.key else ""
+        // Online-tab songs and radio stations are plain https audio links: guests play the same link.
+        val link = !yt && !alt && svc != null && t != null &&
+            (t.source == Track.SOURCE_ONLINE || t.source == Track.SOURCE_RADIO) && t.remoteId.startsWith("http")
+        val live = link && t!!.source == Track.SOURCE_RADIO // a live stream has no position to sync
+        val has = yt || alt || link
+        val vid = if (yt) t!!.remoteId else if (alt) "q:" + t!!.key else if (link) "u:" + t!!.remoteId else ""
         val playing = has && svc!!.isPlaying
-        val pos = if (has) svc!!.position.toLong() else 0L
+        val pos = if (has && !live) svc!!.position.toLong() else 0L
         val now = serverNow()
         val last = lastPushed
         val expected = when {
@@ -277,18 +283,19 @@ object ListenTogether {
             last.playing -> last.pos + (now - last.ref)
             else -> last.pos
         }
-        val changed = last == null || last.vid != vid || last.playing != playing || abs(pos - expected) > 1500
+        val changed = last == null || last.vid != vid || last.playing != playing || (!live && abs(pos - expected) > 1500)
         if (!changed && !force) return
         val st = State(
             vid, if (has) t!!.title else "", if (has) t!!.artist else "", if (has) t!!.artUrl else "",
             if (has) svc!!.duration.toLong() else 0L, playing, pos, now,
-            if (alt) "${t!!.title} ${t.artist}".trim() else ""
+            if (alt) "${t!!.title} ${t.artist}".trim() else "",
+            if (live) "radio" else if (link) "online" else ""
         )
         lastPushed = st
         val json = JSONObject()
             .put("vid", st.vid).put("title", st.title).put("artist", st.artist).put("art", st.art)
             .put("dur", st.dur).put("playing", st.playing).put("pos", st.pos).put("ref", st.ref)
-            .put("q", st.q)
+            .put("q", st.q).put("src", st.src)
             .toString()
         val room = code
         io.execute { put("rooms/$room/state", json) }
@@ -377,14 +384,23 @@ object ListenTogether {
     private fun parse(o: JSONObject) = State(
         vid = o.optString("vid"), title = o.optString("title"), artist = o.optString("artist"),
         art = o.optString("art"), dur = o.optLong("dur"), playing = o.optBoolean("playing"),
-        pos = o.optLong("pos"), ref = o.optLong("ref"), q = o.optString("q")
+        pos = o.optLong("pos"), ref = o.optLong("ref"), q = o.optString("q"), src = o.optString("src")
     )
+
+    private fun isLive(st: State) = st.src == "radio"
+
+    /** Same song already loaded in our player? (YouTube id, or the audio link of an Online / radio song.) */
+    private fun sameSong(cur: Track?, tr: Track) = cur != null && cur.source == tr.source && cur.remoteId == tr.remoteId
 
     private fun expectedPos(st: State): Long =
         if (st.playing) st.pos + (serverNow() - st.ref).coerceAtLeast(0) else st.pos
 
-    /** The YouTube video a guest plays for [st]: the host's own video, or the search match for a local / Drive song. */
+    /** The song a guest plays for [st]: the host's own YouTube video / Online link / radio stream, or the YouTube match for a local / Drive song. */
     private fun guestTrack(st: State): Track? {
+        if (st.vid.startsWith("u:")) { // Online-tab song or radio station of the host: the same link
+            val src = if (isLive(st)) Track.SOURCE_RADIO else Track.SOURCE_ONLINE
+            return Track(0, st.title, st.artist, "", if (isLive(st)) 0L else st.dur, src, st.vid.substring(2), st.art)
+        }
         if (!st.vid.startsWith("q:")) return Track(0, st.title, st.artist, "", st.dur, Track.SOURCE_YOUTUBE, st.vid, st.art)
         return resolved[st.vid]?.takeIf { it.remoteId.isNotBlank() }
     }
@@ -413,7 +429,7 @@ object ListenTogether {
         if (role != Role.GUEST) return
         lastState = st
         val svc = MusicService.instance ?: run { ensureService(); return } // guestLoop re-applies once it is up
-        if (st.vid.isBlank()) { // host plays something that cannot be synced (radio): just stop
+        if (st.vid.isBlank()) { // host plays nothing syncable (e.g. nothing yet): just stop
             if (svc.isPlaying) svc.pause()
             return
         }
@@ -423,13 +439,14 @@ object ListenTogether {
             return
         }
         val cur = svc.current
-        if (cur == null || cur.source != Track.SOURCE_YOUTUBE || cur.remoteId != tr.remoteId) {
-            needsInitial = true // position / pause are fixed once the song has actually started
+        if (!sameSong(cur, tr)) {
+            needsInitial = !isLive(st) // position / pause are fixed once the song has actually started (live radio has none)
             svc.setQueueAndPlay(listOf(tr), 0)
             return
         }
         if (st.playing && !svc.isPlaying) svc.play()
         if (!st.playing && svc.isPlaying) svc.pause()
+        if (isLive(st)) return // a live stream cannot be sought: playing / paused is all there is to follow
         val expected = expectedPos(st)
         if (svc.position > 0 && abs(svc.position - expected) > 1500) seek(svc, expected)
     }
@@ -464,12 +481,13 @@ object ListenTogether {
         val tr0 = guestTrack(st)
         val cur0 = svc.current
         // The state arrived before the player was ready (or the player was cleared): apply it again.
-        if (st.vid.isNotBlank() && tr0 != null && (cur0 == null || cur0.source != Track.SOURCE_YOUTUBE || cur0.remoteId != tr0.remoteId)) {
+        if (st.vid.isNotBlank() && tr0 != null && !sameSong(cur0, tr0)) {
             applyState(st); return
         }
         val cur = svc.current ?: return
         val tr = guestTrack(st) ?: return
-        if (st.vid.isBlank() || cur.source != Track.SOURCE_YOUTUBE || cur.remoteId != tr.remoteId) return
+        if (st.vid.isBlank() || !sameSong(cur, tr)) return
+        if (isLive(st)) return // nothing to seek in a live stream
         val expected = expectedPos(st)
         if (needsInitial) {
             if (!svc.isPlaying || svc.position <= 0) return // not started yet

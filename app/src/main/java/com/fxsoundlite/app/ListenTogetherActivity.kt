@@ -600,7 +600,7 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
         if (!ListenTogether.active || npBody == null) return
         val svc = MusicService.instance
         val t = svc?.current
-        val has = svc != null && t != null && t.source != Track.SOURCE_RADIO
+        val has = svc != null && t != null // radio too: a live station has no length, the card shows --:--
         npBody?.visibility = if (has) View.VISIBLE else View.GONE
         npEmpty?.visibility = if (has) View.GONE else View.VISIBLE
         val playing = has && svc!!.isPlaying

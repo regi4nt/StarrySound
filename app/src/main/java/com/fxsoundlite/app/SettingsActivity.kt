@@ -640,6 +640,7 @@ class SettingsActivity : AppCompatActivity() {
         })
         setupAiSection()
         setupKeyLinks()
+        setupOnlineAudio()
         setupLastFmSection()
         bindPref(binding.acrHostInput, MusicPrefs.acrHost(this)) { MusicPrefs.setAcrHost(this, it) }
         bindPref(binding.acrKeyInput, MusicPrefs.acrKey(this)) { MusicPrefs.setAcrKey(this, it) }
@@ -663,6 +664,22 @@ class SettingsActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.widget.Toast.makeText(this, url, android.widget.Toast.LENGTH_LONG).show()
         }
+    }
+
+    /** Online music: audio quality, which tabs Search shows, Jamendo key. */
+    private fun setupOnlineAudio() {
+        val quality = findViewById<TextView>(R.id.audioQualityValue)
+        val tabs = findViewById<TextView>(R.id.searchTabsValue)
+        val jamendo = findViewById<TextView>(R.id.jamendoKeyValue)
+        fun refresh() {
+            quality.text = StreamQuality.summary(this)
+            tabs.text = SearchTabs.summary(this)
+            jamendo.text = if (OnlineKeys.jamendo(this).isBlank()) getString(R.string.jamendo_key_not_set) else getString(R.string.jamendo_key_set)
+        }
+        refresh()
+        findViewById<View>(R.id.audioQualityRow).setOnClickListener { StreamQuality.showDialog(this) { refresh() } }
+        findViewById<View>(R.id.searchTabsRow).setOnClickListener { SearchTabs.showDialog(this) { refresh() } }
+        findViewById<View>(R.id.jamendoKeyRow).setOnClickListener { OnlineKeys.showJamendoDialog(this) { refresh() } }
     }
 
     /** "Get a key" buttons of the other online services (the AI one follows the chosen provider, see refreshAiFields). */
