@@ -62,7 +62,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
                 setOnClickListener { selectSource(s); search() }
             }
             chipViews += c
-            chips.addView(c, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
+            chips.addView(c, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
         }
         addView(HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(chips) })
 
@@ -76,15 +76,15 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
             }
         }
         val searchRow = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-        searchRow.addView(input, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        searchRow.addView(input, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         filterButton.apply {
             setImageResource(R.drawable.ic_filter)
             contentDescription = context.getString(R.string.online_filter_desc)
             setBackgroundResource(android.R.color.transparent)
             setPadding(dp(10), dp(10), dp(10), dp(10))
         }
-        searchRow.addView(filterButton, LayoutParams(dp(44), dp(44)))
-        addView(searchRow, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+        searchRow.addView(filterButton, LinearLayout.LayoutParams(dp(44), dp(44)))
+        addView(searchRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             setMargins(dp(16), dp(4), dp(8), dp(4))
         })
 
@@ -97,7 +97,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
                 setOnClickListener { tap(); if (server) search() else applyFilter(); paintFilters() }
             }
             filterChips += c to on
-            row.addView(c, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
+            row.addView(c, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
         }
         chip(R.string.online_filter_any, { minSeconds == 0 }) { minSeconds = 0 }
         chip(R.string.online_filter_1min, { minSeconds == 60 }) { minSeconds = if (minSeconds == 60) 0 else 60 }
@@ -119,7 +119,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
         filterButton.setOnClickListener { panel.visibility = if (panel.visibility == View.VISIBLE) View.GONE else View.VISIBLE }
         paintFilters()
 
-        addView(progress, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        addView(progress, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER_HORIZONTAL })
         progress.visibility = View.GONE
 
         message.apply { setTextColor(dim); gravity = Gravity.CENTER; setPadding(dp(24), dp(24), dp(24), dp(8)); visibility = View.GONE }
@@ -129,7 +129,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
             visibility = View.GONE
             setOnClickListener { OnlineKeys.showJamendoDialog(context) { search() } }
         }
-        addView(keyButton, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        addView(keyButton, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.CENTER_HORIZONTAL })
 
         list.apply {
             divider = null
@@ -157,7 +157,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
             }
             setOnItemClickListener { _, _, i, _ -> open(i) }
         }
-        addView(list, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        addView(list, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         selectSource(source)
         search() // starts with the popular list of the first source
@@ -165,7 +165,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
 
     private fun selectSource(s: OnlineSource) {
         source = s
-        val accent = themeColor(R.attr.colorAccent)
+        val accent = themeColor(androidx.appcompat.R.attr.colorAccent)
         val fg = themeColor(R.attr.colorTextPrimary)
         chipViews.forEachIndexed { i, c ->
             val on = OnlineSource.values()[i] == s
@@ -176,7 +176,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
     }
 
     private fun paintFilters() {
-        val accent = themeColor(R.attr.colorAccent)
+        val accent = themeColor(androidx.appcompat.R.attr.colorAccent)
         val fg = themeColor(R.attr.colorTextPrimary)
         val dim = themeColor(R.attr.colorTextSecondary)
         filterChips.forEach { (c, on) ->

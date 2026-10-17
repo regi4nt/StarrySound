@@ -15,6 +15,9 @@ enum class OnlineSource(val labelRes: Int) {
     OPENVERSE(R.string.online_src_openverse)
 }
 
+/** Filters sent with a search. [genre] is one of [OnlineApi.GENRES] (null = any). */
+data class OnlineFilter(val genre: String? = null, val losslessOnly: Boolean = false, val commercialOnly: Boolean = false)
+
 /** A row in the Online tab: an Internet Archive item (opens to its songs) or a ready-to-play song. */
 sealed class OnlineResult {
     data class Album(val item: ArchiveItem) : OnlineResult()
@@ -34,6 +37,8 @@ sealed class OnlineResult {
 object OnlineApi {
 
     private const val APP_NAME = "StarrySound"
+    /** Genre chips: search keyword per genre (also sent as Jamendo tag). */
+    val GENRES = listOf("pop", "rock", "electronic", "hip hop", "jazz", "classical", "ambient", "folk")
     private const val LIMIT = 30
     private const val LIMIT_SAVER = 15
 
@@ -42,15 +47,16 @@ object OnlineApi {
         source == OnlineSource.JAMENDO && OnlineKeys.jamendo(context).isBlank()
 
     @Throws(IOException::class)
-    fun search(context: Context, source: OnlineSource, query: String): List<OnlineResult> {
-        val q = query.trim()
+    fun search(context: Context, source: OnlineSource, query: String, filter: OnlineFilter = OnlineFilter()): List<OnlineResult> {
+        // The genre is just another search word, except on Jamendo which has a real tag filter.
+        val q = (if (source == OnlineSource.JAMENDO) query else listOf(query, filter.genre.orEmpty()).filter { it.isNotBlank() }.joinToString(" ")).trim()
         val n = if (MusicPrefs.saver(context)) LIMIT_SAVER else LIMIT
         return when (source) {
-            OnlineSource.ARCHIVE -> ArchiveApi.search(context, q).map { OnlineResult.Album(it) }
+            OnlineSource.ARCHIVE -> ArchiveApi.search(context, q, filter.losslessOnly).map { OnlineResult.Album(it) }
             OnlineSource.AUDIUS -> audius(q, n).map { OnlineResult.Song(it) }
-            OnlineSource.JAMENDO -> jamendo(context, q, n).map { OnlineResult.Song(it) }
+            OnlineSource.JAMENDO -> jamendo(context, q, n, filter.genre).map { OnlineResult.Song(it) }
             OnlineSource.CCMIXTER -> ccmixter(q, n).map { OnlineResult.Song(it) }
-            OnlineSource.OPENVERSE -> openverse(q, minOf(n, 20)).map { OnlineResult.Song(it) }
+            OnlineSource.OPENVERSE -> openverse(q, minOf(n, 20), filter.commercialOnly).map { OnlineResult.Song(it) }
         }
     }
 
@@ -58,13 +64,13 @@ object OnlineApi {
 
     // ------------------------------------------------------------------ Jamendo
 
-    private fun jamendo(context: Context, q: String, n: Int): List<Track> {
+    private fun jamendo(context: Context, q: String, n: Int, genre: String?): List<Track> {
         val key = OnlineKeys.jamendo(context)
         if (key.isBlank()) throw IOException("Jamendo key missing")
         val high = StreamQuality.effective(context) == StreamQuality.Level.HIGH
         val url = "https://api.jamendo.com/v3.0/tracks/?client_id=${enc(key)}&format=json&limit=$n" +
             "&audioformat=" + (if (high) "mp32" else "mp31") + "&order=popularity_total&include=musicinfo" +
-            if (q.isEmpty()) "" else "&search=${enc(q)}"
+            (if (q.isEmpty()) "" else "&search=${enc(q)}") + (if (genre.isNullOrEmpty()) "" else "&tags=${enc(genre.replace(' ', ''))}")
         val data = JSONObject(ArchiveApi.get(url)).optJSONArray("results") ?: return emptyList()
         val out = ArrayList<Track>()
         for (i in 0 until data.length()) {
@@ -84,8 +90,9 @@ object OnlineApi {
 
     // ------------------------------------------------------------------ Openverse
 
-    private fun openverse(q: String, n: Int): List<Track> {
-        val url = "https://api.openverse.org/v1/audio/?category=music&page_size=$n&q=" + enc(q.ifEmpty { "music" })
+    private fun openverse(q: String, n: Int, commercial: Boolean): List<Track> {
+        val url = "https://api.openverse.org/v1/audio/?category=music&page_size=$n&q=" + enc(q.ifEmpty { "music" }) +
+            (if (commercial) "&license_type=commercial" else "")
         val data = JSONObject(ArchiveApi.get(url)).optJSONArray("results") ?: return emptyList()
         val out = ArrayList<Track>()
         for (i in 0 until data.length()) {

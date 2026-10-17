@@ -34,10 +34,11 @@ object ArchiveApi {
 
     /** Search items. An empty [query] lists the most downloaded audio. */
     @Throws(IOException::class)
-    fun search(context: Context, query: String): List<ArchiveItem> {
+    fun search(context: Context, query: String, losslessOnly: Boolean = false): List<ArchiveItem> {
         val words = query.replace(BAD_QUERY_CHARS, " ").trim().replace(Regex("\\s+"), " ")
-        val q = if (words.isEmpty()) "mediatype:audio"
+        var q = if (words.isEmpty()) "mediatype:audio"
         else "($words) AND mediatype:audio"
+        if (losslessOnly) q += " AND format:(Flac)"
         val rows = if (MusicPrefs.saver(context)) ROWS_SAVER else ROWS
         val url = "$BASE/advancedsearch.php?q=" + URLEncoder.encode(q, "UTF-8") +
             "&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator" +

@@ -888,7 +888,7 @@
     <string name="listen_host_tag">Host</string>
     <string name="listen_guest_fmt">Listener %d</string>
     <string name="listen_np_label">LISTENING TOGETHER</string>
-    <string name="listen_np_empty_host">Play a YouTube song and everyone in the room hears it.</string>
+    <string name="listen_np_empty_host">Play a YouTube, Online or radio song and everyone in the room hears it.</string>
     <string name="listen_np_empty_guest">Waiting for the host to play a song…</string>
     <string name="listen_np_guest_hint">Only the host controls playback.</string>
     <string name="listen_copy_code">Copy code</string>
@@ -936,4 +936,15 @@
     <string name="jamendo_key_hint">Client ID</string>
     <string name="jamendo_key_msg">Free at developer.jamendo.com (create an app, copy its Client ID). Needed to search Jamendo, which has full-length Creative Commons music.</string>
     <string name="online_need_jamendo_key">Add your Jamendo client ID in Settings to search Jamendo.</string>
+    <string name="online_no_results">No results.</string>
+    <string name="online_player_not_ready">The player is not ready yet. Try again.</string>
+    <string name="online_filter_desc">Filter</string>
+    <string name="online_filter_any">Any length</string>
+    <string name="online_filter_1min">Over 1 min</string>
+    <string name="online_filter_3min">Over 3 min</string>
+    <string name="online_filter_az">A–Z</string>
+    <string name="online_filter_lossless">Lossless only</string>
+    <string name="online_filter_commercial">Commercial use</string>
+    <string name="jamendo_key_not_set">Not set</string>
+    <string name="jamendo_key_set">Set</string>
 </resources>
