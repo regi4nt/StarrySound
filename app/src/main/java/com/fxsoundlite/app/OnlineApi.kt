@@ -70,7 +70,7 @@ object OnlineApi {
         val high = StreamQuality.effective(context) == StreamQuality.Level.HIGH
         val url = "https://api.jamendo.com/v3.0/tracks/?client_id=${enc(key)}&format=json&limit=$n" +
             "&audioformat=" + (if (high) "mp32" else "mp31") + "&order=popularity_total&include=musicinfo" +
-            (if (q.isEmpty()) "" else "&search=${enc(q)}") + (if (genre.isNullOrEmpty()) "" else "&tags=${enc(genre.replace(' ', ''))}")
+            (if (q.isEmpty()) "" else "&search=${enc(q)}") + (if (genre.isNullOrEmpty()) "" else "&tags=${enc(genre.replace(" ", ""))}")
         val data = JSONObject(ArchiveApi.get(url)).optJSONArray("results") ?: return emptyList()
         val out = ArrayList<Track>()
         for (i in 0 until data.length()) {
