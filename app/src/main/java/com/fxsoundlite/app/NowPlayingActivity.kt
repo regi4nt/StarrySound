@@ -274,7 +274,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
 
     private var qualityKey: String? = null
 
-    /** Shows the file's format / sample rate / bitrate to the right of the artist (read once per song, then cached). */
+    /** Shows the file's format / sample rate / bitrate under the artist (read once per song, then cached). */
     private fun updateQualityBadge(t: Track) {
         val tv = binding.npQuality
         fun showText(text: String?) {
@@ -724,12 +724,6 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     private fun showMoreMenu(anchor: View) {
         val popup = PopupMenu(this, anchor, Gravity.END)
         val isRadio = MusicService.instance?.current?.source == Track.SOURCE_RADIO
-        // Listen together only for songs every guest can stream too (YouTube, Online tab, radio), not for files on this device or Drive.
-        // Same order value, so items keep the order they are added in: Listen together comes first, then Audio language.
-        val src = MusicService.instance?.current?.source
-        if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_ONLINE || src == Track.SOURCE_RADIO) {
-            popup.menu.add(0, MENU_LISTEN, 0, R.string.np_listen)
-        }
         if (MusicService.instance?.current?.source == Track.SOURCE_YOUTUBE) {
             popup.menu.add(0, MENU_AUDIO, 0, R.string.np_audio_track)
         }
@@ -741,6 +735,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             popup.menu.add(0, MENU_DOWNLOAD, 2, R.string.np_download)
         }
         popup.menu.add(0, MENU_SHARE, 3, R.string.np_share)
+        popup.menu.add(0, MENU_LISTEN, 4, R.string.np_listen)
         popup.menu.add(0, MENU_INFO, 5, R.string.np_info)
         popup.setOnMenuItemClickListener {
             when (it.itemId) {

@@ -881,7 +881,7 @@
     <string name="listen_host_tag">Host</string>
     <string name="listen_guest_fmt">Pendengar %d</string>
     <string name="listen_np_label">MENDENGARKAN BARENG</string>
-    <string name="listen_np_empty_host">Putar lagu YouTube, Online, atau radio dan semua orang di ruang ini ikut mendengarnya.</string>
+    <string name="listen_np_empty_host">Putar lagu YouTube dan semua orang di ruang ini ikut mendengarnya.</string>
     <string name="listen_np_empty_guest">Menunggu host memutar lagu…</string>
     <string name="listen_np_guest_hint">Hanya host yang mengatur pemutaran.</string>
     <string name="listen_copy_code">Salin kode</string>
@@ -929,15 +929,4 @@
     <string name="jamendo_key_hint">Client ID</string>
     <string name="jamendo_key_msg">Gratis di developer.jamendo.com (buat aplikasi, salin Client ID-nya). Diperlukan untuk mencari di Jamendo, yang berisi musik Creative Commons berdurasi penuh.</string>
     <string name="online_need_jamendo_key">Tambahkan Client ID Jamendo di Pengaturan untuk mencari di Jamendo.</string>
-    <string name="online_no_results">Tidak ada hasil.</string>
-    <string name="online_player_not_ready">Pemutar belum siap. Coba lagi.</string>
-    <string name="online_filter_desc">Filter</string>
-    <string name="online_filter_any">Semua durasi</string>
-    <string name="online_filter_1min">Lebih dari 1 mnt</string>
-    <string name="online_filter_3min">Lebih dari 3 mnt</string>
-    <string name="online_filter_az">A–Z</string>
-    <string name="online_filter_lossless">Hanya lossless</string>
-    <string name="online_filter_commercial">Boleh komersial</string>
-    <string name="jamendo_key_not_set">Belum diisi</string>
-    <string name="jamendo_key_set">Sudah diisi</string>
 </resources>

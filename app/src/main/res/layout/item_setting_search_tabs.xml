@@ -20,23 +20,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/search_tabs_title"
-        android:textColor="?attr/colorTextPrimary"
-        android:textSize="14sp"
-        android:textStyle="bold" />
+        android:textAppearance="?attr/textAppearanceBodyLarge" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/search_tabs_desc"
-        android:textColor="?attr/colorTextSecondary"
-        android:textSize="12sp" />
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:alpha="0.7" />
 
     <TextView
         android:id="@+id/searchTabsValue"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
-        android:textColor="?attr/colorAccent"
-        android:textSize="12sp"
-        android:textStyle="bold" />
+        android:textAppearance="?attr/textAppearanceLabelLarge" />
 </LinearLayout>

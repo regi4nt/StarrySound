@@ -5,11 +5,12 @@ import androidx.appcompat.app.AlertDialog
 
 /**
  * Which online tabs the Search screen shows (Settings > Online music > Search tabs).
- * The Device tab is always there (Drive songs are part of it); YouTube, Online and Radio can be switched off. All are on by default.
+ * The Device tab is always there; Drive, YouTube, Online and Radio can be switched off. All are on by default.
  */
 object SearchTabs {
 
     enum class Tab(val key: String, val labelRes: Int) {
+        DRIVE("drive", R.string.source_drive),
         YOUTUBE("youtube", R.string.source_youtube),
         ONLINE("online", R.string.source_online), // Internet Archive (ArchiveApi), right next to YouTube
         RADIO("radio", R.string.source_radio)

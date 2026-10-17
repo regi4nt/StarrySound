@@ -186,40 +186,29 @@
         android:textSize="22sp"
         android:textStyle="bold" />
 
-    <!-- Artist, with the audio quality badge (format, bit depth, sample rate / bitrate; see AudioQuality) on its right. -->
-    <LinearLayout
+    <TextView
+        android:id="@+id/npArtist"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/colorTextSecondary"
+        android:textSize="15sp" />
 
-        <TextView
-            android:id="@+id/npArtist"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?attr/colorTextSecondary"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/npQuality"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/chip_bg"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:maxWidth="170dp"
-            android:paddingHorizontal="10dp"
-            android:paddingVertical="3dp"
-            android:textColor="?attr/colorTextSecondary"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-    </LinearLayout>
+    <!-- Audio quality of the file (format, bit depth, sample rate / bitrate); see AudioQuality. -->
+    <TextView
+        android:id="@+id/npQuality"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/chip_bg"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="3dp"
+        android:textColor="?attr/colorTextSecondary"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <SeekBar
         android:id="@+id/npSeek"
