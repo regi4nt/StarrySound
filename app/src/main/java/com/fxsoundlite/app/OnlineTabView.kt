@@ -49,8 +49,8 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
     }
 
     init {
-        orientation = VERTICAL
-        val text = themeColor(R.attr.colorTextPrimary)
+        orientation = LinearLayout.VERTICAL
+        val fg = themeColor(R.attr.colorTextPrimary)
         val dim = themeColor(R.attr.colorTextSecondary)
 
         // Source chips
@@ -111,7 +111,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
         }
         // Both chip rows open and close together with the filter button.
         val panel = LinearLayout(context).apply {
-            orientation = VERTICAL; visibility = View.GONE
+            orientation = LinearLayout.VERTICAL; visibility = View.GONE
             addView(HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(filterRow) })
             addView(HorizontalScrollView(context).apply { isHorizontalScrollBarEnabled = false; addView(genreRow) })
         }
@@ -141,9 +141,9 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
                 override fun getItemId(i: Int) = i.toLong()
                 override fun getView(i: Int, convert: View?, parent: ViewGroup): View {
                     val row = (convert as? LinearLayout) ?: LinearLayout(context).apply {
-                        orientation = VERTICAL
+                        orientation = LinearLayout.VERTICAL
                         setPadding(dp(16), dp(10), dp(16), dp(10))
-                        addView(TextView(context).apply { setTextColor(text); setTypeface(typeface, Typeface.BOLD); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+                        addView(TextView(context).apply { setTextColor(fg); setTypeface(typeface, Typeface.BOLD); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
                         addView(TextView(context).apply { setTextColor(dim); textSize = 13f; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
                     }
                     val (title, sub) = when (val r = results[i]) {
@@ -166,23 +166,23 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
     private fun selectSource(s: OnlineSource) {
         source = s
         val accent = themeColor(R.attr.colorAccent)
-        val text = themeColor(R.attr.colorTextPrimary)
+        val fg = themeColor(R.attr.colorTextPrimary)
         chipViews.forEachIndexed { i, c ->
             val on = OnlineSource.values()[i] == s
-            c.setBackgroundColor((if (on) accent else text) and 0x00FFFFFF or (if (on) 0x55000000 else 0x1A000000))
-            c.setTextColor(text)
+            c.setBackgroundColor((if (on) accent else fg) and 0x00FFFFFF or (if (on) 0x55000000 else 0x1A000000))
+            c.setTextColor(fg)
             c.setTypeface(null, if (on) Typeface.BOLD else Typeface.NORMAL)
         }
     }
 
     private fun paintFilters() {
         val accent = themeColor(R.attr.colorAccent)
-        val text = themeColor(R.attr.colorTextPrimary)
+        val fg = themeColor(R.attr.colorTextPrimary)
         val dim = themeColor(R.attr.colorTextSecondary)
         filterChips.forEach { (c, on) ->
             val active = on()
-            c.setBackgroundColor((if (active) accent else text) and 0x00FFFFFF or (if (active) 0x55000000 else 0x1A000000))
-            c.setTextColor(text)
+            c.setBackgroundColor((if (active) accent else fg) and 0x00FFFFFF or (if (active) 0x55000000 else 0x1A000000))
+            c.setTextColor(fg)
             c.setTypeface(null, if (active) Typeface.BOLD else Typeface.NORMAL)
         }
         // The app's filter icon is white: tint it with the text colour, or the accent while a filter is on.
@@ -236,8 +236,7 @@ class OnlineTabView(context: Context) : LinearLayout(context) {
                 if (found is Exception) {
                     show(context.getString(R.string.online_search_failed, found.message ?: found.javaClass.simpleName))
                 } else {
-                    @Suppress("UNCHECKED_CAST")
-                    raw = found as List<OnlineResult>
+                    raw = (found as List<*>).filterIsInstance<OnlineResult>()
                     applyFilter()
                 }
             }
