@@ -919,12 +919,11 @@
     <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>
     <string name="search_tabs_none">Hanya perangkat</string>
     <string name="source_online">Online</string>
-    <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo, ccMixter dan Openverse</string>
+    <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo dan ccMixter</string>
     <string name="online_src_archive">Internet Archive</string>
     <string name="online_src_audius">Audius</string>
     <string name="online_src_ccmixter">ccMixter</string>
     <string name="online_src_jamendo">Jamendo</string>
-    <string name="online_src_openverse">Openverse</string>
     <string name="jamendo_key_title">Client ID Jamendo</string>
     <string name="jamendo_key_hint">Client ID</string>
     <string name="jamendo_key_msg">Gratis di developer.jamendo.com (buat aplikasi, salin Client ID-nya). Diperlukan untuk mencari di Jamendo, yang berisi musik Creative Commons berdurasi penuh.</string>
@@ -940,4 +939,10 @@
     <string name="online_filter_commercial">Boleh komersial</string>
     <string name="jamendo_key_not_set">Belum diisi</string>
     <string name="jamendo_key_set">Sudah diisi</string>
+    <string name="online_source_label">Sumber: %s ▾</string>
+    <string name="online_genre_label">Genre: %s ▾</string>
+    <string name="online_genre_all">Semua</string>
+    <string name="online_source_title">Sumber online</string>
+    <string name="online_genre_title">Genre</string>
+    <string name="online_filter_title">Opsi</string>
 </resources>

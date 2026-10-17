@@ -282,11 +282,9 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             tv.text = text
             tv.visibility = View.VISIBLE
         }
-        // Radio: also say which directory the station came from (Radio Browser, SomaFM, ...).
-        val origin = RadioOrigin.label(this, t)?.let { getString(R.string.radio_origin_from, it) }
         fun show(info: AudioInfo?) {
             val quality = info?.let { if (it.hiRes) "${it.badge()}  \u2022 Hi-Res" else it.badge() }
-            showText(listOfNotNull(quality, origin).joinToString(" \u00B7 "))
+            showText(quality)
         }
         // YouTube: the format can change while playing (stream resolved, or a fall-back to the web player),
         // and nothing needs reading from disk, so it is refreshed on every update.
@@ -295,7 +293,6 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             val info = svc?.youtubeAudioInfo
             when {
                 info != null -> show(info)
-                svc?.youtubeWebPlayer == true -> showText(getString(R.string.quality_youtube_player))
                 else -> showText(null)
             }
             return

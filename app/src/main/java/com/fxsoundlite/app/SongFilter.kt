@@ -72,6 +72,20 @@ class KindOption(
     val set: (Int) -> Unit
 )
 
+/** Online tab section of the filter dialog: source, genre, lossless, commercial. Genre index 0 = all. */
+class OnlineOption(
+    val sourceLabels: List<String>,
+    val getSource: () -> Int,
+    val setSource: (Int) -> Unit,
+    val genreLabels: List<String>,
+    val getGenre: () -> Int,
+    val setGenre: (Int) -> Unit,
+    val getLossless: () -> Boolean,
+    val setLossless: (Boolean) -> Unit,
+    val getCommercial: () -> Boolean,
+    val setCommercial: (Boolean) -> Unit
+)
+
 object FilterUi {
 
     private fun themeColor(ctx: Context, attr: Int): Int {
@@ -98,7 +112,7 @@ object FilterUi {
      */
     fun showSongFilter(
         ctx: Context, tracks: List<Track>, filter: SongFilter, sort: SortOption? = null,
-        tagMode: Boolean = false, kinds: KindOption? = null, onChanged: () -> Unit
+        tagMode: Boolean = false, kinds: KindOption? = null, online: OnlineOption? = null, onChanged: () -> Unit
     ) {
         // With [kinds] (playlist overview) the dialog is about whole lists, not songs.
         val songSections = !tagMode && kinds == null
@@ -130,6 +144,44 @@ object FilterUi {
                 row.addView(chip)
             }
             paint()
+            root.addView(HorizontalScrollView(ctx).apply {
+                isHorizontalScrollBarEnabled = false
+                overScrollMode = View.OVER_SCROLL_NEVER
+                addView(row)
+            })
+        }
+
+        // Online tab: which source, genre, lossless / commercial only (applied together with the rest).
+        var wSrc = online?.getSource?.invoke() ?: 0
+        var wGenre = online?.getGenre?.invoke() ?: 0
+        var wLossless = online?.getLossless?.invoke() ?: false
+        var wCommercial = online?.getCommercial?.invoke() ?: false
+        if (online != null) {
+            title(R.string.online_source_title)
+            chips(online.sourceLabels.indices.toList(), online.sourceLabels, { wSrc }, { wSrc = it })
+            title(R.string.online_genre_title)
+            val genreChip = LayoutInflater.from(ctx).inflate(R.layout.item_preset_chip, root, false) as TextView
+            fun paintGenre() { genreChip.text = online.genreLabels[wGenre]; genreChip.isSelected = wGenre != 0 }
+            paintGenre()
+            genreChip.setOnClickListener {
+                AlertDialog.Builder(ctx)
+                    .setTitle(R.string.online_genre_title)
+                    .setItems(online.genreLabels.toTypedArray()) { _, which -> wGenre = which; paintGenre() }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+            root.addView(genreChip)
+            title(R.string.online_filter_title)
+            val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+            fun toggle(label: Int, get: () -> Boolean, set: (Boolean) -> Unit) {
+                val c = LayoutInflater.from(ctx).inflate(R.layout.item_preset_chip, row, false) as TextView
+                c.setText(label)
+                c.isSelected = get()
+                c.setOnClickListener { set(!get()); c.isSelected = get() }
+                row.addView(c)
+            }
+            toggle(R.string.online_filter_lossless, { wLossless }, { wLossless = it })
+            toggle(R.string.online_filter_commercial, { wCommercial }, { wCommercial = it })
             root.addView(HorizontalScrollView(ctx).apply {
                 isHorizontalScrollBarEnabled = false
                 overScrollMode = View.OVER_SCROLL_NEVER
@@ -250,8 +302,12 @@ object FilterUi {
         AlertDialog.Builder(ctx)
             .setTitle(R.string.filter_title)
             .setView(android.widget.ScrollView(ctx).apply { addView(root) })
-            .setPositiveButton(R.string.filter_apply) { _, _ -> filter.copyFrom(work); sort?.set(workSort); kinds?.set(workKind); onChanged() }
-            .setNeutralButton(R.string.filter_reset) { _, _ -> filter.reset(); sort?.set(0); kinds?.set(0); onChanged() }
+            .setPositiveButton(R.string.filter_apply) { _, _ -> filter.copyFrom(work); sort?.set(workSort); kinds?.set(workKind)
+                online?.let { it.setSource(wSrc); it.setGenre(wGenre); it.setLossless(wLossless); it.setCommercial(wCommercial) }
+                onChanged() }
+            .setNeutralButton(R.string.filter_reset) { _, _ -> filter.reset(); sort?.set(0); kinds?.set(0)
+                online?.let { it.setGenre(0); it.setLossless(false); it.setCommercial(false) }
+                onChanged() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }

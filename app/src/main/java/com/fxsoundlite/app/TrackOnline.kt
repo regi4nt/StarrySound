@@ -1,7 +1,7 @@
 package com.fxsoundlite.app
 
 /**
- * Source id for songs of the Online tab (Internet Archive, Audius, Jamendo, ccMixter, Openverse):
+ * Source id for songs of the Online tab (Internet Archive, Audius, Jamendo, ccMixter):
  * [Track.remoteId] is a plain https audio link. Declared here so Track.kt does not have to change.
  * If you prefer, move it into Track's companion object (next to SOURCE_RADIO) and delete this file:
  * a member of the companion always wins over this extension, so both can exist without a clash.

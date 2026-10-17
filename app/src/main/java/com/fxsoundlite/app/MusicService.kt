@@ -1080,6 +1080,10 @@ class MusicService : MediaBrowserService() {
         goForeground()
 
         clearSegments()
+        if (track.source == Track.SOURCE_ONLINE && historyPickKey != null && track.key == historyPickKey) {
+            historyPickKey = null
+            MusicPrefs.addOnlineHistory(this, track) // picked from the Online search list
+        }
         if (track.source == Track.SOURCE_YOUTUBE) {
             loadSegments(track, token)
             // The YouTube-tab history only holds songs picked from the search list; Quick, playlists,
@@ -1114,7 +1118,7 @@ class MusicService : MediaBrowserService() {
 
         val mp = try {
             createPlayer().also {
-                // Online-tab song (Internet Archive, Audius, Jamendo, ccMixter, Openverse): a plain https file link (seekable), not a content:// uri.
+                // Online-tab song (Internet Archive, Audius, Jamendo, ccMixter): a plain https file link (seekable), not a content:// uri.
                 if (track.source == Track.SOURCE_ONLINE) it.setDataSource(track.remoteId)
                 else it.setDataSource(applicationContext, track.uri)
             }

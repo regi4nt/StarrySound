@@ -28,6 +28,7 @@ object MusicPrefs {
     private const val KEY_RADIO_SOURCE = "radio_source"
     private const val KEY_SHOUTCAST = "shoutcast_api_key"
     private const val KEY_YT_HISTORY = "youtube_history"
+    private const val KEY_ONLINE_HISTORY = "online_history"
     const val HISTORY_MAX = 10
     private const val KEY_PLAYER_BG = "player_bg_screensaver"
     private const val KEY_COVER_ANIM = "player_cover_anim"
@@ -223,6 +224,53 @@ object MusicPrefs {
         if (privateMode(c)) return
         if (t.source != Track.SOURCE_YOUTUBE || t.remoteId.isBlank()) return
         saveYoutubeHistory(c, (listOf(t) + youtubeHistory(c).filter { it.remoteId != t.remoteId }).take(HISTORY_MAX))
+        DriveSync.markDirty(c)
+    }
+
+    // Online-tab history (Internet Archive, Audius, Jamendo, ccMixter): same idea, own list. remoteId = audio link.
+    fun onlineHistory(c: Context): List<Track> {
+        val raw = p(c).getString(KEY_ONLINE_HISTORY, null) ?: return emptyList()
+        return try { parseHistory(org.json.JSONArray(raw)).map { it.copy(source = Track.SOURCE_ONLINE) } } catch (e: Exception) { emptyList() }
+    }
+
+    private fun saveOnlineHistory(c: Context, list: List<Track>) {
+        val arr = org.json.JSONArray()
+        list.forEach {
+            arr.put(
+                org.json.JSONObject()
+                    .put("id", it.remoteId).put("title", it.title).put("artist", it.artist)
+                    .put("album", it.album).put("dur", it.durationMs).put("art", it.artUrl)
+            )
+        }
+        p(c).edit().putString(KEY_ONLINE_HISTORY, arr.toString()).apply()
+    }
+
+    /** Records a played Online-tab song at the top of its history (a repeat just moves it up). */
+    fun addOnlineHistory(c: Context, t: Track) {
+        if (privateMode(c)) return
+        if (t.source != Track.SOURCE_ONLINE || t.remoteId.isBlank()) return
+        saveOnlineHistory(c, (listOf(t) + onlineHistory(c).filter { it.remoteId != t.remoteId }).take(HISTORY_MAX))
+        DriveSync.markDirty(c)
+    }
+
+    fun removeOnlineHistory(c: Context, remoteId: String) {
+        saveOnlineHistory(c, onlineHistory(c).filter { it.remoteId != remoteId })
+        DriveSync.markDirty(c)
+    }
+
+    /** Online history as JSON for the Drive backup. */
+    fun exportOnlineHistory(c: Context): org.json.JSONArray =
+        try { org.json.JSONArray(p(c).getString(KEY_ONLINE_HISTORY, null) ?: "[]") } catch (e: Exception) { org.json.JSONArray() }
+
+    /** Applies a Drive snapshot (merge = local first, then what only Drive has). Never marks data as changed. */
+    fun importOnlineHistory(c: Context, arr: org.json.JSONArray, merge: Boolean) {
+        val incoming = parseHistory(arr).map { it.copy(source = Track.SOURCE_ONLINE) }
+        val result = if (merge) (onlineHistory(c) + incoming).distinctBy { it.remoteId } else incoming
+        saveOnlineHistory(c, result.take(HISTORY_MAX))
+    }
+
+    fun clearOnlineHistory(c: Context) {
+        p(c).edit().remove(KEY_ONLINE_HISTORY).apply()
         DriveSync.markDirty(c)
     }
 

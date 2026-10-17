@@ -261,6 +261,7 @@ object DriveSync {
         .put("savedAt", System.currentTimeMillis())
         .put("playlists", PlaylistStore.exportJson(c).let { if (includeLocal(c)) it else stripLocal(it) })
         .put("history", MusicPrefs.exportHistory(c))
+        .put("online_history", MusicPrefs.exportOnlineHistory(c))
         .put("stats", StatsStore.exportJson(c))
 
     private fun isLocalTrack(o: JSONObject) = o.optInt("src", Track.SOURCE_LOCAL) == Track.SOURCE_LOCAL
@@ -316,6 +317,7 @@ object DriveSync {
             PlaylistStore.importJson(c, data, merge)
         }
         snap.optJSONArray("history")?.let { MusicPrefs.importHistory(c, it, merge) }
+        snap.optJSONArray("online_history")?.let { MusicPrefs.importOnlineHistory(c, it, merge) }
         snap.optJSONObject("stats")?.let { StatsStore.importJson(c, it, merge) }
         // Songs from another phone are matched to this phone's files by title + artist (see LocalMatcher);
         // refresh its file index here, on the sync thread, rather than on the first screen that reads a playlist.

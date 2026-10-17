@@ -169,8 +169,9 @@
             android:textStyle="bold"
             android:visibility="gone" />
 
+        <!-- Online tab only: source + options, styled like the Radio source chip. -->
+
         <LinearLayout
-            android:id="@+id/searchRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
@@ -220,13 +221,6 @@
             android:layout_height="match_parent"
             android:clipToPadding="false"
             android:paddingBottom="74dp" />
-
-        <!-- Online tab: its own search box, source chips, filter and results (OnlineTabView, created on first use). -->
-        <FrameLayout
-            android:id="@+id/onlineContainer"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
 
         <ProgressBar
             android:id="@+id/searchProgress"

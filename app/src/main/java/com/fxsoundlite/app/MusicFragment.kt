@@ -120,6 +120,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             override fun afterTextChanged(s: Editable?) {
                 if (source == Track.SOURCE_LOCAL) { applyFilter(); return }
                 handler.removeCallbacks(liveSearch)
+                if (source == Track.SOURCE_ONLINE) { handler.postDelayed(liveSearch, 600); return } // empty box = popular songs
                 val q = s?.toString()?.trim().orEmpty()
                 if (q.isEmpty()) { // cleared: forget the earlier results, back to the recently played list
                     searchToken++
@@ -141,7 +142,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
             if (actionId == EditorInfo.IME_ACTION_SEARCH || enter) {
                 handler.removeCallbacks(liveSearch)
-                if (source != Track.SOURCE_LOCAL && source != Track.SOURCE_ONLINE) runOnlineSearch()
+                if (source == Track.SOURCE_ONLINE) runOnlinePage()
+                else if (source != Track.SOURCE_LOCAL) runOnlineSearch()
                 hideKeyboard()
                 true
             } else false
@@ -159,6 +161,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabOnline.setOnClickListener { selectSource(Track.SOURCE_ONLINE) }
         binding.tabRadio.setOnClickListener { selectSource(Track.SOURCE_RADIO) }
         binding.radioSourceButton.setOnClickListener { showRadioSourceDialog() }
+        loadOnlineSrc()
         updateSaverButton()
         binding.saverButton.setOnClickListener { toggleSaver() }
         updatePrivateButton()
@@ -234,7 +237,6 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        onlineView = null // its container goes away with the binding
         _binding = null
     }
 
@@ -285,7 +287,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 showEmpty(R.string.music_need_permission, R.string.music_allow_access) { requestLibraryAccess() }
             }
         } else if (source == Track.SOURCE_ONLINE) {
-            showOnlineTab()
+            handler.removeCallbacks(liveSearch) // selectSource clears the box first, which schedules a search
+            runOnlinePage()
         } else {
             showOnline()
         }
@@ -385,6 +388,20 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 if (MusicPrefs.ytNewest(ctx) != before && !binding.searchInput.text.isNullOrBlank()) runOnlineSearch()
                 else showOnline()
             }
+        } else if (source == Track.SOURCE_ONLINE) {
+            val sort = SortOption(
+                listOf(R.string.sort_default, R.string.playlist_sort_title_az, R.string.playlist_sort_title_za),
+                { onlineSort }, { onlineSort = it }
+            )
+            val before = listOf(onlineSrc, onlineGenre, onlineLossless, onlineCommercial)
+            FilterUi.showSongFilter(
+                ctx, if (binding.searchInput.text.isNullOrBlank()) MusicPrefs.onlineHistory(ctx) else onlineBase,
+                onlineFilter, sort, online = onlineOption()
+            ) {
+                if (_binding == null) return@showSongFilter
+                updateFilterButton()
+                if (before != listOf(onlineSrc, onlineGenre, onlineLossless, onlineCommercial)) onlineChanged() else showOnline()
+            }
         } else if (source == Track.SOURCE_RADIO) {
             val sort = SortOption(
                 listOf(R.string.sort_default, R.string.playlist_sort_title_az, R.string.playlist_sort_title_za),
@@ -400,12 +417,13 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun updateFilterButton() {
         val b = _binding ?: return
         b.filterButton.visibility =
-            if (source == Track.SOURCE_LOCAL || source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_RADIO) View.VISIBLE else View.GONE
+            if (source == Track.SOURCE_LOCAL || source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_RADIO || source == Track.SOURCE_ONLINE) View.VISIBLE else View.GONE
         FilterUi.setButtonState(
             b.filterButton,
             when (source) {
                 Track.SOURCE_LOCAL -> deviceFilter.active || deviceSort != 0
                 Track.SOURCE_YOUTUBE -> ytFilter.active || MusicPrefs.ytNewest(requireContext())
+                Track.SOURCE_ONLINE -> onlineFilter.active || onlineSort != 0 || onlineGenre != null || onlineLossless || onlineCommercial
                 else -> radioFilter.active || radioSort != 0
             }
         )
@@ -472,19 +490,6 @@ class MusicFragment : Fragment(), MusicService.Listener {
         else -> true
     }
 
-    private var onlineView: OnlineTabView? = null
-
-    /** Online tab: shows its own page instead of the list below the shared search box. */
-    private fun showOnlineTab() {
-        val b = _binding ?: return
-        val v = onlineView ?: OnlineTabView(requireContext()).also {
-            onlineView = it
-            b.onlineContainer.addView(it, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        }
-        v.visibility = View.VISIBLE
-        b.musicCount.text = getString(R.string.source_online)
-    }
-
     private fun sourceName(src: Int): String = when (src) {
         Track.SOURCE_ONLINE -> getString(R.string.source_online)
         Track.SOURCE_YOUTUBE -> getString(R.string.source_youtube)
@@ -501,18 +506,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
         binding.tabOnline.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.ONLINE)) View.VISIBLE else View.GONE
         binding.tabRadio.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.RADIO)) View.VISIBLE else View.GONE
-        // The Online page has its own search box and list, so the shared ones step aside.
-        val online = source == Track.SOURCE_ONLINE
-        binding.searchRow.visibility = if (online) View.GONE else View.VISIBLE
-        binding.onlineContainer.visibility = if (online) View.VISIBLE else View.GONE
-        if (online) {
-            binding.trackList.visibility = View.GONE
-            binding.emptyPanel.visibility = View.GONE
-            binding.searchProgress.visibility = View.GONE
-        } else {
-            binding.trackList.visibility = View.VISIBLE
-        }
-        updateFilterButton()
+                updateFilterButton()
         binding.radioSourceButton.visibility = View.GONE // radio searches every directory at once
         binding.radioSourceButton.text =
             getString(R.string.radio_source_label, radioSourceName(MusicPrefs.radioSource(requireContext())))
@@ -520,6 +514,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             when (source) {
                 Track.SOURCE_LOCAL -> R.string.music_search_hint
                 Track.SOURCE_RADIO -> R.string.radio_search_hint
+                Track.SOURCE_ONLINE -> R.string.online_archive_hint
                 else -> R.string.online_search_hint
             }
         )
@@ -601,7 +596,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     /** Online tab: prompts for what is missing (key / login), otherwise shows the last results. */
     private fun showOnline() {
-        if (source == Track.SOURCE_ONLINE) { showOnlineTab(); return }
+        if (source == Track.SOURCE_ONLINE) { showOnlineList(); return }
         val ctx = requireContext()
         val src = source
         val blocker: Blocker? = when {
@@ -664,11 +659,150 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    // ------------------------------------------------------------------ Online tab (Internet Archive, Audius, Jamendo, ccMixter)
+
+    private var onlineSrc = OnlineSource.ARCHIVE
+    private var onlineGenre: String? = null
+    private var onlineLossless = false
+    private var onlineCommercial = false
+    private val onlineFilter = SongFilter()
+    private var onlineSort = 0
+    /** What the source returned (Internet Archive albums are shown as rows that open to their songs). */
+    private var onlineBase: List<Track> = emptyList()
+    private var onlineFailed = false
+
+    private val albumPrefix = "ia:"
+    private fun isArchiveAlbum(t: Track) = t.source == Track.SOURCE_ONLINE && t.remoteId.startsWith(albumPrefix)
+
+    private fun loadOnlineSrc() {
+        try { onlineSrc = OnlineSource.values().getOrNull(sortPrefs().getInt("online_src", 0)) ?: OnlineSource.ARCHIVE } catch (_: Exception) { }
+    }
+
+    private fun onlineOption(): OnlineOption {
+        val all = OnlineSource.values()
+        val genres = OnlineApi.GENRES
+        return OnlineOption(
+            all.map { getString(it.labelRes) }, { all.indexOf(onlineSrc) },
+            { onlineSrc = all[it]; try { sortPrefs().edit().putInt("online_src", it).apply() } catch (_: Exception) { } },
+            listOf(getString(R.string.online_genre_all)) + genres.map { g -> g.replaceFirstChar { c -> c.uppercase() } },
+            { onlineGenre?.let { genres.indexOf(it) + 1 } ?: 0 }, { onlineGenre = if (it == 0) null else genres[it - 1] },
+            { onlineLossless }, { onlineLossless = it }, { onlineCommercial }, { onlineCommercial = it }
+        )
+    }
+
+    /** A source or option changed: ask again (the old results belong to the old choice). */
+    private fun onlineChanged() {
+        onlineBase = emptyList()
+        runOnlinePage()
+    }
+
+    /** Searches the chosen source for what is typed (empty box = its popular songs) and shows the result like any other tab. */
+    private fun runOnlinePage() {
+        if (_binding == null || source != Track.SOURCE_ONLINE) return
+        val ctx = requireContext()
+        val app = ctx.applicationContext
+        val src = onlineSrc
+        // Like the YouTube tab: nothing typed = the songs played before (no search, no network).
+        if (binding.searchInput.text.isNullOrBlank()) {
+            searchToken++
+            binding.searchProgress.visibility = View.GONE
+            onlineFailed = false
+            showOnlineList()
+            return
+        }
+        if (OnlineApi.needsKey(app, src)) {
+            searchToken++
+            binding.searchProgress.visibility = View.GONE
+            shown = emptyList()
+            adapter.submit(shown)
+            binding.musicCount.text = getString(src.labelRes)
+            showEmpty(R.string.online_need_jamendo_key, R.string.jamendo_key_title) {
+                OnlineKeys.showJamendoDialog(ctx) { runOnlinePage() }
+            }
+            return
+        }
+        val q = binding.searchInput.text?.toString()?.trim().orEmpty()
+        val filter = OnlineFilter(onlineGenre, onlineLossless, onlineCommercial)
+        val token = ++searchToken
+        onlineFailed = false
+        binding.searchProgress.visibility = View.VISIBLE
+        try {
+            netExecutor.execute {
+                if (token != searchToken) return@execute
+                val result = runCatching {
+                    OnlineApi.search(app, src, q, filter).map { r ->
+                        when (r) {
+                            is OnlineResult.Song -> r.track
+                            is OnlineResult.Album -> Track(
+                                0L, r.item.title, r.item.creator, "", 0L, Track.SOURCE_ONLINE, albumPrefix + r.item.identifier, r.item.thumbUrl
+                            )
+                        }
+                    }
+                }
+                handler.post {
+                    if (_binding == null || token != searchToken || source != Track.SOURCE_ONLINE) return@post
+                    binding.searchProgress.visibility = View.GONE
+                    result.onSuccess { onlineBase = it }.onFailure { onlineBase = emptyList(); onlineFailed = true }
+                    showOnlineList()
+                }
+            }
+        } catch (e: Exception) {
+            binding.searchProgress.visibility = View.GONE
+        }
+    }
+
+    /** Online list after the filter button's choices (length / artist) and sort order. */
+    private fun showOnlineList() {
+        if (_binding == null) return
+        val blank = binding.searchInput.text.isNullOrBlank()
+        val base = if (blank) MusicPrefs.onlineHistory(requireContext()) else onlineBase
+        var list = if (onlineFilter.active) base.filter { isArchiveAlbum(it) || onlineFilter.matches(it) } else base
+        if (onlineLossless && !blank) list = list.filter { isArchiveAlbum(it) || AudioQuality.cached(it)?.lossless == true }
+        list = when (onlineSort) {
+            1 -> list.sortedWith { a, b -> byText(a.title, b.title) }
+            2 -> list.sortedWith { a, b -> byText(b.title, a.title) }
+            else -> list
+        }
+        shown = list
+        adapter.submit(list)
+        binding.musicCount.text = if (list.isEmpty()) getString(onlineSrc.labelRes)
+        else if (blank) getString(R.string.online_history_title, list.size)
+        else resources.getQuantityString(R.plurals.online_result_count, list.size, list.size, getString(onlineSrc.labelRes))
+        when {
+            list.isNotEmpty() -> showList()
+            blank && !onlineFilter.active -> showEmpty(R.string.online_search_prompt)
+            onlineFailed -> showEmpty(R.string.online_network_error, R.string.radio_retry) { runOnlinePage() }
+            binding.searchProgress.visibility == View.VISIBLE -> showEmpty(R.string.radio_loading)
+            else -> showEmpty(R.string.music_no_results)
+        }
+        adapter.setCurrentKey(service?.current?.key.orEmpty())
+    }
+
+    /** An Internet Archive album row was tapped: fetch its songs, then play them as a queue. */
+    private fun playArchiveAlbum(album: Track) {
+        val app = requireContext().applicationContext
+        val item = ArchiveItem(album.remoteId.removePrefix(albumPrefix), album.title, album.artist, album.artUrl)
+        binding.searchProgress.visibility = View.VISIBLE
+        try {
+            netExecutor.execute {
+                val songs = runCatching { ArchiveApi.tracks(app, item) }.getOrDefault(emptyList())
+                handler.post {
+                    if (_binding == null) return@post
+                    binding.searchProgress.visibility = View.GONE
+                    if (songs.isEmpty()) Toast.makeText(requireContext(), R.string.music_no_results, Toast.LENGTH_SHORT).show() else service?.setQueueAndPlay(songs, 0)
+                }
+            }
+        } catch (e: Exception) {
+            binding.searchProgress.visibility = View.GONE
+        }
+    }
+
     /** What an online tab still needs before it can search, plus the button that fixes it. */
     private class Blocker(val text: Int, val actionText: Int, val action: () -> Unit)
 
     private val liveSearch = Runnable {
-        if (_binding != null && source != Track.SOURCE_LOCAL && source != Track.SOURCE_ONLINE) runOnlineSearch()
+        if (_binding != null && source == Track.SOURCE_ONLINE) runOnlinePage()
+        else if (_binding != null && source != Track.SOURCE_LOCAL) runOnlineSearch()
     }
 
     /** Radio tab, nothing typed: popular stations (loaded once, with a retry button on failure). */
@@ -787,7 +921,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     }
 
     private fun runOnlineSearch() {
-        if (source == Track.SOURCE_ONLINE) return // the Online page searches by itself
+        if (source == Track.SOURCE_ONLINE) { runOnlinePage(); return }
         val q = binding.searchInput.text?.toString()?.trim().orEmpty()
         if (q.isEmpty()) return
         val src = source
@@ -907,8 +1041,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
-        val inHistory = source == Track.SOURCE_YOUTUBE && binding.searchInput.text.isNullOrBlank() &&
-            MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
+        if (isArchiveAlbum(shown[position])) return // an album row is not a song: nothing to add to a playlist
+        val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
+            Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
+            Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()
+            else -> false
+        }
         val track = shown[position]
         val onDelete: (() -> Unit)? =
             if (track.source == Track.SOURCE_LOCAL && !track.missing) ({ confirmDeleteLocal(track) }) else null
@@ -1003,7 +1141,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun onTrackClicked(position: Int) {
         val svc = service ?: return
         if (position !in shown.indices) return
-        svc.setQueueAndPlay(shown, position, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE)
+        if (isArchiveAlbum(shown[position])) { playArchiveAlbum(shown[position]); return }
+        svc.setQueueAndPlay(shown, position, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
     }
 
     private fun onPlayPauseClicked() {
@@ -1012,7 +1151,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             svc.togglePlayPause()
         } else if (shown.isNotEmpty()) {
             // Nothing queued yet: play from the top of what's on screen.
-            svc.setQueueAndPlay(shown, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE)
+            svc.setQueueAndPlay(shown, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
         }
     }
 

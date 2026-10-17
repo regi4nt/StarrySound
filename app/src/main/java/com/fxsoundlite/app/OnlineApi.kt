@@ -11,8 +11,7 @@ enum class OnlineSource(val labelRes: Int) {
     ARCHIVE(R.string.online_src_archive),
     AUDIUS(R.string.online_src_audius),
     JAMENDO(R.string.online_src_jamendo),
-    CCMIXTER(R.string.online_src_ccmixter),
-    OPENVERSE(R.string.online_src_openverse)
+    CCMIXTER(R.string.online_src_ccmixter)
 }
 
 /** Filters sent with a search. [genre] is one of [OnlineApi.GENRES] (null = any). */
@@ -32,7 +31,6 @@ sealed class OnlineResult {
  *  - Audius: open API, full tracks by independent artists, no key (just an app name).
  *  - Jamendo: full Creative Commons / independent tracks. Needs a free client id ([OnlineKeys]); see [needsKey].
  *  - ccMixter: Creative Commons remixes and samples, no key.
- *  - Openverse: openly licensed music from many sites, no key.
  */
 object OnlineApi {
 
@@ -52,11 +50,30 @@ object OnlineApi {
         val q = (if (source == OnlineSource.JAMENDO) query else listOf(query, filter.genre.orEmpty()).filter { it.isNotBlank() }.joinToString(" ")).trim()
         val n = if (MusicPrefs.saver(context)) LIMIT_SAVER else LIMIT
         return when (source) {
-            OnlineSource.ARCHIVE -> ArchiveApi.search(context, q, filter.losslessOnly).map { OnlineResult.Album(it) }
+            OnlineSource.ARCHIVE -> archiveSongs(context, q, filter.losslessOnly, n).map { OnlineResult.Song(it) }
             OnlineSource.AUDIUS -> audius(q, n).map { OnlineResult.Song(it) }
             OnlineSource.JAMENDO -> jamendo(context, q, n, filter.genre).map { OnlineResult.Song(it) }
             OnlineSource.CCMIXTER -> ccmixter(q, n).map { OnlineResult.Song(it) }
-            OnlineSource.OPENVERSE -> openverse(q, minOf(n, 20), filter.commercialOnly).map { OnlineResult.Song(it) }
+        }
+    }
+
+    /**
+     * Internet Archive finds albums; the list should show songs like the YouTube tab does, so the songs of the
+     * first few matches are fetched (in parallel, a few per album so one big album cannot fill the list).
+     */
+    private fun archiveSongs(context: Context, q: String, losslessOnly: Boolean, n: Int): List<Track> {
+        val items = ArchiveApi.search(context, q, losslessOnly).take(if (n <= LIMIT_SAVER) 4 else 8)
+        if (items.isEmpty()) return emptyList()
+        val pool = java.util.concurrent.Executors.newFixedThreadPool(4)
+        try {
+            val jobs = items.map { item ->
+                java.util.concurrent.Callable { runCatching { ArchiveApi.tracks(context, item).take(5) }.getOrDefault(emptyList()) }
+            }
+            return pool.invokeAll(jobs, 20, java.util.concurrent.TimeUnit.SECONDS)
+                .flatMap { f -> runCatching { f.get() }.getOrDefault(emptyList()) }
+                .take(n)
+        } finally {
+            pool.shutdownNow()
         }
     }
 
@@ -83,31 +100,6 @@ object OnlineApi {
                 album = o.optString("album_name").trim(), durationMs = o.optLong("duration", 0L) * 1000,
                 url = audio, art = o.optString("image"),
                 info = AudioInfo("MP3", false, 0, 0, 0, if (high) 192 else 96)
-            )
-        }
-        return out
-    }
-
-    // ------------------------------------------------------------------ Openverse
-
-    private fun openverse(q: String, n: Int, commercial: Boolean): List<Track> {
-        val url = "https://api.openverse.org/v1/audio/?category=music&page_size=$n&q=" + enc(q.ifEmpty { "music" }) +
-            (if (commercial) "&license_type=commercial" else "")
-        val data = JSONObject(ArchiveApi.get(url)).optJSONArray("results") ?: return emptyList()
-        val out = ArrayList<Track>()
-        for (i in 0 until data.length()) {
-            val o = data.optJSONObject(i) ?: continue
-            val audio = o.optString("url").trim()
-            val type = o.optString("filetype").lowercase()
-            val title = o.optString("title").trim()
-            if (!audio.startsWith("http") || title.isEmpty()) continue
-            if (type.isNotEmpty() && type !in setOf("mp3", "ogg", "oga", "flac", "wav", "m4a")) continue // MediaPlayer can't play the rest
-            val codec = if (type.isEmpty()) "MP3" else type.uppercase().replace("OGA", "OGG")
-            out += make(
-                title = title, artist = o.optString("creator").trim().ifBlank { o.optString("source").ifBlank { "Openverse" } },
-                album = o.optString("source"), durationMs = o.optLong("duration", 0L), // Openverse gives milliseconds
-                url = audio, art = o.optString("thumbnail"),
-                info = AudioInfo(codec, type == "flac" || type == "wav", o.optInt("sample_rate", 0), 0, 0, o.optInt("bit_rate", 0) / 1000)
             )
         }
         return out

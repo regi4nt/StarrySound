@@ -134,7 +134,8 @@ object PlaylistUi {
         if (fromHistory) {
             labels += c.getString(R.string.history_remove_song)
             actions += {
-                MusicPrefs.removeYoutubeHistory(c, t.remoteId)
+                if (t.source == Track.SOURCE_ONLINE) MusicPrefs.removeOnlineHistory(c, t.remoteId)
+                else MusicPrefs.removeYoutubeHistory(c, t.remoteId)
                 toast(c, c.getString(R.string.history_removed))
                 onChanged()
             }
@@ -143,7 +144,8 @@ object PlaylistUi {
                 AlertDialog.Builder(c)
                     .setMessage(R.string.history_clear_confirm)
                     .setPositiveButton(R.string.playlist_delete) { _, _ ->
-                        MusicPrefs.clearYoutubeHistory(c)
+                        if (t.source == Track.SOURCE_ONLINE) MusicPrefs.clearOnlineHistory(c)
+                        else MusicPrefs.clearYoutubeHistory(c)
                         toast(c, c.getString(R.string.history_cleared))
                         onChanged()
                     }
