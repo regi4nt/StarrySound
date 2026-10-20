@@ -6,6 +6,7 @@ import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -16,6 +17,9 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
 
     private var items: List<Track> = emptyList()
     private var currentKey = ""
+    /** Multi-select mode (playlist page): rows show a check box; [selected] holds the picked songs' [Track.syncKey]. */
+    private var selecting = false
+    private var selected: Set<String> = emptySet()
     private companion object { const val STATUS_PAYLOAD = "radio_status" }
 
     class VH(view: View) : RecyclerView.ViewHolder(view) {
@@ -23,6 +27,14 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
         val title: TextView = view.findViewById(R.id.trackTitle)
         val artist: TextView = view.findViewById(R.id.trackArtist)
         val duration: TextView = view.findViewById(R.id.trackDuration)
+        val check: CheckBox = view.findViewById(R.id.trackCheck)
+    }
+
+    fun setSelection(active: Boolean, keys: Set<String>) {
+        if (active == selecting && keys == selected) return
+        selecting = active
+        selected = keys
+        notifyDataSetChanged()
     }
 
     fun submit(list: List<Track>) {
@@ -102,12 +114,15 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
     override fun onBindViewHolder(holder: VH, position: Int) {
         val t = items[position]
         val current = t.key == currentKey
+        holder.check.visibility = if (selecting) View.VISIBLE else View.GONE
+        holder.check.isChecked = selecting && t.syncKey in selected
         holder.title.text = t.title
         holder.artist.text = t.artist.ifBlank { t.album }.let {
             if (t.missing) holder.itemView.context.getString(R.string.track_missing_here, it) else it
         }.let { t.labeledSubtitle(holder.itemView.context, it) }
         holder.itemView.alpha = if (t.missing) 0.45f else 1f
         if (t.source == Track.SOURCE_RADIO) bindRadioStatus(holder, t)
+        else if (YouTubeApi.isListRow(t)) holder.duration.text = "" // a playlist / mix row has no length
         else holder.duration.text = formatDuration(t.durationMs)
 
         val ctx = holder.itemView.context

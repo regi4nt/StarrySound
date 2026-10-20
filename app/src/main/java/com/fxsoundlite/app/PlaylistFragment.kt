@@ -53,6 +53,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     /** Song order inside an opened list (one of SORT_*), remembered across launches. */
     private var sortMode = SORT_DEFAULT
     private var backCallback: OnBackPressedCallback? = null
+    /** Multi-select mode inside an opened (editable) list; [selected] = [Track.syncKey]s of the picked songs. */
+    private var selecting = false
+    private val selected = LinkedHashSet<String>()
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     /** Id of the playlist being exported to an M3U file (set before the file picker opens). */
@@ -455,6 +458,11 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         binding.plBackButton.setOnClickListener { if (openList != null) goBack() }
         binding.plPlayBtn.setOnClickListener { playOpenList() }
         binding.plEditBtn.setOnClickListener { showEditDialog() }
+        binding.plSelectBtn.setOnClickListener { startSelection(null) }
+        binding.plSelClose.setOnClickListener { exitSelection(); refresh() }
+        binding.plSelAll.setOnClickListener { toggleSelectAll() }
+        binding.plSelMove.setOnClickListener { moveSelected() }
+        binding.plSelDelete.setOnClickListener { removeSelected() }
 
         // Only intercepts Back while this page is the visible one (see updateBack()).
         backCallback = object : OnBackPressedCallback(false) {
@@ -516,6 +524,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     }
 
     private fun goBack() {
+        if (selecting) { exitSelection(); refresh(); return } // Back first leaves selection mode
         openList = null
         if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
     }
@@ -780,8 +789,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         )
         val q = b.plSearchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         val id = openList
+        if (id == null || isRemoteList(id)) exitSelection()
 
         if (id == null) {
+            syncSelectionUi(null)
             b.plSearchInput.setHint(R.string.playlist_search_hint)
             if (b.plList.adapter !== rowAdapter) b.plList.adapter = rowAdapter
             val likedName = getString(R.string.playlist_liked)
@@ -868,6 +879,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 it.artist.lowercase(Locale.getDefault()).contains(q) ||
                 it.album.lowercase(Locale.getDefault()).contains(q)
         }).filter { songFilter.matches(it) })
+        selected.retainAll(pl.tracks.map { it.syncKey }.toSet()) // songs removed elsewhere drop out
+        if (selecting && selected.isEmpty() && pl.tracks.isEmpty()) exitSelection()
+        syncSelectionUi(pl)
         trackAdapter.submit(shown)
         trackAdapter.setCurrentKey((service ?: MusicService.instance)?.current?.key.orEmpty())
         b.plTitle.text = name
@@ -927,7 +941,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     // ------------------------------------------------------------------ actions
 
     private fun open(id: String) {
-        if (openList != id) { songFilter.reset(); listAccent = null }
+        if (openList != id) { songFilter.reset(); listAccent = null; exitSelection() }
         openList = id
         if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
     }
@@ -1101,12 +1115,98 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     private fun onTrackClicked(position: Int) {
         if (position !in shown.indices) return
+        if (selecting) { toggleSelected(shown[position]); return }
         (service ?: MusicService.instance)?.setQueueAndPlay(shown, position)
     }
 
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
-        PlaylistUi.trackActions(requireContext(), shown[position], openList.takeUnless { isRemoteList(it) }) { if (_binding != null) refresh() }
+        val t = shown[position]
+        if (selecting) { toggleSelected(t); return }
+        val editable = openList != null && !isRemoteList(openList)
+        PlaylistUi.trackActions(
+            requireContext(), t, openList.takeUnless { isRemoteList(it) },
+            onSelect = if (editable) ({ startSelection(t) }) else null
+        ) { if (_binding != null) refresh() }
+    }
+
+    // ------------------------------------------------------------------ multi-select: remove / move several songs
+
+    private fun startSelection(first: Track?) {
+        val id = openList ?: return
+        if (isRemoteList(id)) return
+        selecting = true
+        selected.clear()
+        first?.let { selected += it.syncKey }
+        refresh()
+    }
+
+    private fun exitSelection() {
+        selecting = false
+        selected.clear()
+    }
+
+    private fun toggleSelected(t: Track) {
+        if (!selected.remove(t.syncKey)) selected += t.syncKey
+        syncSelectionUi(openList?.let { resolveList(requireContext(), it) })
+    }
+
+    /** Selects every song currently shown (respects search / filter); a second tap clears the selection. */
+    private fun toggleSelectAll() {
+        val keys = shown.map { it.syncKey }
+        if (keys.isNotEmpty() && selected.containsAll(keys)) selected.removeAll(keys.toSet()) else selected.addAll(keys)
+        syncSelectionUi(openList?.let { resolveList(requireContext(), it) })
+    }
+
+    /** Header row <-> selection bar, check boxes on the rows, "N selected". */
+    private fun syncSelectionUi(pl: Playlist?) {
+        val b = _binding ?: return
+        val canSelect = pl != null && !isRemoteList(pl.id) && pl.tracks.isNotEmpty()
+        b.plHeaderRow.visibility = if (selecting) View.GONE else View.VISIBLE
+        b.plSelectBar.visibility = if (selecting) View.VISIBLE else View.GONE
+        b.plSelectBtn.visibility = if (canSelect) View.VISIBLE else View.GONE
+        b.plSelCount.text = getString(R.string.select_count, selected.size)
+        val any = selected.isNotEmpty()
+        for (v in listOf(b.plSelMove, b.plSelDelete)) { v.isEnabled = any; v.alpha = if (any) 1f else 0.4f }
+        trackAdapter.setSelection(selecting, selected.toSet())
+    }
+
+    private fun selectedTracks(): List<Track> {
+        val id = openList ?: return emptyList()
+        return resolveList(requireContext(), id)?.tracks.orEmpty().filter { it.syncKey in selected }
+    }
+
+    private fun removeSelected() {
+        val ctx = context ?: return
+        val id = openList ?: return
+        val tracks = selectedTracks()
+        if (tracks.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one, Toast.LENGTH_SHORT).show(); return }
+        val name = if (id == PlaylistStore.LIKED_ID) getString(R.string.playlist_liked) else resolveList(ctx, id)?.name.orEmpty()
+        AlertDialog.Builder(ctx)
+            .setMessage(getString(R.string.select_remove_confirm, tracks.size, name))
+            .setPositiveButton(R.string.select_remove) { _, _ ->
+                PlaylistStore.removeTracks(ctx, id, tracks)
+                Toast.makeText(ctx, getString(R.string.select_removed, tracks.size), Toast.LENGTH_SHORT).show()
+                exitSelection()
+                if (_binding != null) refresh()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /** Moves the picked songs to another playlist: added there first, then taken out of this one. */
+    private fun moveSelected() {
+        val ctx = context ?: return
+        val id = openList ?: return
+        val tracks = selectedTracks()
+        if (tracks.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one, Toast.LENGTH_SHORT).show(); return }
+        PlaylistUi.pickPlaylist(ctx, getString(R.string.select_move_title, tracks.size), id) { target ->
+            PlaylistStore.addTracks(ctx, target.id, tracks)
+            PlaylistStore.removeTracks(ctx, id, tracks)
+            Toast.makeText(ctx, getString(R.string.select_moved, tracks.size, target.name), Toast.LENGTH_SHORT).show()
+            exitSelection()
+            if (_binding != null) refresh()
+        }
     }
 
     // ------------------------------------------------------------------ import / export

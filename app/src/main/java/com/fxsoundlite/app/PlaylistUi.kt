@@ -84,6 +84,43 @@ object PlaylistUi {
             .show()
     }
 
+    /** Picker for "move": "Liked songs" and the user's playlists except [excludeId], plus "+ New playlist". */
+    fun pickPlaylist(c: Context, title: String, excludeId: String?, onPick: (Playlist) -> Unit) {
+        val likedList = Playlist(PlaylistStore.LIKED_ID, c.getString(R.string.playlist_liked), emptyList())
+        val lists = (listOf(likedList) + PlaylistStore.playlists(c)).filter { it.id != excludeId }
+        val dp = c.resources.displayMetrics.density
+        var dialog: AlertDialog? = null
+        val listView = android.widget.ListView(c).apply {
+            adapter = android.widget.ArrayAdapter(c, android.R.layout.simple_list_item_1, lists.map { it.name })
+            setOnItemClickListener { _, _, pos, _ ->
+                dialog?.dismiss()
+                onPick(lists[pos])
+            }
+        }
+        val create = android.widget.Button(c).apply {
+            text = c.getString(R.string.playlist_new_item)
+            isAllCaps = false
+            setOnClickListener {
+                dialog?.dismiss()
+                createPlaylist(c) { pl -> onPick(pl) }
+            }
+        }
+        val box = android.widget.LinearLayout(c).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            addView(listView, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(create, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        dialog = AlertDialog.Builder(c)
+            .setTitle(title)
+            .setView(box)
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun addAndReport(c: Context, pl: Playlist, t: Track, onDone: () -> Unit) {
         val added = PlaylistStore.addTrack(c, pl.id, t)
         toast(c, c.getString(if (added) R.string.playlist_added else R.string.playlist_already, pl.name))
@@ -100,7 +137,7 @@ object PlaylistUi {
      *  [fromHistory] = the row is in the YouTube "recently played" list, which adds delete options. */
     fun trackActions(
         c: Context, t: Track, openListId: String?, fromHistory: Boolean = false,
-        onDelete: (() -> Unit)? = null, onChanged: () -> Unit
+        onDelete: (() -> Unit)? = null, onSelect: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
         val liked = PlaylistStore.isLiked(c, t)
         val labels = mutableListOf<String>()
@@ -118,6 +155,10 @@ object PlaylistUi {
         if (SongDownloader.canDownload(t)) {
             labels += c.getString(R.string.np_download)
             actions += { SongDownloader.download(c, t) }
+        }
+        if (onSelect != null) { // inside an editable playlist: start picking several songs
+            labels += c.getString(R.string.select_songs)
+            actions += { onSelect() }
         }
         if (openListId != null && openListId != PlaylistStore.LIKED_ID) {
             labels += c.getString(R.string.playlist_remove_song)

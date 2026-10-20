@@ -306,6 +306,18 @@
     <string name="playlist_already">Sudah ada di “%s”</string>
     <string name="playlist_removed">Dihapus dari playlist</string>
     <string name="playlist_remove_song">Hapus dari playlist ini</string>
+    <string name="select_songs">Pilih beberapa lagu</string>
+    <string name="select_count">%d dipilih</string>
+    <string name="select_all">Pilih semua</string>
+    <string name="select_none">Batalkan semua</string>
+    <string name="select_move">Pindahkan</string>
+    <string name="select_remove">Hapus</string>
+    <string name="select_move_title">Pindahkan %d lagu ke…</string>
+    <string name="select_remove_confirm">Hapus %1$d lagu dari “%2$s”?</string>
+    <string name="select_removed">%d lagu dihapus</string>
+    <string name="select_moved">%1$d lagu dipindahkan ke “%2$s”</string>
+    <string name="select_pick_one">Pilih minimal satu lagu</string>
+    <string name="select_exit">Keluar dari mode pilih</string>
     <string name="playlist_rename">Ganti nama</string>
     <string name="playlist_menu_edit">Edit</string>
     <string name="playlist_delete">Hapus</string>
@@ -919,7 +931,8 @@
     <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>
     <string name="search_tabs_none">Hanya perangkat</string>
     <string name="source_online">Online</string>
-    <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo dan ccMixter</string>
+    <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo dan ccMixter, atau tempel link</string>
+    <string name="online_src_all">Semua sumber</string>
     <string name="online_src_archive">Internet Archive</string>
     <string name="online_src_audius">Audius</string>
     <string name="online_src_ccmixter">ccMixter</string>
@@ -945,4 +958,9 @@
     <string name="online_source_title">Sumber online</string>
     <string name="online_genre_title">Genre</string>
     <string name="online_filter_title">Opsi</string>
+    <string name="yt_row_playlist">Playlist</string>
+    <string name="yt_row_mix">Mix</string>
+    <string name="yt_row_mix_title">Mix – %s</string>
+    <string name="yt_row_videos">%d video</string>
+    <string name="yt_list_failed">Playlist tidak bisa dibuka</string>
 </resources>

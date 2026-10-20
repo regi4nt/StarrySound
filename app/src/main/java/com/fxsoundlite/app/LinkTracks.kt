@@ -22,6 +22,11 @@ object LinkTracks {
         return YOUTUBE_ID.find(t)?.groupValues?.get(1)
     }
 
+    private val YOUTUBE_PLAYLIST = Regex("^https?://(?:www\\.|m\\.|music\\.)?youtube\\.com/playlist\\?(?:[^#\\s]*?&)?list=([A-Za-z0-9_-]{10,})", RegexOption.IGNORE_CASE)
+
+    /** The list id when [text] is a youtube.com/playlist?list=... link, else null. */
+    fun youtubePlaylistId(text: String): String? = YOUTUBE_PLAYLIST.find(text.trim())?.groupValues?.get(1)
+
     private fun isYoutubeHost(url: String): Boolean {
         val host = try { Uri.parse(url).host.orEmpty().lowercase() } catch (_: Exception) { "" }
         return host == "youtu.be" || host.endsWith("youtube.com") || host.endsWith("youtube-nocookie.com")

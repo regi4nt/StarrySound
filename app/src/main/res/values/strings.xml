@@ -312,6 +312,18 @@
     <string name="playlist_already">Already in “%s”</string>
     <string name="playlist_removed">Removed from playlist</string>
     <string name="playlist_remove_song">Remove from this playlist</string>
+    <string name="select_songs">Select songs</string>
+    <string name="select_count">%d selected</string>
+    <string name="select_all">Select all</string>
+    <string name="select_none">Deselect all</string>
+    <string name="select_move">Move</string>
+    <string name="select_remove">Remove</string>
+    <string name="select_move_title">Move %d songs to…</string>
+    <string name="select_remove_confirm">Remove %1$d songs from “%2$s”?</string>
+    <string name="select_removed">%d songs removed</string>
+    <string name="select_moved">%1$d songs moved to “%2$s”</string>
+    <string name="select_pick_one">Pick at least one song</string>
+    <string name="select_exit">Exit selection</string>
     <string name="playlist_rename">Rename</string>
     <string name="playlist_menu_edit">Edit</string>
     <string name="playlist_delete">Delete</string>
@@ -926,7 +938,8 @@
     <string name="search_tabs_desc">Choose which online tabs show on the Search screen. The Device tab is always shown.</string>
     <string name="search_tabs_none">Device only</string>
     <string name="source_online">Online</string>
-    <string name="online_archive_hint">Search Internet Archive, Audius, Jamendo and ccMixter</string>
+    <string name="online_archive_hint">Search Internet Archive, Audius, Jamendo and ccMixter, or paste a link</string>
+    <string name="online_src_all">All sources</string>
     <string name="online_src_archive">Internet Archive</string>
     <string name="online_src_audius">Audius</string>
     <string name="online_src_ccmixter">ccMixter</string>
@@ -952,4 +965,9 @@
     <string name="online_source_title">Online source</string>
     <string name="online_genre_title">Genre</string>
     <string name="online_filter_title">Options</string>
+    <string name="yt_row_playlist">Playlist</string>
+    <string name="yt_row_mix">Mix</string>
+    <string name="yt_row_mix_title">Mix – %s</string>
+    <string name="yt_row_videos">%d videos</string>
+    <string name="yt_list_failed">Couldn’t open this playlist</string>
 </resources>

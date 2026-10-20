@@ -353,7 +353,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     /** YouTube list narrowed by [ytFilter]; also remembers the unfiltered list for the dialog. */
     private fun ytFiltered(list: List<Track>): List<Track> {
-        ytBase = list
+        ytBase = list.filter { !YouTubeApi.isListRow(it) } // playlist / mix rows are not songs (artist filter list)
         return if (ytFilter.active) list.filter { ytFilter.matches(it) } else list
     }
 
@@ -661,7 +661,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     // ------------------------------------------------------------------ Online tab (Internet Archive, Audius, Jamendo, ccMixter)
 
-    private var onlineSrc = OnlineSource.ARCHIVE
+    /** null = all sources at once (default): the search goes to every source and the answers are merged. */
+    private var onlineSrc: OnlineSource? = null
+    private fun onlineSrcLabel() = onlineSrc?.let { getString(it.labelRes) } ?: getString(R.string.online_src_all)
     private var onlineGenre: String? = null
     private var onlineLossless = false
     private var onlineCommercial = false
@@ -675,15 +677,17 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun isArchiveAlbum(t: Track) = t.source == Track.SOURCE_ONLINE && t.remoteId.startsWith(albumPrefix)
 
     private fun loadOnlineSrc() {
-        try { onlineSrc = OnlineSource.values().getOrNull(sortPrefs().getInt("online_src", 0)) ?: OnlineSource.ARCHIVE } catch (_: Exception) { }
+        // Stored as an index into the dialog's list: 0 = all sources, 1.. = a single source.
+        try { onlineSrc = OnlineSource.values().getOrNull(sortPrefs().getInt("online_src_all", 0) - 1) } catch (_: Exception) { }
     }
 
     private fun onlineOption(): OnlineOption {
         val all = OnlineSource.values()
         val genres = OnlineApi.GENRES
         return OnlineOption(
-            all.map { getString(it.labelRes) }, { all.indexOf(onlineSrc) },
-            { onlineSrc = all[it]; try { sortPrefs().edit().putInt("online_src", it).apply() } catch (_: Exception) { } },
+            listOf(getString(R.string.online_src_all)) + all.map { getString(it.labelRes) },
+            { onlineSrc?.let { all.indexOf(it) + 1 } ?: 0 },
+            { onlineSrc = all.getOrNull(it - 1); try { sortPrefs().edit().putInt("online_src_all", it).apply() } catch (_: Exception) { } },
             listOf(getString(R.string.online_genre_all)) + genres.map { g -> g.replaceFirstChar { c -> c.uppercase() } },
             { onlineGenre?.let { genres.indexOf(it) + 1 } ?: 0 }, { onlineGenre = if (it == 0) null else genres[it - 1] },
             { onlineLossless }, { onlineLossless = it }, { onlineCommercial }, { onlineCommercial = it }
@@ -710,7 +714,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             showOnlineList()
             return
         }
-        if (OnlineApi.needsKey(app, src)) {
+        if (src != null && OnlineApi.needsKey(app, src)) {
             searchToken++
             binding.searchProgress.visibility = View.GONE
             shown = emptyList()
@@ -730,7 +734,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             netExecutor.execute {
                 if (token != searchToken) return@execute
                 val result = runCatching {
-                    OnlineApi.search(app, src, q, filter).map { r ->
+                    (if (src == null) OnlineApi.searchAll(app, q, filter) else OnlineApi.search(app, src, q, filter)).map { r ->
                         when (r) {
                             is OnlineResult.Song -> r.track
                             is OnlineResult.Album -> Track(
@@ -765,9 +769,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
         shown = list
         adapter.submit(list)
-        binding.musicCount.text = if (list.isEmpty()) getString(onlineSrc.labelRes)
+        binding.musicCount.text = if (list.isEmpty()) onlineSrcLabel()
         else if (blank) getString(R.string.online_history_title, list.size)
-        else resources.getQuantityString(R.plurals.online_result_count, list.size, list.size, getString(onlineSrc.labelRes))
+        else resources.getQuantityString(R.plurals.online_result_count, list.size, list.size, onlineSrcLabel())
         when {
             list.isNotEmpty() -> showList()
             blank && !onlineFilter.active -> showEmpty(R.string.online_search_prompt)
@@ -1041,7 +1045,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
-        if (isArchiveAlbum(shown[position])) return // an album row is not a song: nothing to add to a playlist
+        if (isArchiveAlbum(shown[position]) || YouTubeApi.isListRow(shown[position])) return // not a song: nothing to add to a playlist
         val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
             Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
             Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()
@@ -1142,16 +1146,38 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val svc = service ?: return
         if (position !in shown.indices) return
         if (isArchiveAlbum(shown[position])) { playArchiveAlbum(shown[position]); return }
-        svc.setQueueAndPlay(shown, position, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+        if (YouTubeApi.isListRow(shown[position])) { playYoutubeList(shown[position]); return }
+        // Playlist / mix rows are no songs: the queue is the videos around the tapped one.
+        val songs = shown.filter { !YouTubeApi.isListRow(it) }
+        svc.setQueueAndPlay(songs, songs.indexOf(shown[position]).coerceAtLeast(0), fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+    }
+
+    /** A YouTube playlist or mix row was tapped: fetch its videos, then play them as a queue. */
+    private fun playYoutubeList(row: Track) {
+        val app = requireContext().applicationContext
+        binding.searchProgress.visibility = View.VISIBLE
+        try {
+            netExecutor.execute {
+                val songs = runCatching { YouTubeApi.listTracks(row) }.getOrDefault(emptyList())
+                handler.post {
+                    if (_binding == null) return@post
+                    binding.searchProgress.visibility = View.GONE
+                    if (songs.isEmpty()) Toast.makeText(app, R.string.yt_list_failed, Toast.LENGTH_SHORT).show()
+                    else service?.setQueueAndPlay(songs, 0, fromYoutubeSearch = true)
+                }
+            }
+        } catch (e: Exception) {
+            binding.searchProgress.visibility = View.GONE
+        }
     }
 
     private fun onPlayPauseClicked() {
         val svc = service ?: return
         if (svc.current != null) {
             svc.togglePlayPause()
-        } else if (shown.isNotEmpty()) {
+        } else if (shown.any { !YouTubeApi.isListRow(it) }) {
             // Nothing queued yet: play from the top of what's on screen.
-            svc.setQueueAndPlay(shown, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
         }
     }
 

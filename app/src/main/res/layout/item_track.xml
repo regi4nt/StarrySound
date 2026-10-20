@@ -10,6 +10,20 @@
     android:paddingHorizontal="18dp"
     android:paddingVertical="8dp">
 
+    <!-- Only shown while songs are being selected (playlist page, multi-select mode). -->
+    <CheckBox
+        android:id="@+id/trackCheck"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="6dp"
+        android:buttonTint="?attr/colorAccent"
+        android:clickable="false"
+        android:focusable="false"
+        android:importantForAccessibility="no"
+        android:minWidth="0dp"
+        android:minHeight="0dp"
+        android:visibility="gone" />
+
     <ImageView
         android:id="@+id/trackIcon"
         android:layout_width="44dp"

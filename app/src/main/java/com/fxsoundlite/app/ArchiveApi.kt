@@ -61,8 +61,24 @@ object ArchiveApi {
 
     /** The songs of one item, in track order, in the file format the audio-quality setting asks for. */
     @Throws(IOException::class)
-    fun tracks(context: Context, item: ArchiveItem): List<Track> {
-        val meta = JSONObject(get("$BASE/metadata/" + URLEncoder.encode(item.identifier, "UTF-8")))
+    fun tracks(context: Context, item: ArchiveItem): List<Track> =
+        tracksFrom(context, JSONObject(get("$BASE/metadata/" + URLEncoder.encode(item.identifier, "UTF-8"))), item)
+
+    /** Same, for a pasted archive.org link: only the identifier is known, so title and creator come from the item's own metadata. */
+    @Throws(IOException::class)
+    fun tracksOfId(context: Context, identifier: String): List<Track> {
+        val meta = JSONObject(get("$BASE/metadata/" + URLEncoder.encode(identifier, "UTF-8")))
+        val md = meta.optJSONObject("metadata")
+        val item = ArchiveItem(
+            identifier = identifier,
+            title = md?.let { firstText(it, "title") }.orEmpty().ifBlank { identifier },
+            creator = md?.let { firstText(it, "creator") }.orEmpty(),
+            thumbUrl = "$BASE/services/img/" + URLEncoder.encode(identifier, "UTF-8")
+        )
+        return tracksFrom(context, meta, item)
+    }
+
+    private fun tracksFrom(context: Context, meta: JSONObject, item: ArchiveItem): List<Track> {
         val files = meta.optJSONArray("files") ?: return emptyList()
         val level = StreamQuality.effective(context)
 

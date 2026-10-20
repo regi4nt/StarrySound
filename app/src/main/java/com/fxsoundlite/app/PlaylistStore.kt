@@ -295,6 +295,46 @@ object PlaylistStore {
         })
     }
 
+    /** Adds all of [tracks] (skipping ones already there); returns how many were really added. One write for the batch. */
+    @Synchronized
+    fun addTracks(c: Context, id: String, tracks: List<Track>): Int {
+        if (tracks.isEmpty()) return 0
+        val now = System.currentTimeMillis()
+        fun fresh(have: MutableSet<String>) =
+            tracks.filter { have.add(it.syncKey) }.map { it.copy(addedAt = now, missing = false) }
+        if (id == LIKED_ID) {
+            val cur = rawLiked(c)
+            val add = fresh(cur.map { it.syncKey }.toHashSet())
+            if (add.isNotEmpty()) saveLiked(c, add + cur)
+            return add.size
+        }
+        var added = 0
+        saveLists(c, rawPlaylists(c).map {
+            if (it.id != id) it else {
+                val add = fresh(it.tracks.map { x -> x.syncKey }.toHashSet())
+                added = add.size
+                if (add.isEmpty()) it else it.copy(tracks = it.tracks + add)
+            }
+        })
+        return added
+    }
+
+    /** Removes all of [tracks] from the list (or from "Liked songs"), leaving deletion records for Drive sync. */
+    @Synchronized
+    fun removeTracks(c: Context, id: String, tracks: List<Track>) {
+        if (tracks.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val gone = tracks.map { it.syncKey }.toHashSet()
+        saveTombs(c, loadTombs(c).also { m -> tracks.forEach { m[trackTomb(id, it)] = now } })
+        if (id == LIKED_ID) {
+            saveLiked(c, rawLiked(c).filter { it.syncKey !in gone })
+            return
+        }
+        saveLists(c, rawPlaylists(c).map {
+            if (it.id == id) it.copy(tracks = it.tracks.filter { x -> x.syncKey !in gone }) else it
+        })
+    }
+
     /** Likes / un-likes [t]; returns the new state (true = now liked). */
     fun toggleLike(c: Context, t: Track): Boolean {
         return if (isLiked(c, t)) {

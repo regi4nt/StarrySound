@@ -21,9 +21,108 @@ object YouTubeApi {
     /** The Search page's YouTube tab: everything on YouTube (not only music), shaped by the Settings switches. */
     fun userSearch(context: Context, query: String): List<Track> {
         val region = if (MusicPrefs.ytLocal(context)) java.util.Locale.getDefault().country.takeIf { it.length == 2 } else null
-        return search(
+        val isLink = LinkTracks.youtubeId(query) != null || LinkTracks.youtubePlaylistId(query) != null
+        // Playlists are searched at the same time as the videos, so they add no waiting.
+        val lists = if (isLink) null else java.util.concurrent.FutureTask { searchPlaylists(context, query) }
+            .also { Thread(it).start() }
+        val videos = search(
             context, query, category = null,
             opts = Opts(region, MusicPrefs.ytNewest(context), MusicPrefs.ytBlockShorts(context))
+        )
+        if (lists == null || videos.isEmpty()) return videos
+        val found = try { lists.get(10, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
+        // A "Mix" of the best match, then the playlists, after the first few videos.
+        val extra = ArrayList<Track>()
+        extra += mixRow(context, videos.first())
+        extra += found
+        val at = minOf(LIST_ROWS_AFTER, videos.size)
+        return videos.take(at) + extra + videos.drop(at)
+    }
+
+    // ------------------------------------------------------------------ playlists and mixes in the results
+
+    /** Rows of the result list that open to many songs: a playlist ("pl:<list id>") or a mix ("mix:<video id>"). */
+    private const val PLAYLIST_PREFIX = "pl:"
+    private const val MIX_PREFIX = "mix:"
+    private const val LIST_ROWS_AFTER = 3
+    private const val MAX_PLAYLISTS = 4
+    private const val MAX_LIST_SONGS = 100
+
+    fun isListRow(t: Track): Boolean =
+        t.source == Track.SOURCE_YOUTUBE && (t.remoteId.startsWith(PLAYLIST_PREFIX) || t.remoteId.startsWith(MIX_PREFIX))
+
+    private fun mixRow(context: Context, seed: Track) = Track(
+        id = 0, title = context.getString(R.string.yt_row_mix_title, seed.title),
+        artist = context.getString(R.string.yt_row_mix), album = "", durationMs = 0L,
+        source = Track.SOURCE_YOUTUBE, remoteId = MIX_PREFIX + seed.remoteId, artUrl = seed.artUrl
+    )
+
+    /** Playlists matching [query], as rows. Never throws: a failed playlist search just adds nothing. */
+    private fun searchPlaylists(context: Context, query: String): List<Track> = try {
+        initNewPipe()
+        val service = org.schabi.newpipe.extractor.ServiceList.YouTube
+        val handler = service.searchQHFactory.fromQuery(
+            query, listOf(org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.PLAYLISTS), ""
+        )
+        org.schabi.newpipe.extractor.search.SearchInfo.getInfo(service, handler).relatedItems
+            .filterIsInstance<org.schabi.newpipe.extractor.playlist.PlaylistInfoItem>()
+            .mapNotNull { p ->
+                val id = Regex("[?&]list=([A-Za-z0-9_-]+)").find(p.url.orEmpty())?.groupValues?.get(1) ?: return@mapNotNull null
+                val by = listOf(p.uploaderName.orEmpty(), if (p.streamCount > 0) context.getString(R.string.yt_row_videos, p.streamCount.toInt()) else "")
+                    .filter { it.isNotBlank() }.joinToString(" \u00B7 ")
+                Track(
+                    id = 0, title = p.name.orEmpty(),
+                    artist = context.getString(R.string.yt_row_playlist) + if (by.isEmpty()) "" else " \u00B7 $by",
+                    album = "", durationMs = 0L, source = Track.SOURCE_YOUTUBE, remoteId = PLAYLIST_PREFIX + id,
+                    artUrl = bestArt(p.thumbnails)
+                )
+            }
+            .take(MAX_PLAYLISTS)
+    } catch (_: Throwable) { emptyList() }
+
+    /** The songs of a playlist or mix row (up to [MAX_LIST_SONGS]), read through NewPipe (no API quota). Blocking. */
+    @Throws(ApiException::class)
+    fun listTracks(row: Track): List<Track> {
+        val url = if (row.remoteId.startsWith(MIX_PREFIX)) {
+            val v = row.remoteId.removePrefix(MIX_PREFIX)
+            "https://www.youtube.com/watch?v=$v&list=RD$v"
+        } else "https://www.youtube.com/playlist?list=" + row.remoteId.removePrefix(PLAYLIST_PREFIX)
+        return playlistByUrl(url)
+    }
+
+    internal fun playlistByUrl(url: String): List<Track> {
+        initNewPipe()
+        return try {
+            val service = org.schabi.newpipe.extractor.ServiceList.YouTube
+            val info = org.schabi.newpipe.extractor.playlist.PlaylistInfo.getInfo(service, url)
+            val out = ArrayList<Track>()
+            info.relatedItems.filterIsInstance<org.schabi.newpipe.extractor.stream.StreamInfoItem>().mapNotNullTo(out) { streamTrack(it) }
+            var page = info.nextPage
+            while (page != null && out.size < MAX_LIST_SONGS) {
+                val more = org.schabi.newpipe.extractor.playlist.PlaylistInfo.getMoreItems(service, url, page)
+                more.items.filterIsInstance<org.schabi.newpipe.extractor.stream.StreamInfoItem>().mapNotNullTo(out) { streamTrack(it) }
+                page = more.nextPage
+            }
+            out.take(MAX_LIST_SONGS)
+        } catch (e: java.io.IOException) {
+            throw ApiException(RemoteEngine.ERR_NETWORK, e.message ?: "network error")
+        } catch (e: Exception) {
+            throw ApiException(RemoteEngine.ERR_GENERIC, e.message ?: "playlist not found")
+        }
+    }
+
+    private fun initNewPipe() {
+        try { org.schabi.newpipe.extractor.NewPipe.init(NewPipeDownloader) } catch (_: Throwable) { }
+    }
+
+    /** A playable row for one NewPipe video item; null for live streams and items without a video id. */
+    private fun streamTrack(item: org.schabi.newpipe.extractor.stream.StreamInfoItem): Track? {
+        val seconds = item.duration
+        if (seconds <= 0) return null
+        val id = Regex("[?&]v=([A-Za-z0-9_-]{6,20})").find(item.url)?.groupValues?.get(1) ?: return null
+        return Track(
+            id = 0, title = item.name.orEmpty(), artist = item.uploaderName.orEmpty(), album = "",
+            durationMs = seconds * 1000, source = Track.SOURCE_YOUTUBE, remoteId = id, artUrl = bestArt(item.thumbnails)
         )
     }
 
@@ -129,6 +228,8 @@ object YouTubeApi {
     ): List<Track> {
         // A pasted YouTube link gives that one video instead of a keyword search.
         LinkTracks.youtubeId(query)?.let { return listOf(linkedVideo(context, it)) }
+        // A pasted playlist link lists that playlist's videos.
+        LinkTracks.youtubePlaylistId(query)?.let { return playlistByUrl("https://www.youtube.com/playlist?list=$it") }
         val maxResults = if (MusicPrefs.saver(context)) minOf(maxResults, 10) else maxResults
         val key = MusicPrefs.youtubeKey(context)
         // No API key (or the key/quota failed): search through NewPipeExtractor instead.
