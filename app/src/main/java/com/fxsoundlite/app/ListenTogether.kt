@@ -18,6 +18,7 @@ import kotlin.math.abs
  *   rooms/<CODE>/host            uid of the host
  *   rooms/<CODE>/state           what the host is playing: video id, title, position, playing, server time
  *   rooms/<CODE>/members/<uid>/t presence heartbeat (server timestamp)
+ *   rooms/<CODE>/members/<uid>/n optional display name the person chose (see [setMyName])
  *   rooms/<CODE>/requests/<id>   a song a guest suggests (the host moves it into its own queue, then deletes it)
  *   rooms/<CODE>/upnext          the songs queued after the current one (title + artist), written by the host
  *
@@ -42,6 +43,9 @@ object ListenTogether {
         private set
     /** Anonymous ids of the people in the room (host included), from the presence heartbeat. */
     @Volatile var memberIds: List<String> = emptyList()
+        private set
+    /** Display names chosen by the people in the room (id -> name); people without one are not in here. */
+    @Volatile var memberNames: Map<String, String> = emptyMap()
         private set
     /** Id of the host (equals [myId] when we are the host). */
     @Volatile var hostId = ""
@@ -91,6 +95,33 @@ object ListenTogether {
     // ------------------------------------------------------------------ config
 
     private fun prefs(c: Context) = c.getSharedPreferences("listen_together", Context.MODE_PRIVATE)
+
+    const val MAX_NAME = 24
+
+    /** The name other people see for us; blank = none chosen (they see "Host" / "Listener N"). */
+    fun myName(c: Context): String = prefs(c).getString("name", "").orEmpty()
+
+    /**
+     * Saves our display name and, inside a room, shows it to everyone right away. Blank removes it.
+     * Names are trimmed, stripped of control characters and cut to [MAX_NAME] characters.
+     */
+    fun setMyName(c: Context, raw: String) {
+        val name = raw.filter { !it.isISOControl() }.trim().take(MAX_NAME).trim()
+        prefs(c).edit().putString("name", name).apply()
+        if (!active) return
+        val room = code
+        val me = uid
+        val my = session
+        memberNames = if (name.isEmpty()) memberNames - me else memberNames + (me to name)
+        onChange?.invoke()
+        io.execute { if (my == session) publishName(room, me, name) }
+    }
+
+    /** Writes (or removes) our name in the room (io thread). */
+    private fun publishName(room: String, me: String, name: String) {
+        if (name.isEmpty()) delete("rooms/$room/members/$me/n")
+        else put("rooms/$room/members/$me/n", JSONObject.quote(name))
+    }
 
     /** Database URL: what the user typed, else the one baked into res/values/listen_config.xml. */
     fun dbUrl(c: Context): String {
@@ -225,6 +256,7 @@ object ListenTogether {
         members = 0
         hostId = ""
         memberIds = emptyList()
+        memberNames = emptyMap()
         main.removeCallbacks(hostLoop)
         main.removeCallbacks(guestLoop)
         MusicService.removeGlobalListener(hostListener)
@@ -626,6 +658,7 @@ object ListenTogether {
     private fun startPresence(my: Int) {
         io.execute {
             var first = true
+            app?.let { a -> val n = myName(a); if (n.isNotEmpty()) publishName(code, uid, n) }
             while (my == session) {
                 try {
                     Thread.sleep(if (first) 1_500L else 20_000L)
@@ -638,12 +671,21 @@ object ListenTogether {
                 val o = try { JSONObject(body) } catch (e: Exception) { null } ?: continue
                 val limit = serverNow() - 60_000
                 val ids = ArrayList<String>()
-                for (k in o.keys()) if ((o.optJSONObject(k)?.optLong("t") ?: 0L) > limit) ids.add(k)
+                val names = HashMap<String, String>()
+                for (k in o.keys()) {
+                    val m = o.optJSONObject(k) ?: continue
+                    if (m.optLong("t") > limit) {
+                        ids.add(k)
+                        m.optString("n").filter { !it.isISOControl() }.trim().take(MAX_NAME)
+                            .takeIf { it.isNotEmpty() }?.let { names[k] = it }
+                    }
+                }
                 ids.sort()
                 main.post {
                     if (my == session && ids.isNotEmpty()) {
                         members = ids.size
                         memberIds = ids
+                        memberNames = names
                         onChange?.invoke()
                     }
                 }

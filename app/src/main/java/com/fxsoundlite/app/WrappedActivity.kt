@@ -113,6 +113,7 @@ class WrappedActivity : AppCompatActivity() {
             Track.SOURCE_YOUTUBE -> R.string.source_youtube
             Track.SOURCE_RADIO -> R.string.source_radio
             Track.SOURCE_DRIVE -> R.string.source_drive
+            Track.SOURCE_ONLINE -> R.string.source_online
             else -> R.string.source_local
         }
     )
@@ -264,10 +265,16 @@ class WrappedActivity : AppCompatActivity() {
         val srcTotal = r.sources.values.sum()
         if (srcTotal > 0) {
             cards.addView(card(R.string.wrapped_sources_title).apply {
-                r.sources.entries.sortedByDescending { it.value }.forEachIndexed { i, (src, n) ->
-                    val pct = (n * 100f / srcTotal).toInt()
-                    addView(barRow(0, sourceName(src), "$pct%", n.toFloat() / srcTotal, showRank = false))
-                }
+                // Different source ids can share one label (e.g. unknown ids fall back to "Device"):
+                // merge them so a name never shows up twice.
+                r.sources.entries
+                    .groupBy({ sourceName(it.key) }, { it.value })
+                    .mapValues { it.value.sum() }
+                    .entries.sortedByDescending { it.value }
+                    .forEach { (label, n) ->
+                        val pct = (n * 100f / srcTotal).toInt()
+                        addView(barRow(0, label, "$pct%", n.toFloat() / srcTotal, showRank = false))
+                    }
             }, lp(top = 12))
         }
         cards.addView(View(this), LinearLayout.LayoutParams(1, dp(24)))

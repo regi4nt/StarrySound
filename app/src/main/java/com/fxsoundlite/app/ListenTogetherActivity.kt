@@ -329,6 +329,11 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
                 gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(14) })
         }
+        content.addView(text(getString(R.string.listen_name_row, ListenTogether.myName(this).ifBlank { getString(R.string.listen_name_none) }), 13f, cMuted).apply {
+            gravity = Gravity.CENTER
+            setPadding(px(12), px(14), px(12), px(4))
+            setOnClickListener { nameDialog() }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(6) })
         content.addView(text(getString(R.string.listen_server), 13f, cMuted).apply {
             gravity = Gravity.CENTER
             setPadding(px(12), px(14), px(12), px(14))
@@ -358,18 +363,31 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
         var guestNo = 0
         val labels = ArrayList<String>()
         val initials = ArrayList<String>()
+        val myName = ListenTogether.myName(this)
         for (id in ids) {
-            when {
-                id == ListenTogether.myId -> {
-                    labels.add(getString(R.string.listen_you)); initials.add(labels.last().take(1).uppercase())
-                }
-                id == ListenTogether.hostId -> {
-                    labels.add(getString(R.string.listen_host_tag)); initials.add(labels.last().take(1).uppercase())
-                }
-                else -> {
-                    guestNo++
-                    labels.add(getString(R.string.listen_guest_fmt, guestNo)); initials.add(guestNo.toString())
-                }
+            // A name the person chose wins; otherwise "You" / "Host" / "Listener N".
+            val chosen = if (id == ListenTogether.myId) myName else ListenTogether.memberNames[id].orEmpty()
+            val fallback = when {
+                id == ListenTogether.myId -> getString(R.string.listen_you)
+                id == ListenTogether.hostId -> getString(R.string.listen_host_tag)
+                else -> { guestNo++; getString(R.string.listen_guest_fmt, guestNo) }
+            }
+            labels.add(chosen.ifBlank { fallback })
+            initials.add(
+                if (chosen.isNotBlank()) chosen.codePointAt(0).let { String(Character.toChars(it)) }.uppercase()
+                else if (id == ListenTogether.myId || id == ListenTogether.hostId) fallback.take(1).uppercase()
+                else guestNo.toString()
+            )
+        }
+        // Two people may pick the same name: number them so every tile reads differently.
+        val seen = HashMap<String, Int>()
+        val total = labels.groupingBy { it.lowercase() }.eachCount()
+        for (k in labels.indices) {
+            val key = labels[k].lowercase()
+            if ((total[key] ?: 0) > 1) {
+                val n = (seen[key] ?: 0) + 1
+                seen[key] = n
+                if (n > 1) labels[k] = "${labels[k]} ($n)"
             }
         }
         while (i < ids.size) {
@@ -450,6 +468,12 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
     private fun memberTile(id: String, name: String, initial: String): View {
         val isHost = id == ListenTogether.hostId
         val tile = FrameLayout(this).apply { background = rounded(cPanel, 14) }
+        if (id == ListenTogether.myId) { // tap your own tile to change the name others see
+            tile.isClickable = true
+            tile.isFocusable = true
+            tile.contentDescription = getString(R.string.listen_name_title)
+            tile.setOnClickListener { nameDialog() }
+        }
 
         // Avatar with a ring that lights up (green) while music plays.
         val ringBox = FrameLayout(this)
@@ -728,6 +752,31 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
         ListenTogether.join(this, code) { fail, _ ->
             if (fail != null) toast(reason(fail))
         }
+    }
+
+    /** Asks for the name other people see in the room; blank removes it. Works inside a room and before joining. */
+    private fun nameDialog() {
+        val input = EditText(this).apply {
+            setText(ListenTogether.myName(this@ListenTogetherActivity))
+            setSelection(text.length)
+            hint = getString(R.string.listen_name_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            setSingleLine()
+            filters = arrayOf(InputFilter.LengthFilter(ListenTogether.MAX_NAME))
+        }
+        val wrap = LinearLayout(this).apply {
+            setPadding(px(24), px(8), px(24), 0)
+            addView(input, LinearLayout.LayoutParams(-1, -2))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.listen_name_title)
+            .setView(wrap)
+            .setPositiveButton(R.string.listen_save) { _, _ ->
+                ListenTogether.setMyName(this, input.text.toString())
+                render()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun serverDialog() {

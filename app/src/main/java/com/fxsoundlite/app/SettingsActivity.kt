@@ -639,6 +639,7 @@ class SettingsActivity : AppCompatActivity() {
             }
         })
         setupAiSection()
+        setupDiscordSection()
         setupKeyLinks()
         setupOnlineAudio()
         setupLastFmSection()
@@ -692,6 +693,37 @@ class SettingsActivity : AppCompatActivity() {
         binding.lastfmGetKeyLink.setOnClickListener { openLink("https://www.last.fm/api/account/create") }
         binding.acrGetKeyLink.text = getString(R.string.get_key_acr)
         binding.acrGetKeyLink.setOnClickListener { openLink("https://console.acrcloud.com") }
+    }
+
+    private fun setupDiscordSection() {
+        binding.discordSwitch.setOnCheckedChangeListener(null)
+        binding.discordSwitch.isChecked = DiscordPresence.enabled(this)
+        binding.discordAppIdInput.setText(DiscordPresence.appId(this))
+        binding.discordPortalLink.text = getString(R.string.discord_get_id)
+        binding.discordPortalLink.setOnClickListener { openLink("https://discord.com/developers/applications") }
+        fun status() {
+            binding.discordStatus.setText(
+                when {
+                    !DiscordPresence.sdkAvailable -> R.string.discord_status_no_sdk
+                    DiscordPresence.appId(this).isBlank() -> R.string.discord_status_need_id
+                    else -> R.string.discord_status_ready
+                }
+            )
+        }
+        status()
+        binding.discordSwitch.setOnCheckedChangeListener { _, checked ->
+            DiscordPresence.setEnabled(this, checked)
+            DiscordPresence.refresh(this)
+        }
+        binding.discordAppIdInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                DiscordPresence.setAppId(this@SettingsActivity, s?.toString().orEmpty())
+                DiscordPresence.refresh(this@SettingsActivity)
+                status()
+            }
+        })
     }
 
     private fun setupAiSection() {

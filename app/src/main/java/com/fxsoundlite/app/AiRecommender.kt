@@ -279,33 +279,40 @@ object AiRecommender {
             .put("messages", JSONArray()
                 .put(JSONObject().put("role", "system").put("content", system))
                 .put(JSONObject().put("role", "user").put("content", user)))
-            .put("max_completion_tokens", 4096) // reasoning models count their thinking in this too
+            .put("max_completion_tokens", 8192) // reasoning models count their thinking in this too (same budget as Gemini)
             .toString()
         val r = post(OPENAI_URL, mapOf("Authorization" to "Bearer $key"), body)
-        return try {
-            JSONObject(r.body).getJSONArray("choices").getJSONObject(0)
-                .getJSONObject("message").getString("content")
-        } catch (e: Exception) {
-            throw AiException(R.string.ai_err_bad_answer)
+        val root = try { JSONObject(r.body) } catch (e: Exception) { throw AiException(R.string.ai_err_bad_answer) }
+        val choice = root.optJSONArray("choices")?.optJSONObject(0)
+            ?: throw AiException(R.string.ai_err_http, "OpenAI: no answer")
+        val msg = choice.optJSONObject("message")
+        val text = if (msg == null || msg.isNull("content")) "" else msg.optString("content")
+        if (text.isBlank()) {
+            // Empty text: cut off (finish_reason "length": thinking used the whole budget), filtered, or refused.
+            val why = msg?.optString("refusal").orEmpty().ifEmpty { choice.optString("finish_reason", "empty answer") }
+            throw AiException(R.string.ai_err_http, "OpenAI: $why")
         }
+        return text
     }
 
     private fun callAnthropic(key: String, model: String, system: String, user: String): String {
         val body = JSONObject()
             .put("model", model)
-            .put("max_tokens", 4096)
+            .put("max_tokens", 8192)
             .put("system", system)
             .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", user)))
             .toString()
         val r = post(ANTHROPIC_URL, mapOf("x-api-key" to key, "anthropic-version" to ANTHROPIC_VERSION), body)
-        return try {
-            val parts = JSONObject(r.body).getJSONArray("content")
-            (0 until parts.length()).mapNotNull { i ->
-                parts.optJSONObject(i)?.takeIf { it.optString("type") == "text" }?.optString("text")
-            }.joinToString("")
-        } catch (e: Exception) {
-            throw AiException(R.string.ai_err_bad_answer)
+        val root = try { JSONObject(r.body) } catch (e: Exception) { throw AiException(R.string.ai_err_bad_answer) }
+        val parts = root.optJSONArray("content")
+        val text = if (parts == null) "" else (0 until parts.length()).mapNotNull { i ->
+            parts.optJSONObject(i)?.takeIf { it.optString("type") == "text" }?.optString("text")
+        }.joinToString("")
+        if (text.isBlank()) {
+            // Empty text: stop_reason says why (max_tokens, refusal, ...).
+            throw AiException(R.string.ai_err_http, "Anthropic: " + root.optString("stop_reason", "empty answer"))
         }
+        return text
     }
 
     private fun httpError(r: Http.Response): AiException = when {
@@ -368,7 +375,7 @@ object AiRecommender {
     """.trimIndent()
 
     /**
-     * Turns a typed request ("lagu santai buat belajar") into a playlist: Gemini suggests the songs, each is
+     * Turns a typed request ("lagu santai buat belajar") into a playlist: the AI service suggests the songs, each is
      * looked up on YouTube so it plays at once. Only the typed text is sent (no taste data). Not saved here;
      * the caller stores it with [PlaylistStore.createWith]. Blocking: call from a background thread.
      */

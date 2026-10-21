@@ -13,6 +13,7 @@ class App : Application() {
         ThemeHelper.applyMode(this)
         CrashLog.install(this)
         MusicPrefs.purgeLegacySpotify(this)
+        DiscordPresence.start(this)
         Thread { CacheCleaner.autoTrim(this) }.start()
         try {
             org.schabi.newpipe.extractor.NewPipe.init(NewPipeDownloader)

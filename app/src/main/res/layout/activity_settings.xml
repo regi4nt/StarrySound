@@ -1343,19 +1343,6 @@
             android:textStyle="bold"
             android:letterSpacing="0.08" />
 
-        <!-- Online-tab and streaming options: audio quality, which Search tabs show, Jamendo key. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/card_bg"
-            android:orientation="vertical">
-
-            <include layout="@layout/item_setting_audio_quality" />
-            <include layout="@layout/item_setting_search_tabs" />
-            <include layout="@layout/item_setting_jamendo_key" />
-        </LinearLayout>
-
         <!-- Data saver: automatic switch-on while on mobile data. -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -1402,6 +1389,19 @@
                     android:thumbTint="?attr/colorAccent"
                     android:trackTint="?attr/colorTrackBg" />
             </LinearLayout>
+        </LinearLayout>
+
+        <!-- Online-tab and streaming options: audio quality, which Search tabs show, Jamendo key. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical">
+
+            <include layout="@layout/item_setting_audio_quality" />
+            <include layout="@layout/item_setting_search_tabs" />
+            <include layout="@layout/item_setting_jamendo_key" />
         </LinearLayout>
 
         <!-- YouTube card: Data API v3 key used for searching. Saved as you type. -->
@@ -2176,6 +2176,92 @@
                 android:insetBottom="0dp"
                 android:minWidth="0dp"
                 android:paddingHorizontal="6dp"
+                android:textAllCaps="false"
+                android:textColor="?attr/colorAccent"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Discord activity: "Listening to ..." on the Discord profile (Discord Social SDK, see DiscordPresence). -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/discord_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/discord_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/discordSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/discordAppIdInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/input_bg"
+                android:hint="@string/discord_app_id_hint"
+                android:importantForAutofill="no"
+                android:inputType="number"
+                android:imeOptions="actionDone"
+                android:maxLines="1"
+                android:minHeight="48dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="?attr/colorTextPrimary"
+                android:textColorHint="?attr/colorTextSecondary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/discordStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/discordPortalLink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:background="?attr/selectableItemBackground"
+                android:minHeight="40dp"
+                android:gravity="center_vertical"
                 android:textAllCaps="false"
                 android:textColor="?attr/colorAccent"
                 android:textSize="13sp" />

@@ -120,7 +120,7 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
             <TextView
-                android:id="@+id/tabOnline"
+                android:id="@+id/tabRadio"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="6dp"
@@ -131,12 +131,12 @@
                 android:focusable="true"
                 android:paddingHorizontal="6dp"
                 android:paddingVertical="9dp"
-                android:text="@string/source_online"
+                android:text="@string/source_radio"
                 android:textColor="@color/chip_text_color"
                 android:textSize="13sp"
                 android:textStyle="bold" />
             <TextView
-                android:id="@+id/tabRadio"
+                android:id="@+id/tabOnline"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="0dp"
@@ -147,7 +147,7 @@
                 android:focusable="true"
                 android:paddingHorizontal="6dp"
                 android:paddingVertical="9dp"
-                android:text="@string/source_radio"
+                android:text="@string/source_online"
                 android:textColor="@color/chip_text_color"
                 android:textSize="13sp"
                 android:textStyle="bold" />

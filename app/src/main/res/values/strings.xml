@@ -520,6 +520,14 @@
     <string name="detect_no_speech">Speech recognition isn’t available on this device. Add ACRCloud keys in Settings to detect by humming.</string>
     <string name="detect_opening">Opening the song…</string>
     <string name="detect_play_failed">Couldn’t play that song.</string>
+    <!-- Discord activity -->
+    <string name="discord_title">Discord activity</string>
+    <string name="discord_desc">Show the song you are playing on your Discord profile (\"Listening to StarrySound\"), like Spotify.</string>
+    <string name="discord_app_id_hint">Discord Application ID</string>
+    <string name="discord_status_no_sdk">Discord SDK is not included in this build. See app/src/main/cpp/discord/README.md.</string>
+    <string name="discord_status_need_id">Enter the Application ID of your Discord application.</string>
+    <string name="discord_status_ready">Ready. The Discord app must be installed and signed in on this phone. Pausing or Private mode hides it.</string>
+    <string name="discord_get_id">Open Discord Developer Portal</string>
     <string name="acr_section">Song detection (humming)</string>
     <string name="acr_section_subtitle">Optional. Free project from console.acrcloud.com (create an Audio &amp; Video Recognition project and enable the Humming bucket). Without it, detection only works by singing the lyrics.</string>
     <string name="acr_host_hint">Host (e.g. identify-ap-southeast-1.acrcloud.com)</string>
@@ -897,6 +905,10 @@
     <string name="listen_channel_fmt">Room %s</string>
     <string name="listen_connected">Connected</string>
     <string name="listen_you">You</string>
+    <string name="listen_name_title">Your name</string>
+    <string name="listen_name_hint">Name shown to others</string>
+    <string name="listen_name_row">Your name: %s</string>
+    <string name="listen_name_none">not set</string>
     <string name="listen_host_tag">Host</string>
     <string name="listen_guest_fmt">Listener %d</string>
     <string name="listen_np_label">LISTENING TOGETHER</string>

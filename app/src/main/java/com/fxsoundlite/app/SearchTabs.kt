@@ -11,8 +11,8 @@ object SearchTabs {
 
     enum class Tab(val key: String, val labelRes: Int) {
         YOUTUBE("youtube", R.string.source_youtube),
-        ONLINE("online", R.string.source_online), // Internet Archive (ArchiveApi), right next to YouTube
-        RADIO("radio", R.string.source_radio)
+        RADIO("radio", R.string.source_radio),
+        ONLINE("online", R.string.source_online) // Internet Archive / Audius / Jamendo / ccMixter, right of Radio
     }
 
     private const val PREFS = "search_tabs"

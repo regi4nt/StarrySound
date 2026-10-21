@@ -515,6 +515,14 @@
     <string name="detect_no_speech">Pengenalan suara tidak tersedia di perangkat ini. Isi kunci ACRCloud di Pengaturan untuk deteksi lewat senandung.</string>
     <string name="detect_opening">Membuka lagu…</string>
     <string name="detect_play_failed">Lagu tidak bisa diputar.</string>
+    <!-- Discord activity -->
+    <string name="discord_title">Aktivitas Discord</string>
+    <string name="discord_desc">Tampilkan lagu yang sedang diputar di profil Discord kamu (\"Listening to StarrySound\"), seperti Spotify.</string>
+    <string name="discord_app_id_hint">Application ID Discord</string>
+    <string name="discord_status_no_sdk">SDK Discord belum disertakan di build ini. Lihat app/src/main/cpp/discord/README.md.</string>
+    <string name="discord_status_need_id">Isi Application ID dari aplikasi Discord kamu.</string>
+    <string name="discord_status_ready">Siap. Aplikasi Discord harus terpasang dan sudah login di ponsel ini. Jeda atau mode Privat menyembunyikannya.</string>
+    <string name="discord_get_id">Buka Discord Developer Portal</string>
     <string name="acr_section">Deteksi lagu (senandung)</string>
     <string name="acr_section_subtitle">Opsional. Project gratis dari console.acrcloud.com (buat project Audio &amp; Video Recognition dan aktifkan bucket Humming). Tanpa ini, deteksi hanya bisa lewat menyanyikan liriknya.</string>
     <string name="acr_host_hint">Host (mis. identify-ap-southeast-1.acrcloud.com)</string>
@@ -890,6 +898,10 @@
     <string name="listen_channel_fmt">Ruang %s</string>
     <string name="listen_connected">Terhubung</string>
     <string name="listen_you">Kamu</string>
+    <string name="listen_name_title">Namamu</string>
+    <string name="listen_name_hint">Nama yang dilihat orang lain</string>
+    <string name="listen_name_row">Namamu: %s</string>
+    <string name="listen_name_none">belum diisi</string>
     <string name="listen_host_tag">Host</string>
     <string name="listen_guest_fmt">Pendengar %d</string>
     <string name="listen_np_label">MENDENGARKAN BARENG</string>
