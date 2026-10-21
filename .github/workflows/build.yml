@@ -50,6 +50,13 @@ jobs:
         run: |
           grep -n -B2 -A8 -E "error:|FAILED:|undefined reference|ld.lld" build.log | head -150 || true
 
+      - name: Upload build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
       - name: Collect APK
         run: |
           mkdir -p out
