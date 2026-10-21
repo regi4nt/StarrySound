@@ -41,8 +41,14 @@ jobs:
         run: |
           N=$((100 + ${{ github.run_number }}))
           echo "BUILD_NUMBER=$N" >> "$GITHUB_ENV"
+          set -o pipefail
           gradle --no-daemon --stacktrace :app:assembleRelease \
-            -PbuildNumber=$N -PupdateRepo=${{ github.repository }}
+            -PbuildNumber=$N -PupdateRepo=${{ github.repository }} 2>&1 | tee build.log
+
+      - name: Show compiler errors
+        if: failure()
+        run: |
+          grep -n -B2 -A8 -E "error:|FAILED:|undefined reference|ld.lld" build.log | head -150 || true
 
       - name: Collect APK
         run: |
