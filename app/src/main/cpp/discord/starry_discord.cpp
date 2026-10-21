@@ -11,6 +11,8 @@
 #include <string>
 #include <thread>
 
+// discordpp.h is a header-only C++ wrapper: the implementation must be compiled in exactly one file.
+#define DISCORDPP_IMPLEMENTATION
 #include "discordpp.h"
 
 #define TAG "StarryDiscord"
