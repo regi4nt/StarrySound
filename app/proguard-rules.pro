@@ -20,3 +20,9 @@
 
 # Rhino (used by NewPipeExtractor) references JDK-only dynalink classes that don't exist on Android
 -dontwarn jdk.dynalink.**
+
+# Discord Social SDK: its Java half (com.discord.*, incl. the bundled WebRTC) is only reached from native code
+# (JNI_OnLoad / FindClass), so R8 sees no references and strips it -> native crash at launch. Keep it.
+-keep class com.discord.** { *; }
+-dontwarn com.discord.**
+-keepclasseswithmembers class * { native <methods>; }

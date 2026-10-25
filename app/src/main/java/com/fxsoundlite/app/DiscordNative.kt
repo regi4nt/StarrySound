@@ -19,6 +19,9 @@ object DiscordNative {
         if (!tried) {
             tried = true
             ok = try {
+                // Initialise the SDK's Java half first: its static init loads libdiscord_partner_sdk and the
+                // JNI_OnLoad then finds com.discord.* (this is why R8 must keep that package).
+                Class.forName("com.discord.socialsdk.DiscordSocialSdkInit")
                 System.loadLibrary("starry_discord")
                 true
             } catch (t: Throwable) {

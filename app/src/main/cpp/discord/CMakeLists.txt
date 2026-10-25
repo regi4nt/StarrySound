@@ -24,3 +24,6 @@ endif()
 add_library(starry_discord SHARED starry_discord.cpp)
 target_include_directories(starry_discord PRIVATE ${SDK_INCLUDE})
 target_link_libraries(starry_discord ${DISCORD_SDK_LIB} log)
+
+# Android 15+ devices with 16 KB pages need 16 KB-aligned segments (NDK r27+ does this by default).
+target_link_options(starry_discord PRIVATE "-Wl,-z,max-page-size=16384")

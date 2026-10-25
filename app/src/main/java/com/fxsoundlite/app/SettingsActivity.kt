@@ -704,8 +704,8 @@ class SettingsActivity : AppCompatActivity() {
         fun status() {
             binding.discordStatus.setText(
                 when {
-                    !DiscordPresence.sdkAvailable -> R.string.discord_status_no_sdk
                     DiscordPresence.appId(this).isBlank() -> R.string.discord_status_need_id
+                    DiscordPresence.enabled(this) && !DiscordPresence.sdkAvailable() -> R.string.discord_status_no_sdk
                     else -> R.string.discord_status_ready
                 }
             )
@@ -714,6 +714,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.discordSwitch.setOnCheckedChangeListener { _, checked ->
             DiscordPresence.setEnabled(this, checked)
             DiscordPresence.refresh(this)
+            status()
         }
         binding.discordAppIdInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}

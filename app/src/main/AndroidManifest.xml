@@ -39,6 +39,8 @@
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
+        <!-- Discord Social SDK: detect / bind the installed Discord app (Android 11+ package visibility). -->
+        <package android:name="com.discord" />
     </queries>
 
     <application

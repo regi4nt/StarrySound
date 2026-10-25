@@ -1,8 +1,12 @@
 package com.fxsoundlite.app
 
+import android.app.Activity
+import android.app.Application
 import android.content.Context
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import java.lang.ref.WeakReference
 import kotlin.math.abs
 
 /**
@@ -31,8 +35,11 @@ object DiscordPresence : MusicService.Listener {
     fun appId(c: Context): String = prefs(c).getString("app_id", "").orEmpty().trim()
     fun setAppId(c: Context, v: String) = prefs(c).edit().putString("app_id", v.filter { it.isDigit() }).apply()
 
-    /** True when the app was built with the Discord Social SDK. */
-    val sdkAvailable: Boolean get() = DiscordNative.available
+    /**
+     * True when the native Discord bridge could be loaded. Loads it on first call, so only call this once the
+     * user actually turned the feature on (never from app startup: a broken SDK must not take the app down).
+     */
+    fun sdkAvailable(): Boolean = DiscordNative.ensureLoaded()
 
     private val main = Handler(Looper.getMainLooper())
     private var app: Context? = null
@@ -42,13 +49,28 @@ object DiscordPresence : MusicService.Listener {
     private var lastKey = ""
     private var lastStart = 0L
     private var pending = false
+    private var lastActivity: WeakReference<Activity>? = null
+    private var engineSet = false
 
-    /** Call once from [App.onCreate]. */
+    /** Call once from [App.onCreate]. Never touches the native library. */
     fun start(c: Context) {
         app = c.applicationContext
         if (started) return
         started = true
         MusicService.addGlobalListener(this)
+        // The Social SDK needs an Activity handed to DiscordSocialSdkInit before the first use.
+        (c.applicationContext as? Application)?.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityResumed(a: Activity) {
+                lastActivity = WeakReference(a)
+                if (!engineSet) schedule(0)
+            }
+            override fun onActivityCreated(a: Activity, b: Bundle?) {}
+            override fun onActivityStarted(a: Activity) {}
+            override fun onActivityPaused(a: Activity) {}
+            override fun onActivityStopped(a: Activity) {}
+            override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
+            override fun onActivityDestroyed(a: Activity) {}
+        })
         schedule(0)
     }
 
@@ -70,15 +92,17 @@ object DiscordPresence : MusicService.Listener {
 
     private fun apply() {
         val c = app ?: return
-        if (!DiscordNative.available) return
         val svc = MusicService.instance
         val t = svc?.current
         val playing = svc != null && t != null && svc.isPlaying && t.title.isNotBlank()
         val id = appId(c).toLongOrNull()
+        // Decide first, from plain prefs: when the feature is off we must not load any native code.
         if (!enabled(c) || MusicPrefs.privateMode(c) || !playing || id == null || id <= 0L) {
             clear()
             return
         }
+        if (!DiscordNative.ensureLoaded()) return
+        if (!ensureEngineActivity()) return // no Activity yet; retried when one resumes
         if (initedId != id) {
             initedId = if (try { DiscordNative.nativeInit(id) } catch (_: Throwable) { false }) id else 0L
             if (initedId == 0L) return
@@ -100,10 +124,24 @@ object DiscordPresence : MusicService.Listener {
         }
     }
 
+    /** Hands the foreground Activity to the SDK's Java half (it derives its Context from it). */
+    private fun ensureEngineActivity(): Boolean {
+        if (engineSet) return true
+        val a = lastActivity?.get() ?: return false
+        return try {
+            com.discord.socialsdk.DiscordSocialSdkInit.setEngineActivity(a)
+            engineSet = true
+            true
+        } catch (e: Throwable) {
+            android.util.Log.w("DiscordPresence", "SDK activity init failed", e)
+            false
+        }
+    }
+
     private fun clear() {
         if (!shown) return
         shown = false
         lastKey = ""
-        try { DiscordNative.nativeClear() } catch (_: Throwable) { }
+        if (DiscordNative.available) try { DiscordNative.nativeClear() } catch (_: Throwable) { }
     }
 }
