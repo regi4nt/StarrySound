@@ -57,6 +57,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        PlayerMode.setMusic() // music player in use: the mini bar opens this one again
         ThemeHelper.applyMode(this)
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)

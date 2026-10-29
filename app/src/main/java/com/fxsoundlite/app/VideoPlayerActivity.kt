@@ -186,7 +186,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         index = (savedInstanceState?.getInt(EXTRA_INDEX) ?: intent.getIntExtra(EXTRA_INDEX, 0)).coerceIn(0, n - 1)
         val startMs = savedInstanceState?.getLong(EXTRA_POSITION_MS) ?: intent.getLongExtra(EXTRA_START_MS, 0L)
 
-        binding.vpClose.setOnClickListener { closeAll = fromPlayer; finish() }
+        binding.vpClose.setOnClickListener { leave(closeArrow = true) }
         binding.vpVolume.setOnClickListener { showSystemVolume() }
         binding.vpMore.setOnClickListener { showMoreMenu(it) }
         binding.vpPlay.setOnClickListener { togglePlay() }
@@ -202,7 +202,9 @@ class VideoPlayerActivity : AppCompatActivity() {
             requestedOrientation = if (land) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         binding.vpLandBack.setOnClickListener { exitToPortrait() }
+        binding.vpLandVolume.setOnClickListener { showSystemVolume() }
         binding.vpLandMore.setOnClickListener { showMoreMenu(it) }
+        binding.vpLandMusic.setOnClickListener { switchToMusic() }
         // Keep the landscape bars clear of a camera cut-out / rounded corners.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.vpRoot) { _, insets ->
             landInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.systemBars())
@@ -225,7 +227,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                     full -> exitToPortrait()
                     resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ->
                         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    else -> finish()
+                    else -> leave(closeArrow = false)
                 }
             }
         })
@@ -253,13 +255,23 @@ class VideoPlayerActivity : AppCompatActivity() {
         playIndex(index, startMs)
     }
 
+    // The music service is only bound (not started) while nothing plays, and the page under this player unbinds when
+    // it stops: without this the service is gone by the time "switch to music" is tapped ("not ready").
+    private var musicBound = false
+    private val musicConn = object : android.content.ServiceConnection {
+        override fun onServiceConnected(name: android.content.ComponentName?, binder: android.os.IBinder?) {}
+        override fun onServiceDisconnected(name: android.content.ComponentName?) {}
+    }
+
     override fun onStart() {
         super.onStart()
         applyPlayerBackground()
+        if (!musicBound) musicBound = bindService(Intent(this, MusicService::class.java), musicConn, Context.BIND_AUTO_CREATE)
     }
 
     override fun onStop() {
         binding.vpBgAnimated.stop() // no animation loop while off screen
+        if (musicBound) { musicBound = false; unbindService(musicConn) }
         super.onStop()
     }
 
@@ -478,7 +490,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
             if (panel.parent !== top) {
                 (panel.parent as ViewGroup).removeView(panel)
-                top.addView(panel, top.indexOfChild(binding.vpLandMore),
+                top.addView(panel, top.indexOfChild(binding.vpLandMusic),
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }
         } else {
@@ -739,6 +751,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             return
         }
         val pos = fileView?.currentPosition?.toLong() ?: posMs
+        PlayerMode.setMusic() // the mini bar opens the music player again
         if (svc.current?.key == t.key) {
             // The music player already has this song (the video was opened from it): continue it from here.
             if (fromPlayer) {
@@ -759,15 +772,52 @@ class VideoPlayerActivity : AppCompatActivity() {
         finish()
     }
 
-    /** The new song loads in the service; once it is ready, jump to the video's position. */
-    private fun seekWhenReady(svc: MusicService, key: String, pos: Long) {
-        if (pos < 3000L) return
+    /**
+     * The user leaves the video (back / close arrow). Like the music player, the song stays in the mini player:
+     * a YouTube video carries on as music from the same second (paused stays paused) and the mini bar of the page
+     * underneath shows it. Opened from the music player, or a video file (no audio version): plain close.
+     */
+    private fun leave(closeArrow: Boolean) {
+        val t = current
+        val svc = MusicService.instance
+        if (fromPlayer) {
+            // Opened from the music player: back returns to it (music mode); the close arrow leaves both and the
+            // mini bar then opens the video again.
+            closeAll = closeArrow
+            if (closeArrow && t.source == Track.SOURCE_YOUTUBE) PlayerMode.setVideo(t) else PlayerMode.setMusic()
+            finish(); return
+        }
+        if (t.source != Track.SOURCE_YOUTUBE || svc == null) { finish(); return }
+        val pos = posMs
+        val wasPlaying = playing
+        pausePlayback()
+        if (svc.current?.key == t.key) {
+            // The service already has this song (the video was opened from the mini bar): continue it from here.
+            svc.seekTo(pos.toInt())
+            if (wasPlaying) svc.play() else svc.pause()
+        } else {
+            val songs = queue.filter { it.source == Track.SOURCE_YOUTUBE }
+            svc.setQueueAndPlay(songs, songs.indexOfFirst { it.key == t.key }.coerceAtLeast(0))
+            seekWhenReady(svc, t.key, pos, wasPlaying)
+        }
+        PlayerMode.setVideo(t) // the mini bar opens the video again
+        resultPos = -1L // nothing for the caller to seek
+        finish()
+    }
+
+    /** The new song loads in the service; once it is ready, jump to the video's position (and pause if it was paused). */
+    private fun seekWhenReady(svc: MusicService, key: String, pos: Long, play: Boolean = true) {
+        if (pos < 3000L && play) return
         val h = Handler(Looper.getMainLooper())
         var tries = 0
         val r = object : Runnable {
             override fun run() {
                 tries++
-                if (svc.current?.key == key && svc.duration > 0) { svc.seekTo(pos.toInt()); return }
+                if (svc.current?.key == key && svc.duration > 0) {
+                    if (pos >= 3000L) svc.seekTo(pos.toInt())
+                    if (!play) svc.pause()
+                    return
+                }
                 if (tries < 40) h.postDelayed(this, 250L)
             }
         }
