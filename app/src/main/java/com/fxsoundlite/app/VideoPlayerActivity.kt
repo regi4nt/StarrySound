@@ -703,7 +703,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val speeds = floatArrayOf(0.5f, 1f, 1.5f, 2f)
         AlertDialog.Builder(this)
             .setTitle(R.string.np_speed)
-            .setSingleChoiceItems(speeds.map { speedLabel(it) }.toTypedArray(), speeds.indexOf(speed)) { d, which ->
+            .setSingleChoiceItems(speeds.map { speedLabel(it) }.toTypedArray(), speeds.indexOfFirst { it == speed }) { d, which ->
                 speed = speeds[which]
                 applySpeed()
                 d.dismiss()
