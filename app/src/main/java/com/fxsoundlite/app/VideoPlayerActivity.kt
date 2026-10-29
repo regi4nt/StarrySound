@@ -123,7 +123,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpForward.setOnClickListener { seekTo(posMs + 10_000L) }
         binding.vpRotate.setOnClickListener {
             val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-            requestedOrientation = if (land) ActivityInfo.REQUESTED_ORIENTATION_PORTRAIT else ActivityInfo.REQUESTED_ORIENTATION_LANDSCAPE
+            requestedOrientation = if (land) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         binding.vpSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
