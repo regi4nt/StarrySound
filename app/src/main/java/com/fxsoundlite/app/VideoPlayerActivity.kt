@@ -204,7 +204,6 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpLandBack.setOnClickListener { exitToPortrait() }
         binding.vpLandVolume.setOnClickListener { showSystemVolume() }
         binding.vpLandMore.setOnClickListener { showMoreMenu(it) }
-        binding.vpLandMusic.setOnClickListener { switchToMusic() }
         // Keep the landscape bars clear of a camera cut-out / rounded corners.
         androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.vpRoot) { _, insets ->
             landInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.systemBars())
@@ -490,7 +489,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
             if (panel.parent !== top) {
                 (panel.parent as ViewGroup).removeView(panel)
-                top.addView(panel, top.indexOfChild(binding.vpLandMusic),
+                top.addView(panel, top.indexOfChild(binding.vpLandVolume),
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }
         } else {
@@ -752,6 +751,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         val pos = fileView?.currentPosition?.toLong() ?: posMs
         PlayerMode.setMusic() // the mini bar opens the music player again
+        pausePlayback() // the video must let go of the sound (and audio focus) before the music starts
         if (svc.current?.key == t.key) {
             // The music player already has this song (the video was opened from it): continue it from here.
             if (fromPlayer) {
@@ -759,6 +759,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             } else {
                 svc.seekTo(pos.toInt())
                 svc.play()
+                ensurePlaying(svc, t.key)
             }
             resultPos = pos
         } else {
@@ -803,6 +804,21 @@ class VideoPlayerActivity : AppCompatActivity() {
         PlayerMode.setVideo(t) // the mini bar opens the video again
         resultPos = -1L // nothing for the caller to seek
         finish()
+    }
+
+    /** The first play() can be refused while the video still holds the audio focus: try again a few times. */
+    private fun ensurePlaying(svc: MusicService, key: String) {
+        val h = Handler(Looper.getMainLooper())
+        var tries = 0
+        val r = object : Runnable {
+            override fun run() {
+                tries++
+                if (svc.current?.key != key || svc.isPlaying) return
+                svc.play()
+                if (tries < 6) h.postDelayed(this, 400L)
+            }
+        }
+        h.postDelayed(r, 400L)
     }
 
     /** The new song loads in the service; once it is ready, jump to the video's position (and pause if it was paused). */

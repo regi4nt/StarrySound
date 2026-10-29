@@ -935,7 +935,22 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             val toMusic = res.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_TO_MUSIC, false) == true
             if (pos >= 0) {
                 svc.seekTo(pos.toInt())
-                if (resumeAudioAfterVideo || toMusic) svc.play()
+                if (resumeAudioAfterVideo || toMusic) {
+                    svc.play()
+                    // The first play() can be refused while the video still holds the audio focus: retry.
+                    val key = svc.current?.key
+                    val h = android.os.Handler(android.os.Looper.getMainLooper())
+                    var tries = 0
+                    val r = object : Runnable {
+                        override fun run() {
+                            tries++
+                            if (svc.current?.key != key || svc.isPlaying) return
+                            svc.play()
+                            if (tries < 6) h.postDelayed(this, 400L)
+                        }
+                    }
+                    h.postDelayed(r, 400L)
+                }
             }
             resumeAudioAfterVideo = false
         }

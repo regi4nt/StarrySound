@@ -442,6 +442,7 @@ class MusicService : MediaBrowserService() {
 
     /** Jumps to [i] in the current queue (queue screen). */
     fun playAt(i: Int) {
+        PlayerMode.setMusic() // picked from the queue: music mode
         if (i !in queue.indices) return
         if (shuffle && index in queue.indices) history.add(index)
         pendingNext = 0
@@ -821,6 +822,7 @@ class MusicService : MediaBrowserService() {
         // Songs of a synced playlist that are not on this device cannot play: leave them out.
         val tracks = if (allTracks.any { it.missing }) allTracks.filter { !it.missing } else allTracks
         if (tracks.isEmpty()) return
+        PlayerMode.setMusic() // a song picked from a list is music mode (the video player sets video mode again after its hand-off)
         val start = if (tracks === allTracks) startIndex else {
             val first = allTracks.drop(startIndex).firstOrNull { !it.missing }
             (if (first != null) tracks.indexOf(first) else 0).coerceAtLeast(0)
