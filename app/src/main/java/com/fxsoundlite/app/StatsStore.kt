@@ -33,7 +33,7 @@ object StatsStore {
     private const val MAX_MONTHS = 36
     private const val MONTH_ENTRIES = 100
     /** Most songs a playlist made from a Wrapped gets. */
-    const val PLAYLIST_SIZE = 50
+    const val PLAYLIST_SIZE = 100
 
     private fun p(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 

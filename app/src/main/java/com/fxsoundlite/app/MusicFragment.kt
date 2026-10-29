@@ -85,6 +85,66 @@ class MusicFragment : Fragment(), MusicService.Listener {
             loadLibrary()
         }
 
+    // ---- video mode: the Device tab lists the device's videos
+    private var allVideos: List<Track>? = null
+    private var videosLoading = false
+
+    private val videoPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) loadVideos() else if (_binding != null) refreshList()
+        }
+
+    private fun loadVideos() {
+        if (_binding == null || videosLoading) return
+        videosLoading = true
+        val app = requireContext().applicationContext
+        try {
+            loader.execute {
+                val vids = MusicLibrary.loadVideos(app)
+                handler.post {
+                    videosLoading = false
+                    if (_binding == null) return@post
+                    allVideos = vids
+                    if (source == Track.SOURCE_LOCAL && MusicPrefs.videoMode(requireContext())) refreshList()
+                }
+            }
+        } catch (e: Exception) {
+            videosLoading = false
+        }
+    }
+
+    private fun applyVideoFilter() {
+        val ctx = requireContext()
+        if (!MusicLibrary.hasVideoPermission(ctx)) {
+            shown = emptyList()
+            adapter.submit(shown)
+            binding.musicCount.text = ""
+            showEmpty(R.string.video_need_permission, R.string.music_allow_access) { videoPermissionLauncher.launch(MusicLibrary.requiredVideoPermission) }
+            return
+        }
+        val vids = allVideos
+        if (vids == null) {
+            loadVideos()
+            shown = emptyList()
+            adapter.submit(shown)
+            binding.musicCount.text = ""
+            showEmpty(R.string.video_loading)
+            return
+        }
+        val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
+        shown = if (q.isEmpty()) vids else vids.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
+        adapter.submit(shown)
+        binding.musicCount.text = getString(R.string.video_count, vids.size)
+        if (shown.isEmpty()) showEmpty(if (vids.isEmpty()) R.string.video_empty else R.string.music_no_results) else showList()
+        adapter.setCurrentKey("")
+    }
+
+    /** Pauses the audio player (the video has its own sound) and opens the video full screen. */
+    private fun openVideo(t: Track) {
+        service?.let { if (it.isPlaying) it.pause() }
+        startActivity(VideoPlayerActivity.intent(requireContext(), t, 0L))
+    }
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as MusicService.LocalBinder).getService().also {
@@ -164,13 +224,17 @@ class MusicFragment : Fragment(), MusicService.Listener {
         loadOnlineSrc()
         updateSaverButton()
         binding.saverButton.setOnClickListener { toggleSaver() }
-        updatePrivateButton()
-        binding.privateButton.setOnClickListener {
+        updateVideoButton()
+        binding.videoModeButton.setOnClickListener {
             val app = requireContext().applicationContext
-            val on = !MusicPrefs.privateMode(app)
-            MusicPrefs.setPrivateMode(app, on)
-            updatePrivateButton()
-            toast(if (on) R.string.private_mode_on else R.string.private_mode_off)
+            val on = !MusicPrefs.videoMode(app)
+            MusicPrefs.setVideoMode(app, on)
+            updateVideoButton()
+            toast(if (on) R.string.video_mode_on else R.string.video_mode_off)
+            // Online / Radio have no video: leave them for Device (not remembered, so audio mode brings the tab back).
+            if (!tabAllowed(source)) { source = Track.SOURCE_LOCAL; searchToken++; binding.searchProgress.visibility = View.GONE; binding.searchInput.setText("") }
+            updateTabs()
+            refreshList() // Device tab: videos <-> songs
         }
         binding.dataUsedText.setOnClickListener {
             DataUsage.reset(requireContext())
@@ -278,7 +342,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun refreshList() {
         if (_binding == null) return
         if (source == Track.SOURCE_LOCAL) {
-            if (MusicLibrary.hasPermission(requireContext()) || DriveMusic.isSignedIn(requireContext())) {
+            if (MusicPrefs.videoMode(requireContext()) || MusicLibrary.hasPermission(requireContext()) || DriveMusic.isSignedIn(requireContext())) {
                 applyFilter()
             } else {
                 shown = emptyList()
@@ -433,6 +497,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun applyFilter() {
         if (_binding == null || source != Track.SOURCE_LOCAL) return
         val ctx = requireContext()
+        if (MusicPrefs.videoMode(ctx)) { applyVideoFilter(); return }
         val driveOn = DriveMusic.isSignedIn(ctx)
         if (driveOn) {
             val email = DriveSync.email(ctx)
@@ -485,8 +550,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
     /** Device is always there; the online tabs can be switched off in Settings > Search tabs. */
     private fun tabAllowed(src: Int): Boolean = when (src) {
         Track.SOURCE_YOUTUBE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.YOUTUBE)
-        Track.SOURCE_ONLINE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.ONLINE)
-        Track.SOURCE_RADIO -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.RADIO)
+        // Online (Archive / Audius / Jamendo ...) and Radio have no video: hidden in video mode.
+        Track.SOURCE_ONLINE -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.ONLINE)
+        Track.SOURCE_RADIO -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.RADIO)
         else -> true
     }
 
@@ -504,8 +570,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
         val ctx = requireContext()
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
-        binding.tabOnline.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.ONLINE)) View.VISIBLE else View.GONE
-        binding.tabRadio.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.RADIO)) View.VISIBLE else View.GONE
+        binding.tabOnline.visibility = if (tabAllowed(Track.SOURCE_ONLINE)) View.VISIBLE else View.GONE
+        binding.tabRadio.visibility = if (tabAllowed(Track.SOURCE_RADIO)) View.VISIBLE else View.GONE
                 updateFilterButton()
         binding.radioSourceButton.visibility = View.GONE // radio searches every directory at once
         binding.radioSourceButton.text =
@@ -1046,6 +1112,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
         if (isArchiveAlbum(shown[position]) || YouTubeApi.isListRow(shown[position])) return // not a song: nothing to add to a playlist
+        if (shown[position].source == Track.SOURCE_VIDEO) return // a video file is not an audio track
         val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
             Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
             Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()
@@ -1145,6 +1212,13 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun onTrackClicked(position: Int) {
         val svc = service ?: return
         if (position !in shown.indices) return
+        val tapped = shown[position]
+        // Video mode: device videos and YouTube songs open as video (other sources have no video and stay audio).
+        if (tapped.source == Track.SOURCE_VIDEO ||
+            (MusicPrefs.videoMode(requireContext()) && tapped.source == Track.SOURCE_YOUTUBE && !YouTubeApi.isListRow(tapped))) {
+            openVideo(tapped)
+            return
+        }
         if (isArchiveAlbum(shown[position])) { playArchiveAlbum(shown[position]); return }
         if (YouTubeApi.isListRow(shown[position])) { playYoutubeList(shown[position]); return }
         // Playlist / mix rows are no songs: the queue is the videos around the tapped one.
@@ -1175,9 +1249,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val svc = service ?: return
         if (svc.current != null) {
             svc.togglePlayPause()
-        } else if (shown.any { !YouTubeApi.isListRow(it) }) {
+        } else if (shown.any { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO }) {
             // Nothing queued yet: play from the top of what's on screen.
-            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
         }
     }
 
@@ -1246,12 +1320,13 @@ class MusicFragment : Fragment(), MusicService.Listener {
         service?.let { svc -> if (on) svc.notifyCoverMode() else svc.refreshArtwork() }
     }
 
-    /** Private mode button (right of the saver logo): accent colour while on, plain while off. */
-    private fun updatePrivateButton() {
+    /** Audio / video button (right of the saver logo): a note while in audio mode, a camera in accent colour in video mode. */
+    private fun updateVideoButton() {
         val b = _binding ?: return
-        val on = MusicPrefs.privateMode(requireContext())
+        val on = MusicPrefs.videoMode(requireContext())
         val color = resolveAttrColor(if (on) androidx.appcompat.R.attr.colorAccent else R.attr.colorTextSecondary)
-        b.privateButton.imageTintList = ColorStateList.valueOf(color)
+        b.videoModeButton.setImageResource(if (on) R.drawable.ic_videocam else R.drawable.ic_music)
+        b.videoModeButton.imageTintList = ColorStateList.valueOf(color)
     }
 
     /** Logo menyala (warna aksen) saat mode hemat aktif, redup saat normal. */

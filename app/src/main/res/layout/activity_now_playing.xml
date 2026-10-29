@@ -364,6 +364,17 @@
             android:tint="?attr/colorTextSecondary" />
 
         <ImageButton
+            android:id="@+id/npVideo"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginHorizontal="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_video"
+            android:padding="12dp"
+            android:src="@drawable/ic_videocam"
+            android:tint="?attr/colorTextSecondary" />
+
+        <ImageButton
             android:id="@+id/npLyricsBtn"
             android:layout_width="48dp"
             android:layout_height="48dp"

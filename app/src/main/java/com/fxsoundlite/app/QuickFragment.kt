@@ -639,6 +639,21 @@ class QuickFragment : Fragment(), QuickActions {
         activity?.overridePendingTransition(R.anim.slide_up, R.anim.stay)
     }
 
+    /** Opens the clip of this reel as video (from the chorus start); the audio preview and the user's music stay stopped. */
+    override fun onVideo(pos: Int) {
+        val t = feed.getOrNull(pos) ?: return
+        if (t.source != Track.SOURCE_YOUTUBE) {
+            android.widget.Toast.makeText(requireContext(), R.string.video_not_available, android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        resumeServiceAfter = false // the video has its own sound: do not bring the user's music back underneath it
+        suppressAutoStart = true
+        stopPreviewAudio()
+        paused = true
+        updateUi()
+        startActivity(VideoPlayerActivity.intent(requireContext(), t, QuickFeed.chorusStartMs(t.durationMs)))
+    }
+
     override fun onLike(pos: Int) {
         val t = feed.getOrNull(pos) ?: return
         PlaylistUi.toggleLike(requireContext(), t) {

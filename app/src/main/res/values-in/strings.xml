@@ -975,4 +975,45 @@
     <string name="yt_row_mix_title">Mix – %s</string>
     <string name="yt_row_videos">%d video</string>
     <string name="yt_list_failed">Playlist tidak bisa dibuka</string>
+    <!-- Spotify -->
+    <string name="spotify_title">Spotify</string>
+    <string name="spotify_desc">Salin playlist dan lagu yang disukai dari Spotify ke StarrySound (tiap lagu dicocokkan ke versi YouTube yang bisa diputar) dan kendalikan aplikasi Spotify dari sini. Audio yang diputar aplikasi Spotify diolah equalizer StarrySound.</string>
+    <string name="spotify_client_hint">Client ID Spotify</string>
+    <string name="spotify_status_need_id">Buat aplikasi di Spotify Developer Dashboard (perlu Spotify Premium), tambahkan redirect URI starrysound://spotify-callback, lalu tempel Client ID-nya.</string>
+    <string name="spotify_status_ready">Siap. Ketuk Hubungkan untuk masuk ke Spotify.</string>
+    <string name="spotify_status_connected">Terhubung ke Spotify. Impor playlist, atau pakai kontrol di bawah bersama aplikasi Spotify.</string>
+    <string name="spotify_connect">Hubungkan</string>
+    <string name="spotify_disconnect">Putuskan</string>
+    <string name="spotify_import">Impor playlist</string>
+    <string name="spotify_dashboard">Buka Spotify Developer Dashboard</string>
+    <string name="spotify_prev">Sebelumnya</string>
+    <string name="spotify_play_pause">Putar / jeda</string>
+    <string name="spotify_next">Berikutnya</string>
+    <string name="spotify_eq">Equalizer untuk audio Spotify</string>
+    <string name="spotify_login_ok">Terhubung ke Spotify.</string>
+    <string name="spotify_login_failed">Masuk ke Spotify gagal: %1$s</string>
+    <string name="spotify_need_connect">Isi Client ID dan hubungkan dulu.</string>
+    <string name="spotify_import_pick">Playlist yang diimpor</string>
+    <string name="spotify_liked">Spotify: Lagu disukai</string>
+    <string name="spotify_liked_pick">Lagu yang disukai</string>
+    <string name="spotify_import_start">Impor</string>
+    <string name="spotify_import_none">Tidak ada playlist Spotify.</string>
+    <string name="spotify_import_progress">Mengimpor %1$d / %2$d: %3$s</string>
+    <string name="spotify_import_done">%1$d playlist diimpor dengan %2$d lagu (%3$d tidak ditemukan).</string>
+    <string name="spotify_import_busy">Impor sedang berjalan.</string>
+    <string name="spotify_error">Spotify: %1$s</string>
+    <!-- Video mode -->
+    <string name="video_mode_desc">Mode audio / video</string>
+    <string name="video_mode_on">Mode video: hasil Perangkat dan YouTube dibuka sebagai video</string>
+    <string name="video_mode_off">Mode audio</string>
+    <string name="video_need_permission">Izinkan akses ke video kamu agar bisa ditampilkan di sini.</string>
+    <string name="video_loading">Memuat video\u2026</string>
+    <string name="video_empty">Tidak ada video di perangkat ini.</string>
+    <string name="video_count">%d video</string>
+    <string name="video_not_available">Lagu ini tidak punya video. Hanya lagu YouTube yang bisa diganti ke video.</string>
+    <string name="video_error">Video ini tidak bisa diputar di dalam aplikasi. Membuka YouTube.</string>
+    <string name="video_error_file">File video ini tidak bisa diputar.</string>
+    <string name="np_video">Ganti ke video</string>
+    <string name="quick_action_video">Preview video</string>
+    <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>
 </resources>

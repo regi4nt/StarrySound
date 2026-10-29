@@ -25,6 +25,7 @@
     <!-- Music player: read the device's audio files, and keep playing with the app closed. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
@@ -41,6 +42,7 @@
         </intent>
         <!-- Discord Social SDK: detect / bind the installed Discord app (Android 11+ package visibility). -->
         <package android:name="com.discord" />
+        <package android:name="com.spotify.music" />
     </queries>
 
     <application
@@ -95,6 +97,27 @@
             android:exported="false"
             android:label="@string/listen_title"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- Spotify sign-in: the browser returns here (OAuth redirect starrysound://spotify-callback). -->
+        <activity
+            android:name=".SpotifyCallbackActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="starrysound" android:host="spotify-callback" />
+            </intent-filter>
+        </activity>
+
+        <!-- Full-screen video (YouTube IFrame player / device video files), see VideoPlayerActivity. -->
+        <activity
+            android:name=".VideoPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
+            android:screenOrientation="fullSensor" />
 
         <activity
             android:name=".EqualizerActivity"

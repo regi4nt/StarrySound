@@ -19,6 +19,7 @@
     android:targetCellHeight="1"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_music_search"
+    android:previewImage="@drawable/widget_preview_music_search"
     android:previewLayout="@layout/widget_music_search"
     android:resizeMode="horizontal"
     android:widgetCategory="home_screen"

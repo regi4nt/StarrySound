@@ -59,6 +59,10 @@ object MusicPrefs {
 
     /** Private mode: while on, nothing that is played is remembered (stats, recent / YouTube history,
      *  Last.fm scrobbles). Kept across restarts; never synced to Drive. */
+    /** Search page: Device and YouTube results open as video instead of audio. */
+    fun videoMode(c: Context): Boolean = p(c).getBoolean("video_mode", false)
+    fun setVideoMode(c: Context, v: Boolean) = p(c).edit().putBoolean("video_mode", v).apply()
+
     fun privateMode(c: Context): Boolean = p(c).getBoolean(KEY_PRIVATE_MODE, false)
     fun setPrivateMode(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_PRIVATE_MODE, v).apply()
 

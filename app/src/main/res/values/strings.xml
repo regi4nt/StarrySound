@@ -982,4 +982,45 @@
     <string name="yt_row_mix_title">Mix – %s</string>
     <string name="yt_row_videos">%d videos</string>
     <string name="yt_list_failed">Couldn’t open this playlist</string>
+    <!-- Spotify -->
+    <string name="spotify_title">Spotify</string>
+    <string name="spotify_desc">Copy your Spotify playlists and liked songs into StarrySound (each song is matched to a playable YouTube version) and control the Spotify app from here. Audio played by the Spotify app is shaped by StarrySound\'s equalizer.</string>
+    <string name="spotify_client_hint">Spotify Client ID</string>
+    <string name="spotify_status_need_id">Create an app on the Spotify Developer Dashboard (Spotify Premium needed), add the redirect URI starrysound://spotify-callback, then paste its Client ID.</string>
+    <string name="spotify_status_ready">Ready. Tap Connect to sign in to Spotify.</string>
+    <string name="spotify_status_connected">Connected to Spotify. Import playlists, or use the controls below with the Spotify app.</string>
+    <string name="spotify_connect">Connect</string>
+    <string name="spotify_disconnect">Disconnect</string>
+    <string name="spotify_import">Import playlists</string>
+    <string name="spotify_dashboard">Open Spotify Developer Dashboard</string>
+    <string name="spotify_prev">Previous</string>
+    <string name="spotify_play_pause">Play / pause</string>
+    <string name="spotify_next">Next</string>
+    <string name="spotify_eq">Equalizer for Spotify audio</string>
+    <string name="spotify_login_ok">Connected to Spotify.</string>
+    <string name="spotify_login_failed">Spotify sign-in failed: %1$s</string>
+    <string name="spotify_need_connect">Enter your Client ID and connect first.</string>
+    <string name="spotify_import_pick">Playlists to import</string>
+    <string name="spotify_liked">Spotify: Liked songs</string>
+    <string name="spotify_liked_pick">Liked songs</string>
+    <string name="spotify_import_start">Import</string>
+    <string name="spotify_import_none">No Spotify playlists found.</string>
+    <string name="spotify_import_progress">Importing %1$d / %2$d: %3$s</string>
+    <string name="spotify_import_done">Imported %1$d playlists with %2$d songs (%3$d not found).</string>
+    <string name="spotify_import_busy">An import is already running.</string>
+    <string name="spotify_error">Spotify: %1$s</string>
+    <!-- Video mode -->
+    <string name="video_mode_desc">Audio / video mode</string>
+    <string name="video_mode_on">Video mode: Device and YouTube results open as video</string>
+    <string name="video_mode_off">Audio mode</string>
+    <string name="video_need_permission">Allow access to your videos to list them here.</string>
+    <string name="video_loading">Loading videos\u2026</string>
+    <string name="video_empty">No videos found on this device.</string>
+    <string name="video_count">%d videos</string>
+    <string name="video_not_available">No video for this song. Only YouTube songs can switch to video.</string>
+    <string name="video_error">This video cannot be played inside the app. Opening YouTube instead.</string>
+    <string name="video_error_file">This video file cannot be played.</string>
+    <string name="np_video">Switch to video</string>
+    <string name="quick_action_video">Video preview</string>
+    <string name="private_mode_settings_desc">Do not remember what you play (history, taste, scrobbles).</string>
 </resources>

@@ -26,6 +26,7 @@
     android:targetCellHeight="1"
     android:updatePeriodMillis="0"
     android:initialLayout="@layout/widget_eq_row_wide"
+    android:previewImage="@drawable/widget_preview_eq"
     android:previewLayout="@layout/widget_eq_row_wide"
     android:resizeMode="horizontal"
     android:widgetCategory="home_screen"

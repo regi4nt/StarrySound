@@ -324,6 +324,9 @@ object YouTubeApi {
     }
 
     /** Key-less search: same results as youtube.com, no quota. */
+    /** Quota-free song lookup through NewPipe (no API key used), for importing playlists from other services. */
+    fun lookupSong(query: String, max: Int = 5): List<Track> = searchExtractor(query, false, max, opts = null)
+
     internal fun searchExtractor(
         query: String, longOnly: Boolean, maxResults: Int,
         filter: String = org.schabi.newpipe.extractor.services.youtube.linkHandler.YoutubeSearchQueryHandlerFactory.VIDEOS,

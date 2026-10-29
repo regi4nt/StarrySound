@@ -67,15 +67,16 @@
                 android:src="@drawable/ic_data_saver"
                 android:tint="?attr/colorTextSecondary" />
 
-            <!-- Private mode: nothing played is remembered while on (see MusicPrefs.privateMode) -->
+            <!-- Audio / video mode: Device and YouTube results open as video while on (MusicPrefs.videoMode).
+                 Private mode now lives in Settings. -->
             <ImageButton
-                android:id="@+id/privateButton"
+                android:id="@+id/videoModeButton"
                 android:layout_width="44dp"
                 android:layout_height="44dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/private_mode_desc"
+                android:contentDescription="@string/video_mode_desc"
                 android:padding="10dp"
-                android:src="@drawable/ic_private"
+                android:src="@drawable/ic_music"
                 android:tint="?attr/colorTextSecondary" />
         </LinearLayout>
 

@@ -19,6 +19,14 @@ object MusicLibrary {
         ContextCompat.checkSelfPermission(context, requiredPermission) ==
             PackageManager.PERMISSION_GRANTED
 
+    /** Same for video files (Android 13+ has a separate permission). */
+    val requiredVideoPermission: String =
+        if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_VIDEO
+        else Manifest.permission.READ_EXTERNAL_STORAGE
+
+    fun hasVideoPermission(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, requiredVideoPermission) == PackageManager.PERMISSION_GRANTED
+
     /** Bumped whenever the app adds a file to the library itself (a finished download). */
     @Volatile var version = 0
         private set
@@ -74,6 +82,43 @@ object MusicLibrary {
             }
         } catch (e: SecurityException) {
             // Permission revoked mid-query: treat as an empty library.
+        }
+        result.sortBy { it.title.lowercase() }
+        return result
+    }
+
+    /** The device's video files (video mode, Device tab). Blocking query: call from a background thread. */
+    fun loadVideos(context: Context): List<Track> {
+        val result = ArrayList<Track>()
+        val projection = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.TITLE,
+            MediaStore.Video.Media.DURATION
+        )
+        try {
+            context.contentResolver.query(
+                MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, null, null, null
+            )?.use { c ->
+                val idCol = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val titleCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                val durCol = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                while (c.moveToNext()) {
+                    val id = c.getLong(idCol)
+                    result.add(
+                        Track(
+                            id = id,
+                            title = c.getString(titleCol) ?: "?",
+                            artist = "",
+                            album = "",
+                            durationMs = c.getLong(durCol),
+                            source = Track.SOURCE_VIDEO,
+                            remoteId = android.content.ContentUris.withAppendedId(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, id).toString()
+                        )
+                    )
+                }
+            }
+        } catch (e: SecurityException) {
+            // Permission revoked mid-query: treat as an empty list.
         }
         result.sortBy { it.title.lowercase() }
         return result

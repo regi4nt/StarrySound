@@ -17,6 +17,8 @@ interface QuickActions {
     /** Tap anywhere on the reel: pause / resume the preview. */
     fun onTap()
     fun onFull(pos: Int)
+    /** Video button: preview this reel's clip as video. */
+    fun onVideo(pos: Int)
     /** Heart under "Full song": like / unlike the reel at [pos]. */
     fun onLike(pos: Int)
     fun onPlaylist(pos: Int)
@@ -60,6 +62,7 @@ class QuickAdapter(
         fun pos(): Int = vh.bindingAdapterPosition
         b.quickRoot.setOnClickListener { actions.onTap() }
         b.actFull.setOnClickListener { pos().takeIf { it != RecyclerView.NO_POSITION }?.let(actions::onFull) }
+        b.actVideo.setOnClickListener { pos().takeIf { it != RecyclerView.NO_POSITION }?.let(actions::onVideo) }
         b.actLike.setOnClickListener { pos().takeIf { it != RecyclerView.NO_POSITION }?.let(actions::onLike) }
         b.actPlaylist.setOnClickListener { pos().takeIf { it != RecyclerView.NO_POSITION }?.let(actions::onPlaylist) }
         b.actQueue.setOnClickListener { pos().takeIf { it != RecyclerView.NO_POSITION }?.let(actions::onQueue) }

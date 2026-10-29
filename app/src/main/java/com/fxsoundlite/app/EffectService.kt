@@ -157,6 +157,7 @@ class EffectService : Service() {
             mainHandler.post { presetListeners.forEach { it() } }
         }
         instance = this
+        SpotifyEffects.register(this)
         try {
             getSystemService(AudioManager::class.java)?.registerAudioDeviceCallback(outputCallback, mainHandler)
         } catch (_: Exception) { }
@@ -322,6 +323,7 @@ class EffectService : Service() {
         mainHandler.removeCallbacks(watchdog)
         try { getSystemService(AudioManager::class.java)?.unregisterAudioDeviceCallback(outputCallback) } catch (_: Exception) { }
         effectManager.onStateChanged = null
+        SpotifyEffects.unregister(this)
         try {
             unregisterReceiver(chargingReceiver)
         } catch (e: IllegalArgumentException) {

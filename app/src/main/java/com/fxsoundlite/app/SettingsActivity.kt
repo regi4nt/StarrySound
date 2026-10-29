@@ -292,6 +292,7 @@ class SettingsActivity : AppCompatActivity() {
         refreshTasteStatus()
         refreshChargingStatus()
         refreshLastFmStatus() // e.g. back from approving the login in the browser
+        refreshSpotifyStatus()
     }
 
     override fun onStart() {
@@ -640,6 +641,8 @@ class SettingsActivity : AppCompatActivity() {
         })
         setupAiSection()
         setupDiscordSection()
+        setupSpotifySection()
+        setupPrivateSection()
         setupKeyLinks()
         setupOnlineAudio()
         setupLastFmSection()
@@ -693,6 +696,111 @@ class SettingsActivity : AppCompatActivity() {
         binding.lastfmGetKeyLink.setOnClickListener { openLink("https://www.last.fm/api/account/create") }
         binding.acrGetKeyLink.text = getString(R.string.get_key_acr)
         binding.acrGetKeyLink.setOnClickListener { openLink("https://console.acrcloud.com") }
+    }
+
+    // ------------------------------------------------------------------ Spotify
+
+    private fun setupPrivateSection() {
+        binding.privateSwitch.isChecked = MusicPrefs.privateMode(this)
+        binding.privateSwitch.setOnCheckedChangeListener { _, on ->
+            MusicPrefs.setPrivateMode(this, on)
+            android.widget.Toast.makeText(this, if (on) R.string.private_mode_on else R.string.private_mode_off, android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun setupSpotifySection() {
+        binding.spotifyClientInput.setText(SpotifyAuth.clientId(this))
+        binding.spotifyClientInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                SpotifyAuth.setClientId(this@SettingsActivity, s?.toString().orEmpty())
+                refreshSpotifyStatus()
+            }
+        })
+        binding.spotifyDashLink.text = getString(R.string.spotify_dashboard)
+        binding.spotifyDashLink.setOnClickListener { openLink("https://developer.spotify.com/dashboard") }
+        binding.spotifyEqSwitch.isChecked = SpotifyAuth.eqEnabled(this)
+        binding.spotifyEqSwitch.setOnCheckedChangeListener { _, on -> SpotifyAuth.setEqEnabled(this, on) }
+        binding.spotifyConnectButton.setOnClickListener {
+            when {
+                SpotifyAuth.isConnected(this) -> { SpotifyAuth.disconnect(this); refreshSpotifyStatus() }
+                SpotifyAuth.clientId(this).isBlank() ->
+                    android.widget.Toast.makeText(this, R.string.spotify_need_connect, android.widget.Toast.LENGTH_LONG).show()
+                else -> try { startActivity(SpotifyAuth.loginIntent(this)) } catch (e: Exception) {
+                    android.widget.Toast.makeText(this, getString(R.string.spotify_error, e.message ?: ""), android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        binding.spotifyImportButton.setOnClickListener { startSpotifyImport() }
+        binding.spotifyPrevButton.setOnClickListener { SpotifyRemote.previous(this) }
+        binding.spotifyToggleButton.setOnClickListener { SpotifyRemote.playPause(this) }
+        binding.spotifyNextButton.setOnClickListener { SpotifyRemote.next(this) }
+        refreshSpotifyStatus()
+    }
+
+    private fun refreshSpotifyStatus() {
+        if (SpotifyImport.running) return // the import shows its own progress here
+        val connected = SpotifyAuth.isConnected(this)
+        binding.spotifyConnectButton.setText(if (connected) R.string.spotify_disconnect else R.string.spotify_connect)
+        binding.spotifyStatus.setText(
+            when {
+                SpotifyAuth.clientId(this).isBlank() -> R.string.spotify_status_need_id
+                connected -> R.string.spotify_status_connected
+                else -> R.string.spotify_status_ready
+            }
+        )
+    }
+
+    private fun spotifyToast(msg: String) =
+        android.widget.Toast.makeText(applicationContext, msg, android.widget.Toast.LENGTH_LONG).show()
+
+    /** Lists the Spotify playlists, lets the user tick which to copy, then imports them in the background. */
+    private fun startSpotifyImport() {
+        if (!SpotifyAuth.isConnected(this)) { spotifyToast(getString(R.string.spotify_need_connect)); return }
+        if (SpotifyImport.running) { spotifyToast(getString(R.string.spotify_import_busy)); return }
+        val app = applicationContext
+        Thread {
+            val lists = try { SpotifyApi.playlists(app) } catch (e: Exception) {
+                runOnUiThread { spotifyToast(getString(R.string.spotify_error, e.message ?: "")) }
+                return@Thread
+            }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                // Row 0 is "Liked songs", then the playlists.
+                val names = arrayOf(getString(R.string.spotify_liked_pick)) + lists.map { it.name }.toTypedArray()
+                val checked = BooleanArray(names.size) { true }
+                androidx.appcompat.app.AlertDialog.Builder(this)
+                    .setTitle(R.string.spotify_import_pick)
+                    .setMultiChoiceItems(names, checked) { _, i, on -> checked[i] = on }
+                    .setPositiveButton(R.string.spotify_import_start) { _, _ ->
+                        val picks = lists.filterIndexed { i, _ -> checked[i + 1] }
+                        runSpotifyImport(picks, checked[0])
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }.start()
+    }
+
+    private fun runSpotifyImport(picks: List<SpotifyApi.Pl>, liked: Boolean) {
+        if (picks.isEmpty() && !liked) return
+        val app = applicationContext
+        val likedName = getString(R.string.spotify_liked)
+        Thread {
+            val result = try {
+                SpotifyImport.run(app, picks, liked, likedName) { done, total, name ->
+                    runOnUiThread { if (!isFinishing) binding.spotifyStatus.text = getString(R.string.spotify_import_progress, done, total, name) }
+                }
+            } catch (e: Exception) {
+                runOnUiThread { spotifyToast(getString(R.string.spotify_error, e.message ?: "")); refreshSpotifyStatus() }
+                return@Thread
+            }
+            runOnUiThread {
+                spotifyToast(getString(R.string.spotify_import_done, result.playlists, result.songs, result.missed))
+                if (!isFinishing) refreshSpotifyStatus()
+            }
+        }.start()
     }
 
     private fun setupDiscordSection() {

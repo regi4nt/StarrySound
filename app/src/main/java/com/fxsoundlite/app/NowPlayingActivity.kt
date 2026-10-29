@@ -92,6 +92,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         binding.npAddPlaylist.setOnClickListener {
             MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) { updateLikeButton() } }
         }
+        binding.npVideo.setOnClickListener { openVideo() }
         binding.npPlay.setOnClickListener { MusicService.instance?.togglePlayPause() }
         binding.npNext.setOnClickListener { MusicService.instance?.next() }
         binding.npPrev.setOnClickListener { MusicService.instance?.previous() }
@@ -931,5 +932,33 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         private const val MENU_DOWNLOAD = 4
         private const val MENU_SPEED = 5
         private const val MENU_AUDIO = 6
+    }
+
+    // ------------------------------------------------------------------ audio -> video
+
+    private var resumeAudioAfterVideo = false
+
+    /** Back from the video: the audio continues from the second the user reached in the video. */
+    private val videoLauncher =
+        registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
+            val svc = MusicService.instance ?: return@registerForActivityResult
+            val pos = res.data?.getLongExtra(VideoPlayerActivity.EXTRA_POSITION_MS, -1L) ?: -1L
+            if (pos >= 0) svc.seekTo(pos.toInt())
+            if (resumeAudioAfterVideo) svc.play()
+            resumeAudioAfterVideo = false
+        }
+
+    /** Switches the current song from audio to its video (YouTube songs), starting at the current position. */
+    private fun openVideo() {
+        val svc = MusicService.instance ?: return
+        val t = svc.current ?: return
+        if (t.source != Track.SOURCE_YOUTUBE) {
+            android.widget.Toast.makeText(this, R.string.video_not_available, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        resumeAudioAfterVideo = svc.isPlaying
+        val pos = svc.position.toLong()
+        if (svc.isPlaying) svc.pause()
+        videoLauncher.launch(VideoPlayerActivity.intent(this, t, pos))
     }
 }
