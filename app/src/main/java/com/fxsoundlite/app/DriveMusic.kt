@@ -119,9 +119,26 @@ object DriveMusic {
     }
 
     /** Audio files with the id of their first parent folder (null when Drive did not tell). */
-    private fun fetchAudio(c: Context): List<Pair<Track, String?>> {
+    private fun fetchAudio(c: Context): List<Pair<Track, String?>> = fetchFiles(c, "audio/", Track.SOURCE_DRIVE)
+
+    /** Video files of the user's Drive (video mode), by name. Blocking: call off the main thread. */
+    fun listVideos(c: Context): List<Track> = fetchFiles(c, "video/", Track.SOURCE_DRIVE_VIDEO).map { it.first }
+
+    /**
+     * URL and headers to stream a Drive video (VideoView.setVideoURI(uri, headers); Drive answers range requests,
+     * so seeking works). Blocking (fetches the token): call off the main thread. May throw UserRecoverableAuthException.
+     */
+    fun streamRequest(c: Context, fileId: String): Pair<String, Map<String, String>> {
         val app = c.applicationContext
-        val q = URLEncoder.encode("mimeType contains 'audio/' and trashed = false", "UTF-8")
+        val safe = fileId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+        if (safe.isEmpty()) throw IOException("bad file id")
+        return "https://www.googleapis.com/drive/v3/files/$safe?alt=media&supportsAllDrives=true" to
+            mapOf("Authorization" to "Bearer ${token(app, false)}")
+    }
+
+    private fun fetchFiles(c: Context, mimePrefix: String, source: Int): List<Pair<Track, String?>> {
+        val app = c.applicationContext
+        val q = URLEncoder.encode("mimeType contains '$mimePrefix' and trashed = false", "UTF-8")
         val fields = URLEncoder.encode("nextPageToken,files(id,name,size,parents)", "UTF-8")
         val out = ArrayList<Pair<Track, String?>>()
         var page: String? = null
@@ -141,7 +158,7 @@ object DriveMusic {
                     val f = files.optJSONObject(i) ?: continue
                     val id = f.optString("id")
                     if (id.isBlank()) continue
-                    out += toTrack(id, f.optString("name")) to f.optJSONArray("parents")?.optString(0)?.takeIf { it.isNotBlank() }
+                    out += toTrack(id, f.optString("name"), source) to f.optJSONArray("parents")?.optString(0)?.takeIf { it.isNotBlank() }
                 }
                 page = json.optString("nextPageToken").takeIf { it.isNotBlank() }
             } finally {
@@ -157,7 +174,7 @@ object DriveMusic {
     }
 
     /** "Artist - Title.mp3" -> artist + title; anything else keeps the whole name as the title. */
-    private fun toTrack(id: String, fileName: String): Track {
+    private fun toTrack(id: String, fileName: String, source: Int = Track.SOURCE_DRIVE): Track {
         val base = fileName.substringBeforeLast('.', fileName).replace('_', ' ').trim()
         val dash = base.indexOf(" - ")
         val (artist, title) = if (dash in 1 until base.length - 3)
@@ -165,7 +182,7 @@ object DriveMusic {
         else "" to base
         return Track(
             id = 0L, title = title.ifBlank { fileName }, artist = artist, album = "",
-            durationMs = 0L, source = Track.SOURCE_DRIVE, remoteId = id
+            durationMs = 0L, source = source, remoteId = id
         )
     }
 

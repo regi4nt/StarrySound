@@ -595,6 +595,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val id = openList ?: return
         val tracks = sortTracks(resolveList(ctx, id)?.tracks.orEmpty()).filter { !it.missing }
         val svc = service ?: MusicService.instance
+        if (MusicPrefs.videoMode(ctx) && tracks.isNotEmpty()) { playAsVideo(tracks, 0); return }
         if (tracks.isEmpty() || svc == null) {
             Toast.makeText(ctx, R.string.playlist_empty_tracks, Toast.LENGTH_SHORT).show()
             return
@@ -1116,7 +1117,27 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private fun onTrackClicked(position: Int) {
         if (position !in shown.indices) return
         if (selecting) { toggleSelected(shown[position]); return }
+        if (MusicPrefs.videoMode(requireContext())) { playAsVideo(shown, position); return }
         (service ?: MusicService.instance)?.setQueueAndPlay(shown, position)
+    }
+
+    /**
+     * Video mode: the playlist plays as a video queue. Songs without a video (device songs, radio, ...) are skipped;
+     * the tapped one must have one, else the first that does is used.
+     */
+    private fun playAsVideo(list: List<Track>, position: Int) {
+        val ctx = context ?: return
+        val playable = list.filter { it.isVideoPlayable && !it.missing }
+        if (playable.isEmpty()) {
+            Toast.makeText(ctx, R.string.video_not_available, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val tapped = list.getOrNull(position)
+        val i = tapped?.let { t -> playable.indexOfFirst { it.source == t.source && it.remoteId == t.remoteId } }?.takeIf { it >= 0 } ?: 0
+        val skipped = list.size - playable.size
+        if (skipped > 0) Toast.makeText(ctx, getString(R.string.video_skipped, skipped), Toast.LENGTH_SHORT).show()
+        (service ?: MusicService.instance)?.let { if (it.isPlaying) it.pause() }
+        startActivity(VideoPlayerActivity.queueIntent(ctx, playable, i, 0L))
     }
 
     private fun onTrackLongClicked(position: Int) {

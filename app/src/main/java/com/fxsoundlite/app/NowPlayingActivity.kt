@@ -86,11 +86,8 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             applyPlayerBackground()
             syncWash()
         }
-        binding.npLike.setOnClickListener {
-            MusicService.instance?.current?.let { t -> PlaylistUi.toggleLike(this, t) { updateLikeButton() } }
-        }
         binding.npAddPlaylist.setOnClickListener {
-            MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) { updateLikeButton() } }
+            MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) { } }
         }
         binding.npVideo.setOnClickListener { openVideo() }
         binding.npPlay.setOnClickListener { MusicService.instance?.togglePlayPause() }
@@ -268,7 +265,6 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         )
         binding.npRepeat.imageTintList =
             ColorStateList.valueOf(if (s.repeatMode == MusicService.REPEAT_OFF) inactive else accent)
-        updateLikeButton()
         updateProgress()
         updateQualityBadge(t)
     }
@@ -311,17 +307,6 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             val info = AudioQuality.probe(ctx, t)
             runOnUiThread { if (!isDestroyed && qualityKey == t.key) show(info) }
         }
-    }
-
-    /** Filled accent heart when the current song is in "Liked songs", outline otherwise. */
-    private fun updateLikeButton() {
-        val t = MusicService.instance?.current ?: return
-        val liked = PlaylistStore.isLiked(this, t)
-        binding.npLike.setImageResource(if (liked) R.drawable.ic_heart else R.drawable.ic_heart_outline)
-        binding.npLike.imageTintList = ColorStateList.valueOf(
-            (if (liked) themeAccent() else color(R.attr.colorTextSecondary))
-        )
-        binding.npLike.contentDescription = getString(if (liked) R.string.np_unlike else R.string.np_like)
     }
 
     private fun updateProgress() {

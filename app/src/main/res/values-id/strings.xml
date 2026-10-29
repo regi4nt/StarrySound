@@ -843,4 +843,7 @@
     <string name="np_video">Ganti ke video</string>
     <string name="quick_action_video">Preview video</string>
     <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>
+    <string name="video_rotate">Putar layar</string>
+    <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
+    <string name="video_skipped">%d lagu tanpa video dilewati</string>
 </resources>

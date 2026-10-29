@@ -1023,4 +1023,7 @@
     <string name="np_video">Switch to video</string>
     <string name="quick_action_video">Video preview</string>
     <string name="private_mode_settings_desc">Do not remember what you play (history, taste, scrobbles).</string>
+    <string name="video_rotate">Rotate screen</string>
+    <string name="video_error_drive">Could not open the Drive video</string>
+    <string name="video_skipped">%d songs without video were skipped</string>
 </resources>

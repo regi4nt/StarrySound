@@ -113,16 +113,55 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    private var driveVideos: List<Track>? = null
+    private var driveVideosLoading = false
+    private var driveVideoEmail = ""
+
+    private fun loadDriveVideos() {
+        if (driveVideosLoading) return
+        driveVideosLoading = true
+        val app = requireContext().applicationContext
+        try {
+            netExecutor.execute {
+                var consent: Intent? = null
+                val result = try {
+                    Result.success(DriveMusic.listVideos(app))
+                } catch (e: com.google.android.gms.auth.UserRecoverableAuthException) {
+                    consent = e.intent
+                    Result.failure(e)
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+                handler.post {
+                    driveVideosLoading = false
+                    if (_binding == null) return@post
+                    result.onSuccess { driveVideos = it }.onFailure {
+                        driveVideos = emptyList() // do not retry in a loop; the next visit of the tab does
+                        val c = consent
+                        if (c != null && !driveConsentAsked) {
+                            driveConsentAsked = true
+                            try { driveConsentLauncher.launch(c) } catch (_: Exception) { }
+                        }
+                    }
+                    if (source == Track.SOURCE_LOCAL && MusicPrefs.videoMode(requireContext())) applyVideoFilter()
+                }
+            }
+        } catch (e: Exception) {
+            driveVideosLoading = false
+        }
+    }
+
     private fun applyVideoFilter() {
         val ctx = requireContext()
-        if (!MusicLibrary.hasVideoPermission(ctx)) {
+        val hasPerm = MusicLibrary.hasVideoPermission(ctx)
+        if (!hasPerm && !DriveMusic.isSignedIn(ctx)) {
             shown = emptyList()
             adapter.submit(shown)
             binding.musicCount.text = ""
             showEmpty(R.string.video_need_permission, R.string.music_allow_access) { videoPermissionLauncher.launch(MusicLibrary.requiredVideoPermission) }
             return
         }
-        val vids = allVideos
+        val vids = if (hasPerm) allVideos else emptyList()
         if (vids == null) {
             loadVideos()
             shown = emptyList()
@@ -131,18 +170,29 @@ class MusicFragment : Fragment(), MusicService.Listener {
             showEmpty(R.string.video_loading)
             return
         }
+        // Google Drive videos join the list when signed in with Google.
+        if (DriveMusic.isSignedIn(ctx)) {
+            val email = DriveSync.email(ctx)
+            if (email != driveVideoEmail) { driveVideoEmail = email; driveVideos = null }
+            if (driveVideos == null) loadDriveVideos()
+        }
+        val all = vids + (if (DriveMusic.isSignedIn(ctx)) driveVideos.orEmpty() else emptyList())
         val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
-        shown = if (q.isEmpty()) vids else vids.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
+        shown = if (q.isEmpty()) all else all.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
         adapter.submit(shown)
-        binding.musicCount.text = getString(R.string.video_count, vids.size)
-        if (shown.isEmpty()) showEmpty(if (vids.isEmpty()) R.string.video_empty else R.string.music_no_results) else showList()
+        binding.musicCount.text = getString(R.string.video_count, all.size)
+        if (shown.isEmpty()) showEmpty(if (all.isEmpty()) R.string.video_empty else R.string.music_no_results) else showList()
         adapter.setCurrentKey("")
     }
 
     /** Pauses the audio player (the video has its own sound) and opens the video full screen. */
     private fun openVideo(t: Track) {
         service?.let { if (it.isPlaying) it.pause() }
-        startActivity(VideoPlayerActivity.intent(requireContext(), t, 0L))
+        // The videos of the list are the queue: the next one starts when this one ends.
+        val queue = shown.filter { it.isVideoPlayable }
+        val i = queue.indexOfFirst { it.source == t.source && it.remoteId == t.remoteId }
+        if (i >= 0) startActivity(VideoPlayerActivity.queueIntent(requireContext(), queue, i, 0L))
+        else startActivity(VideoPlayerActivity.intent(requireContext(), t, 0L))
     }
 
     private val connection = object : ServiceConnection {
@@ -935,7 +985,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
             if (_binding == null) return@registerForActivityResult
             if (res.resultCode == android.app.Activity.RESULT_OK) {
                 driveError = null
+                driveVideos = null
                 loadDrive(force = true)
+                if (MusicPrefs.videoMode(requireContext())) applyVideoFilter()
             } else {
                 driveError = getString(R.string.drive_music_no_permission)
             }
@@ -1112,7 +1164,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
         if (isArchiveAlbum(shown[position]) || YouTubeApi.isListRow(shown[position])) return // not a song: nothing to add to a playlist
-        if (shown[position].source == Track.SOURCE_VIDEO) return // a video file is not an audio track
+        if (shown[position].source == Track.SOURCE_VIDEO || shown[position].source == Track.SOURCE_DRIVE_VIDEO) return // a video file is not an audio track
         val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
             Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
             Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()
@@ -1214,7 +1266,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         if (position !in shown.indices) return
         val tapped = shown[position]
         // Video mode: device videos and YouTube songs open as video (other sources have no video and stay audio).
-        if (tapped.source == Track.SOURCE_VIDEO ||
+        if (tapped.source == Track.SOURCE_VIDEO || tapped.source == Track.SOURCE_DRIVE_VIDEO ||
             (MusicPrefs.videoMode(requireContext()) && tapped.source == Track.SOURCE_YOUTUBE && !YouTubeApi.isListRow(tapped))) {
             openVideo(tapped)
             return
@@ -1249,9 +1301,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val svc = service ?: return
         if (svc.current != null) {
             svc.togglePlayPause()
-        } else if (shown.any { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO }) {
+        } else if (shown.any { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO && it.source != Track.SOURCE_DRIVE_VIDEO }) {
             // Nothing queued yet: play from the top of what's on screen.
-            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO && it.source != Track.SOURCE_DRIVE_VIDEO }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
         }
     }
 
