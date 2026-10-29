@@ -1019,4 +1019,8 @@
     <string name="video_rotate">Putar layar</string>
     <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
     <string name="video_skipped">%d lagu tanpa video dilewati</string>
+    <string name="video_to_music">Beralih ke musik</string>
+    <string name="video_music_unavailable">Hanya video YouTube yang bisa beralih ke musik.</string>
+    <string name="video_music_not_ready">Pemutar musik belum siap. Coba lagi sebentar lagi.</string>
+    <string name="video_timer_set">Video berhenti dalam %d menit.</string>
 </resources>

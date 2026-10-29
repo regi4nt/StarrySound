@@ -1026,4 +1026,8 @@
     <string name="video_rotate">Rotate screen</string>
     <string name="video_error_drive">Could not open the Drive video</string>
     <string name="video_skipped">%d songs without video were skipped</string>
+    <string name="video_to_music">Switch to music</string>
+    <string name="video_music_unavailable">Only YouTube videos can switch to music.</string>
+    <string name="video_music_not_ready">The music player is not ready. Try again in a moment.</string>
+    <string name="video_timer_set">Video stops in %d min.</string>
 </resources>

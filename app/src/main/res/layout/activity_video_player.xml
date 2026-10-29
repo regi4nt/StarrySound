@@ -1,180 +1,303 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Video player, laid out like the music player (NowPlayingActivity): video where the cover is, then title, artist,
-     seek bar and the round play button. In landscape only the video and a compact control strip are shown.
+<!-- Video player, built with the same structure, paddings, sizes, buttons and background as the music player
+     (activity_now_playing.xml). The video sits where the cover is. The "video" button of the second row switches back
+     to music mode. In landscape / full screen the video fills the screen and the controls lie over it (tap to show / hide); long press on the video = full screen.
      See VideoPlayerActivity. -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/vpRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorBg"
-    android:orientation="vertical">
+    android:background="?attr/colorBg">
 
-    <!-- Top bar: collapse (same arrow as the music player). -->
-    <RelativeLayout
-        android:id="@+id/vpHeader"
+    <!-- Same optional background as the music player (Screensaver animated style). -->
+    <com.fxsoundlite.app.SleepBackgroundView
+        android:id="@+id/vpBgAnimated"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="16dp">
-
-        <ImageButton
-            android:id="@+id/vpClose"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/np_close"
-            android:rotation="-90"
-            android:src="@drawable/ic_arrow_back"
-            android:tint="?attr/colorTextPrimary" />
-    </RelativeLayout>
-
-    <!-- The video. Its size (16:9) is set in code for the current orientation. -->
-    <FrameLayout
-        android:id="@+id/vpVideoFrame"
-        android:layout_width="match_parent"
-        android:layout_height="220dp"
-        android:background="#000000" />
+        android:layout_height="match_parent"
+        android:visibility="gone" />
 
     <LinearLayout
-        android:id="@+id/vpInfo"
+        android:id="@+id/vpContent"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingTop="20dp"
-        android:paddingEnd="24dp">
+        android:paddingTop="12dp"
+        android:paddingBottom="24dp">
 
-        <TextView
-            android:id="@+id/vpTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:textColor="?attr/colorTextPrimary"
-            android:textSize="22sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/vpArtist"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="?attr/colorTextSecondary"
-            android:textSize="15sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/vpPanel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="24dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="24dp"
-        android:paddingBottom="16dp">
-
-        <SeekBar
-            android:id="@+id/vpSeek"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:progressTint="?attr/colorAccent"
-            android:thumbTint="?attr/colorAccent" />
-
+        <!-- Top bar: collapse on the left, volume and overflow (speed / sleep timer / download / share / info) on the right. -->
         <RelativeLayout
+            android:id="@+id/vpHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="4dp">
+            android:layout_marginHorizontal="24dp">
 
-            <TextView
-                android:id="@+id/vpElapsed"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="0:00"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp" />
+            <ImageButton
+                android:id="@+id/vpClose"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/np_close"
+                android:rotation="-90"
+                android:src="@drawable/ic_arrow_back"
+                android:tint="?attr/colorTextPrimary" />
 
-            <TextView
-                android:id="@+id/vpTotal"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+            <ImageButton
+                android:id="@+id/vpVolume"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_toStartOf="@id/vpMore"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/np_volume"
+                android:src="@drawable/ic_volume"
+                android:tint="?attr/colorTextPrimary" />
+
+            <ImageButton
+                android:id="@+id/vpMore"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:layout_alignParentEnd="true"
-                android:text="0:00"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp" />
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/np_more"
+                android:src="@drawable/ic_more_vert"
+                android:tint="?attr/colorTextPrimary" />
         </RelativeLayout>
 
+        <!-- Where the cover is in the music player: takes the free space, the video (full width, 16:9, or smaller when
+             the space is short) is centred in it. -->
+        <FrameLayout
+            android:id="@+id/vpStage"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <!-- Its size is set in code (applyVideoSize). -->
+            <FrameLayout
+                android:id="@+id/vpVideoFrame"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_gravity="center"
+                android:background="#000000" />
+
+            <!-- Same size as the video (set in code): long press = full screen. -->
+            <View
+                android:id="@+id/vpTouch"
+                android:layout_width="match_parent"
+                android:layout_height="220dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no" />
+        </FrameLayout>
+
         <LinearLayout
+            android:id="@+id/vpInfo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/vpTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="2"
+                android:textColor="?attr/colorTextPrimary"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/vpArtist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="15sp" />
+        </LinearLayout>
+
+        <!-- Seek bar, time row and main buttons. In landscape / full screen this group is moved over the video
+             (bottom) and shown on a tap, hiding itself after a few seconds (see VideoPlayerActivity.placeControls). -->
+        <LinearLayout
+            android:id="@+id/vpControls"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <SeekBar
+                android:id="@+id/vpSeek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="16dp"
+                android:progressTint="?attr/colorAccent"
+                android:thumbTint="?attr/colorAccent" />
+
+            <!-- Time row: the elapsed time skips back 10 s, the total time skips forward 10 s. -->
+            <LinearLayout
+                android:id="@+id/vpTimes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/vpElapsed"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:gravity="center_vertical"
+                    android:minWidth="56dp"
+                    android:paddingHorizontal="4dp"
+                    android:text="0:00"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="12sp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/vpTotal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:gravity="center_vertical|end"
+                    android:minWidth="56dp"
+                    android:paddingHorizontal="4dp"
+                    android:text="0:00"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- Same row as the music player: shuffle, previous, play, next, repeat. -->
+            <LinearLayout
+                android:id="@+id/vpPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="24dp"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/vpShuffle"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/music_shuffle"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_shuffle"
+                    android:tint="?attr/colorTextSecondary" />
+
+                <ImageButton
+                    android:id="@+id/vpPrev"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/music_previous"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_prev"
+                    android:tint="?attr/colorTextPrimary" />
+
+                <ImageButton
+                    android:id="@+id/vpPlay"
+                    android:layout_width="68dp"
+                    android:layout_height="68dp"
+                    android:layout_marginHorizontal="8dp"
+                    android:background="@drawable/eq_button_bg"
+                    android:contentDescription="@string/music_play_pause"
+                    android:padding="18dp"
+                    android:src="@drawable/ic_pause"
+                    android:tint="?attr/colorOnAccent" />
+
+                <ImageButton
+                    android:id="@+id/vpNext"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/music_next"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_next"
+                    android:tint="?attr/colorTextPrimary" />
+
+                <ImageButton
+                    android:id="@+id/vpRepeat"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/music_repeat"
+                    android:padding="12dp"
+                    android:src="@drawable/ic_repeat"
+                    android:tint="?attr/colorTextSecondary" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Second row, like the music player's: back to music mode, add to playlist, background, queue, rotate screen. -->
+        <LinearLayout
+            android:id="@+id/vpRow2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="24dp"
+            android:layout_marginTop="12dp"
             android:gravity="center"
             android:orientation="horizontal">
 
             <ImageButton
-                android:id="@+id/vpPrev"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:id="@+id/vpMusic"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/music_previous"
-                android:padding="10dp"
-                android:src="@drawable/ic_prev"
-                android:tint="?attr/colorTextPrimary" />
-
-            <TextView
-                android:id="@+id/vpBack"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:gravity="center"
-                android:text="-10"
-                android:textColor="?attr/colorTextPrimary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:contentDescription="@string/video_to_music"
+                android:padding="12dp"
+                android:src="@drawable/ic_videocam"
+                android:tint="?attr/colorAccent" />
 
             <ImageButton
-                android:id="@+id/vpPlay"
-                android:layout_width="68dp"
-                android:layout_height="68dp"
-                android:layout_marginHorizontal="4dp"
-                android:background="@drawable/eq_button_bg"
-                android:contentDescription="@string/music_play_pause"
-                android:padding="18dp"
-                android:src="@drawable/ic_pause"
-                android:tint="?attr/colorOnAccent" />
-
-            <TextView
-                android:id="@+id/vpForward"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:id="@+id/vpAddPlaylist"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:gravity="center"
-                android:text="+10"
-                android:textColor="?attr/colorTextPrimary"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:contentDescription="@string/np_add_playlist"
+                android:padding="12dp"
+                android:src="@drawable/ic_playlist_add"
+                android:tint="?attr/colorTextSecondary" />
 
             <ImageButton
-                android:id="@+id/vpNext"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:id="@+id/vpBg"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="@string/music_next"
-                android:padding="10dp"
-                android:src="@drawable/ic_next"
-                android:tint="?attr/colorTextPrimary" />
+                android:contentDescription="@string/np_bg_toggle"
+                android:padding="12dp"
+                android:src="@drawable/ic_screensaver"
+                android:tint="?attr/colorTextSecondary" />
+
+            <ImageButton
+                android:id="@+id/vpQueue"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/np_queue"
+                android:padding="12dp"
+                android:src="@drawable/ic_queue"
+                android:tint="?attr/colorTextSecondary" />
 
             <ImageButton
                 android:id="@+id/vpRotate"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginHorizontal="8dp"
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/video_rotate"
-                android:padding="10dp"
+                android:padding="12dp"
                 android:src="@drawable/ic_screen_rotation"
                 android:tint="?attr/colorTextSecondary" />
         </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

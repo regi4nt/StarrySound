@@ -3,26 +3,40 @@ package com.fxsoundlite.app
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.media.AudioManager
+import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.PopupMenu
 import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import android.widget.VideoView
+import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.fxsoundlite.app.databinding.ActivityVideoPlayerBinding
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener
@@ -30,12 +44,14 @@ import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.options.IFram
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView
 
 /**
- * Video player styled like the music player: the video sits where the cover is, with the same title / artist,
- * seek bar and round play button below it (own controls; the YouTube player's controls are switched off).
- * Sources: a YouTube video (official IFrame player) or a video file of the device (VideoView).
+ * Video player built like the music player (same theme, background, paddings, buttons and menus): the video sits where
+ * the cover is, with the same title / artist, seek bar and round play button below it (own controls; the YouTube
+ * player's controls are switched off). Sources: a YouTube video (official IFrame player) or a video file of the
+ * device / Drive (VideoView).
  *
- * It never touches [MusicService]: callers pause their audio first and get the position the user reached in the
- * result ([EXTRA_POSITION_MS]), so the audio can continue from there.
+ * The video queue (shuffle, repeat, queue list) is its own: it never touches [MusicService] while the video plays.
+ * Callers pause their audio first and get the position the user reached in the result ([EXTRA_POSITION_MS]), so the
+ * audio can continue from there. The "video" button switches the current YouTube song back to music mode.
  */
 class VideoPlayerActivity : AppCompatActivity() {
     companion object {
@@ -45,31 +61,57 @@ class VideoPlayerActivity : AppCompatActivity() {
         const val EXTRA_TITLE = "title"
         const val EXTRA_ARTIST = "artist"
         const val EXTRA_POSITION_MS = "position_ms"
+        /** Result: the user switched to music mode and the music player already has this song, so the caller resumes it. */
+        const val EXTRA_TO_MUSIC = "to_music"
+        private const val EXTRA_FROM_PLAYER = "from_player"
         private const val EXTRA_Q_SOURCES = "q_sources"
         private const val EXTRA_Q_IDS = "q_ids"
         private const val EXTRA_Q_TITLES = "q_titles"
         private const val EXTRA_Q_ARTISTS = "q_artists"
+        private const val EXTRA_Q_DURS = "q_durs"
+        private const val EXTRA_Q_ARTS = "q_arts"
         private const val EXTRA_INDEX = "q_index"
 
-        fun intent(c: Context, t: Track, startMs: Long = 0L): Intent = queueIntent(c, listOf(t), 0, startMs)
+        private const val REPEAT_OFF = 0
+        private const val REPEAT_ALL = 1
+        private const val REPEAT_ONE = 2
+
+        private const val M_SPEED = 1
+        private const val M_TIMER = 2
+        private const val M_DOWNLOAD = 3
+        private const val M_SHARE = 4
+        private const val M_INFO = 5
+
+        /** [fromPlayer] = opened from the music player (NowPlayingActivity), which takes the result and resumes its audio. */
+        fun intent(c: Context, t: Track, startMs: Long = 0L, fromPlayer: Boolean = false): Intent =
+            queueIntent(c, listOf(t), 0, startMs, fromPlayer)
 
         /** A playlist as a video queue: plays [index] first and goes on with the next ones. Only [isVideoPlayable] tracks should be passed. */
-        fun queueIntent(c: Context, tracks: List<Track>, index: Int, startMs: Long = 0L): Intent =
+        fun queueIntent(c: Context, tracks: List<Track>, index: Int, startMs: Long = 0L, fromPlayer: Boolean = false): Intent =
             Intent(c, VideoPlayerActivity::class.java)
                 .putExtra(EXTRA_Q_SOURCES, IntArray(tracks.size) { tracks[it].source })
                 .putExtra(EXTRA_Q_IDS, Array(tracks.size) { tracks[it].remoteId })
                 .putExtra(EXTRA_Q_TITLES, Array(tracks.size) { tracks[it].title })
                 .putExtra(EXTRA_Q_ARTISTS, Array(tracks.size) { tracks[it].artist })
+                .putExtra(EXTRA_Q_DURS, LongArray(tracks.size) { tracks[it].durationMs })
+                .putExtra(EXTRA_Q_ARTS, Array(tracks.size) { tracks[it].artUrl })
                 .putExtra(EXTRA_INDEX, index)
                 .putExtra(EXTRA_START_MS, startMs)
+                .putExtra(EXTRA_FROM_PLAYER, fromPlayer)
     }
 
-    private var qSources = IntArray(0)
-    private var qIds = emptyArray<String>()
-    private var qTitles = emptyArray<String>()
-    private var qArtists = emptyArray<String>()
+    /** Video queue in play order (shuffled when [shuffle] is on); [original] keeps the order it came in. */
+    private var queue = mutableListOf<Track>()
+    private var original = listOf<Track>()
     private var index = 0
     private var loadToken = 0
+    private var shuffle = false
+    private var repeat = REPEAT_OFF
+    private var fromPlayer = false
+
+    // Full screen (long press on the video): only the video, turned to landscape.
+    private var full = false
+    private var orientationBeforeFull = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
     private lateinit var binding: ActivityVideoPlayerBinding
     private val handler = Handler(Looper.getMainLooper())
@@ -77,11 +119,21 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var ytView: YouTubePlayerView? = null
     private var yt: YouTubePlayer? = null
     private var fileView: VideoView? = null
+    private var filePlayer: MediaPlayer? = null
 
     private var posMs = 0L
     private var durMs = 0L
     private var playing = false
     private var dragging = false
+    private var speed = 1f
+
+    // Result handed back to the caller.
+    private var resultPos: Long? = null
+    private var toMusic = false
+
+    // Sleep timer (own: the music service's timer would not stop a video).
+    private var sleepAt = 0L
+    private val sleepRun = Runnable { sleepAt = 0L; pausePlayback() }
 
     private val poll = object : Runnable {
         override fun run() {
@@ -95,36 +147,76 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
     }
 
+    private val current: Track get() = queue[index]
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        ThemeHelper.applyMode(this) // same light / dark mode and accent colour as the music player
+        ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
         supportActionBar?.hide()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        volumeControlStream = AudioManager.STREAM_MUSIC // the hardware volume keys control the media volume
         binding = ActivityVideoPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        qSources = intent.getIntArrayExtra(EXTRA_Q_SOURCES) ?: IntArray(0)
-        qIds = intent.getStringArrayExtra(EXTRA_Q_IDS) ?: emptyArray()
-        qTitles = intent.getStringArrayExtra(EXTRA_Q_TITLES) ?: emptyArray()
-        qArtists = intent.getStringArrayExtra(EXTRA_Q_ARTISTS) ?: emptyArray()
-        val n = minOf(qSources.size, qIds.size, qTitles.size, qArtists.size)
+        fromPlayer = intent.getBooleanExtra(EXTRA_FROM_PLAYER, false)
+        val sources = intent.getIntArrayExtra(EXTRA_Q_SOURCES) ?: IntArray(0)
+        val ids = intent.getStringArrayExtra(EXTRA_Q_IDS) ?: emptyArray()
+        val titles = intent.getStringArrayExtra(EXTRA_Q_TITLES) ?: emptyArray()
+        val artists = intent.getStringArrayExtra(EXTRA_Q_ARTISTS) ?: emptyArray()
+        val durs = intent.getLongArrayExtra(EXTRA_Q_DURS) ?: LongArray(0)
+        val arts = intent.getStringArrayExtra(EXTRA_Q_ARTS) ?: emptyArray()
+        val n = minOf(sources.size, ids.size, titles.size, artists.size)
         if (n == 0) { Toast.makeText(this, R.string.video_not_available, Toast.LENGTH_LONG).show(); finish(); return }
+        original = List(n) {
+            Track(0L, titles[it], artists[it], "", durs.getOrElse(it) { 0L }, sources[it], ids[it], arts.getOrElse(it) { "" })
+        }
+        queue = original.toMutableList()
         index = (savedInstanceState?.getInt(EXTRA_INDEX) ?: intent.getIntExtra(EXTRA_INDEX, 0)).coerceIn(0, n - 1)
         val startMs = savedInstanceState?.getLong(EXTRA_POSITION_MS) ?: intent.getLongExtra(EXTRA_START_MS, 0L)
 
+        binding.vpClose.setOnClickListener { finish() }
+        binding.vpVolume.setOnClickListener { showSystemVolume() }
+        binding.vpMore.setOnClickListener { showMoreMenu(it) }
+        binding.vpPlay.setOnClickListener { togglePlay() }
+        // The time labels skip: elapsed time = back 10 s, total time = forward 10 s.
+        binding.vpElapsed.setOnClickListener { seekTo(posMs - 10_000L) }
+        binding.vpTotal.setOnClickListener { seekTo(posMs + 10_000L) }
         binding.vpPrev.setOnClickListener { step(-1) }
         binding.vpNext.setOnClickListener { step(1) }
-        val multi = n > 1
-        binding.vpPrev.visibility = if (multi) View.VISIBLE else View.GONE
-        binding.vpNext.visibility = if (multi) View.VISIBLE else View.GONE
-
-        binding.vpClose.setOnClickListener { finish() }
-        binding.vpPlay.setOnClickListener { togglePlay() }
-        binding.vpBack.setOnClickListener { seekTo(posMs - 10_000L) }
-        binding.vpForward.setOnClickListener { seekTo(posMs + 10_000L) }
+        binding.vpShuffle.setOnClickListener { toggleShuffle() }
+        binding.vpRepeat.setOnClickListener { repeat = (repeat + 1) % 3; updateUi() }
         binding.vpRotate.setOnClickListener {
             val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             requestedOrientation = if (land) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
+        binding.vpTouch.setOnLongClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            setFullscreen(!full)
+            true
+        }
+        // In landscape / full screen the controls lie over the video: a tap shows or hides them.
+        binding.vpTouch.setOnClickListener {
+            if (isOverlay()) showControls(binding.vpControls.visibility != View.VISIBLE)
+        }
+        // Back: leaves full screen first, then landscape, then the player.
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                when {
+                    full -> setFullscreen(false)
+                    resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ->
+                        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    else -> finish()
+                }
+            }
+        })
+        binding.vpMusic.setOnClickListener { switchToMusic() }
+        binding.vpAddPlaylist.setOnClickListener { PlaylistUi.addToPlaylist(this, current) { } }
+        binding.vpBg.setOnClickListener {
+            MusicPrefs.setPlayerBgScreensaver(this, !MusicPrefs.playerBgScreensaver(this))
+            applyPlayerBackground()
+        }
+        binding.vpQueue.setOnClickListener { showQueue() }
         binding.vpSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) binding.vpElapsed.text = formatDuration(progress * 1000L)
@@ -135,9 +227,21 @@ class VideoPlayerActivity : AppCompatActivity() {
                 seekTo((seekBar?.progress ?: 0) * 1000L)
             }
         })
+        // The video takes the free space of the cover area (full width, 16:9; smaller only when the space is short).
+        binding.vpStage.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyVideoSize() }
 
         applyOrientation()
         playIndex(index, startMs)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        applyPlayerBackground()
+    }
+
+    override fun onStop() {
+        binding.vpBgAnimated.stop() // no animation loop while off screen
+        super.onStop()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -150,9 +254,32 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     /** Next (+1) / previous (-1) video; wraps around. */
     private fun step(d: Int) {
-        val n = qIds.size
+        val n = queue.size
         if (n < 2) return
         playIndex(((index + d) % n + n) % n, 0L)
+    }
+
+    /** The video ended: repeat it, go on with the next one, or stop at the end of the queue. */
+    private fun onEnded() {
+        playing = false
+        when {
+            repeat == REPEAT_ONE || (repeat == REPEAT_ALL && queue.size == 1) -> playIndex(index, 0L)
+            queue.size > 1 && (repeat == REPEAT_ALL || index < queue.size - 1) -> step(1)
+            else -> updateUi()
+        }
+    }
+
+    private fun toggleShuffle() {
+        val cur = current
+        if (!shuffle) {
+            queue = (listOf(cur) + original.filter { it !== cur }.shuffled()).toMutableList()
+            index = 0
+        } else {
+            queue = original.toMutableList()
+            index = original.indexOfFirst { it === cur }.coerceAtLeast(0)
+        }
+        shuffle = !shuffle
+        updateUi()
     }
 
     /** Plays the video at [i]: swaps the video view when the kind of source changes. */
@@ -162,11 +289,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         posMs = startMs
         durMs = 0L
         playing = false
-        binding.vpTitle.text = qTitles[i]
-        binding.vpArtist.text = qArtists[i]
-        binding.vpArtist.visibility = if (qArtists[i].isBlank()) View.GONE else View.VISIBLE
-        val id = qIds[i]
-        when (qSources[i]) {
+        val t = queue[i]
+        binding.vpTitle.text = t.title
+        binding.vpArtist.text = t.artist
+        binding.vpArtist.visibility = if (t.artist.isBlank()) View.GONE else View.VISIBLE
+        val id = t.remoteId
+        when (t.source) {
             Track.SOURCE_YOUTUBE -> {
                 dropFile()
                 val p = yt
@@ -182,14 +310,14 @@ class VideoPlayerActivity : AppCompatActivity() {
                         if (isDestroyed || token != loadToken) return@runOnUiThread
                         if (req == null) {
                             Toast.makeText(this, R.string.video_error_drive, Toast.LENGTH_LONG).show()
-                            if (qIds.size > 1) step(1) else finish()
+                            if (queue.size > 1) step(1) else finish()
                         } else setupFile(Uri.parse(req.first), req.second, startMs)
                     }
                 }.start()
             }
             else -> {
                 Toast.makeText(this, R.string.video_not_available, Toast.LENGTH_SHORT).show()
-                if (qIds.size > 1) step(1) else finish()
+                if (queue.size > 1) step(1) else finish()
             }
         }
         updateUi()
@@ -212,6 +340,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             binding.vpVideoFrame.removeView(it)
         }
         fileView = null
+        filePlayer = null
     }
 
     // ------------------------------------------------------------------ layout
@@ -223,32 +352,138 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
-    /** Portrait: header, 16:9 video, title, controls. Landscape: system bars hidden, the video takes the screen and only a control strip stays. */
+    private fun color(attr: Int): Int {
+        val tv = TypedValue()
+        theme.resolveAttribute(attr, tv, true)
+        return tv.data
+    }
+
+    private fun themeAccent(): Int = color(androidx.appcompat.R.attr.colorAccent)
+
+    private fun setFullscreen(on: Boolean) {
+        if (full == on) return
+        full = on
+        if (on) {
+            orientationBeforeFull = requestedOrientation
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else {
+            requestedOrientation = orientationBeforeFull
+        }
+        applyOrientation()
+    }
+
+    /**
+     * Portrait: header, video in the cover area, title, controls, second row.
+     * Landscape / full screen: system bars, header, title and second row hidden; the video fills the screen and
+     * the controls lie over it (tap to show / hide).
+     */
     private fun applyOrientation() {
         val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val immersive = land || full
         val controller = WindowInsetsControllerCompat(window, window.decorView)
-        WindowCompat.setDecorFitsSystemWindows(window, !land)
-        if (land) {
+        WindowCompat.setDecorFitsSystemWindows(window, !immersive)
+        if (immersive) {
             controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         } else {
             controller.show(WindowInsetsCompat.Type.systemBars())
         }
-        binding.vpHeader.visibility = if (land) View.GONE else View.VISIBLE
-        binding.vpInfo.visibility = if (land) View.GONE else View.VISIBLE
-        val dm = resources.displayMetrics
-        val lp = binding.vpVideoFrame.layoutParams as LinearLayout.LayoutParams
-        if (land) {
-            val h = (dm.heightPixels - dp(120)).coerceAtLeast(dp(120))
-            lp.width = minOf(dm.widthPixels, h * 16 / 9)
-            lp.height = h
-            lp.gravity = Gravity.CENTER_HORIZONTAL
+        binding.vpHeader.visibility = if (immersive) View.GONE else View.VISIBLE
+        binding.vpInfo.visibility = if (immersive) View.GONE else View.VISIBLE
+        binding.vpRow2.visibility = if (immersive) View.GONE else View.VISIBLE
+        if (immersive) binding.vpContent.setPadding(0, 0, 0, 0)
+        else binding.vpContent.setPadding(0, dp(12), 0, dp(24))
+        placeControls(immersive)
+        applyVideoSize()
+    }
+
+    private fun isOverlay(): Boolean =
+        full || resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    private val hideControls = Runnable {
+        if (isOverlay() && playing) binding.vpControls.visibility = View.GONE
+    }
+
+    /** Portrait: the controls stay in the column under the title. Landscape / full screen: they lie over the bottom of the video. */
+    private fun placeControls(overlay: Boolean) {
+        val c = binding.vpControls
+        val parent = c.parent as ViewGroup
+        if (overlay) {
+            if (parent !== binding.vpRoot) {
+                parent.removeView(c)
+                binding.vpRoot.addView(c, FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+            }
+            // Translucent theme colour: the buttons keep their normal colours and stay readable over any picture.
+            c.setBackgroundColor(ColorUtils.setAlphaComponent(color(R.attr.colorBg), 0xCC))
+            c.setPadding(0, dp(8), 0, dp(12))
+            showControls(true)
         } else {
-            lp.width = ViewGroup.LayoutParams.MATCH_PARENT
-            lp.height = dm.widthPixels * 9 / 16
-            lp.gravity = Gravity.NO_GRAVITY
+            handler.removeCallbacks(hideControls)
+            if (parent !== binding.vpContent) {
+                parent.removeView(c)
+                binding.vpContent.addView(c, binding.vpContent.indexOfChild(binding.vpRow2),
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }
+            c.background = null
+            c.setPadding(0, 0, 0, 0)
+            c.visibility = View.VISIBLE
         }
+    }
+
+    private fun showControls(show: Boolean) {
+        handler.removeCallbacks(hideControls)
+        binding.vpControls.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) handler.postDelayed(hideControls, 3500L)
+    }
+
+    /** Any touch on the controls keeps them shown a few seconds longer. */
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (ev.action == MotionEvent.ACTION_UP && isOverlay() && binding.vpControls.visibility == View.VISIBLE) {
+            handler.removeCallbacks(hideControls)
+            handler.postDelayed(hideControls, 3500L)
+        }
+        return super.dispatchTouchEvent(ev)
+    }
+
+    /** Full screen width at 16:9, like before; if the free space is shorter than that, the video shrinks to fit it. */
+    private fun applyVideoSize() {
+        val sh = binding.vpStage.height
+        if (sh <= 0) return
+        var w = resources.displayMetrics.widthPixels
+        var h = w * 9 / 16
+        if (h > sh) { h = sh; w = h * 16 / 9 }
+        val lp = binding.vpVideoFrame.layoutParams as FrameLayout.LayoutParams
+        if (lp.width == w && lp.height == h && lp.gravity == Gravity.CENTER) return
+        lp.width = w
+        lp.height = h
+        lp.gravity = Gravity.CENTER
         binding.vpVideoFrame.layoutParams = lp
+        // The layer that catches the long press has the video's size.
+        val tl = binding.vpTouch.layoutParams as FrameLayout.LayoutParams
+        tl.width = w
+        tl.height = h
+        tl.gravity = Gravity.CENTER
+        binding.vpTouch.layoutParams = tl
+    }
+
+    /** Same player background as the music player: the Screensaver's animated style, or the plain theme colour. */
+    private fun applyPlayerBackground() {
+        val bgOn = MusicPrefs.playerBgScreensaver(this)
+        binding.vpBg.imageTintList = ColorStateList.valueOf(if (bgOn) themeAccent() else color(R.attr.colorTextSecondary))
+        val animated = bgOn && ScreensaverPrefs.mediaType(this) == ScreensaverPrefs.TYPE_ANIMATED
+        if (!animated) {
+            binding.vpBgAnimated.stop()
+            binding.vpBgAnimated.visibility = View.GONE
+            return
+        }
+        binding.vpBgAnimated.style = when (ScreensaverPrefs.animatedStyle(this)) {
+            ScreensaverPrefs.STYLE_RAIN -> SleepBackgroundView.Style.RAIN
+            ScreensaverPrefs.STYLE_STARFIELD -> SleepBackgroundView.Style.STARFIELD
+            else -> SleepBackgroundView.Style.NIGHT_SKY
+        }
+        binding.vpBgAnimated.visibility = View.VISIBLE
+        binding.vpBgAnimated.start()
     }
 
     // ------------------------------------------------------------------ sources
@@ -272,8 +507,9 @@ class VideoPlayerActivity : AppCompatActivity() {
 
             override fun onStateChange(youTubePlayer: YouTubePlayer, state: PlayerConstants.PlayerState) {
                 playing = state == PlayerConstants.PlayerState.PLAYING || state == PlayerConstants.PlayerState.BUFFERING
+                if (state == PlayerConstants.PlayerState.PLAYING) applySpeed()
                 updateUi()
-                if (state == PlayerConstants.PlayerState.ENDED && qIds.size > 1) step(1)
+                if (state == PlayerConstants.PlayerState.ENDED) onEnded()
             }
 
             override fun onCurrentSecond(youTubePlayer: YouTubePlayer, second: Float) {
@@ -289,7 +525,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
                 // The owner may forbid embedding: hand over to the YouTube app / browser at the same second.
                 Toast.makeText(this@VideoPlayerActivity, R.string.video_error, Toast.LENGTH_LONG).show()
-                if (qIds.size > 1) { step(1); return }
+                if (queue.size > 1) { step(1); return }
                 try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id&t=${posMs / 1000}s")))
                 } catch (_: Exception) { }
@@ -304,14 +540,16 @@ class VideoPlayerActivity : AppCompatActivity() {
         val vv = VideoView(this)
         binding.vpVideoFrame.addView(vv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER))
         vv.setOnPreparedListener { mp ->
+            filePlayer = mp
             durMs = mp.duration.toLong().coerceAtLeast(0L)
             if (startMs > 0) mp.seekTo(startMs.toInt())
             vv.start()
+            applySpeed()
         }
-        vv.setOnCompletionListener { playing = false; updateUi(); if (qIds.size > 1) step(1) }
+        vv.setOnCompletionListener { onEnded() }
         vv.setOnErrorListener { _, _, _ ->
             Toast.makeText(this, R.string.video_error_file, Toast.LENGTH_LONG).show()
-            if (qIds.size > 1) step(1) else finish()
+            if (queue.size > 1) step(1) else finish()
             true
         }
         if (headers != null) vv.setVideoURI(uri, headers) else vv.setVideoURI(uri)
@@ -323,7 +561,16 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private fun togglePlay() {
         yt?.let { if (playing) it.pause() else it.play(); return }
-        fileView?.let { if (it.isPlaying) it.pause() else it.start(); playing = it.isPlaying; updateUi() }
+        fileView?.let {
+            if (it.isPlaying) it.pause() else { it.start(); applySpeed() }
+            playing = it.isPlaying
+            updateUi()
+        }
+    }
+
+    private fun pausePlayback() {
+        yt?.pause()
+        fileView?.pause()
     }
 
     private fun seekTo(ms: Long) {
@@ -334,8 +581,23 @@ class VideoPlayerActivity : AppCompatActivity() {
         updateUi()
     }
 
+    private fun applySpeed() {
+        yt?.setPlaybackRate(
+            when (speed) {
+                0.5f -> PlayerConstants.PlaybackRate.RATE_0_5
+                1.5f -> PlayerConstants.PlaybackRate.RATE_1_5
+                2f -> PlayerConstants.PlaybackRate.RATE_2
+                else -> PlayerConstants.PlaybackRate.RATE_1
+            }
+        )
+        val mp = filePlayer ?: return
+        if (Build.VERSION.SDK_INT >= 23 && fileView?.isPlaying == true) { // a paused player would start playing when the speed is set
+            try { mp.playbackParams = mp.playbackParams.setSpeed(speed) } catch (_: Exception) { }
+        }
+    }
+
     private fun updateUi() {
-        if (!::binding.isInitialized) return
+        if (!::binding.isInitialized || queue.isEmpty()) return
         binding.vpPlay.setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
         binding.vpTotal.text = formatDuration(durMs)
         binding.vpSeek.max = (durMs / 1000L).toInt().coerceAtLeast(1)
@@ -343,7 +605,211 @@ class VideoPlayerActivity : AppCompatActivity() {
             binding.vpSeek.progress = (posMs / 1000L).toInt()
             binding.vpElapsed.text = formatDuration(posMs)
         }
+        // A single video has nothing to shuffle / skip to: hidden, but keeping their room so play stays centred.
+        val multi = queue.size > 1
+        val vis = if (multi) View.VISIBLE else View.INVISIBLE
+        binding.vpShuffle.visibility = vis
+        binding.vpPrev.visibility = vis
+        binding.vpNext.visibility = vis
+        val accent = themeAccent()
+        val inactive = color(R.attr.colorTextSecondary)
+        binding.vpShuffle.imageTintList = ColorStateList.valueOf(if (shuffle) accent else inactive)
+        binding.vpRepeat.setImageResource(if (repeat == REPEAT_ONE) R.drawable.ic_repeat_one else R.drawable.ic_repeat)
+        binding.vpRepeat.imageTintList = ColorStateList.valueOf(if (repeat == REPEAT_OFF) inactive else accent)
     }
+
+    // ------------------------------------------------------------------ music mode
+
+    /** Switches the current YouTube song from video to music, continuing at the second the video reached. */
+    private fun switchToMusic() {
+        val t = current
+        if (t.source != Track.SOURCE_YOUTUBE) {
+            Toast.makeText(this, R.string.video_music_unavailable, Toast.LENGTH_LONG).show()
+            return
+        }
+        val svc = MusicService.instance
+        if (svc == null) {
+            Toast.makeText(this, R.string.video_music_not_ready, Toast.LENGTH_LONG).show()
+            return
+        }
+        val pos = fileView?.currentPosition?.toLong() ?: posMs
+        if (svc.current?.key == t.key) {
+            // The music player already has this song (the video was opened from it): continue it from here.
+            if (fromPlayer) {
+                toMusic = true // its caller seeks and resumes
+            } else {
+                svc.seekTo(pos.toInt())
+                svc.play()
+            }
+            resultPos = pos
+        } else {
+            val songs = queue.filter { it.source == Track.SOURCE_YOUTUBE }
+            svc.setQueueAndPlay(songs, songs.indexOfFirst { it.key == t.key }.coerceAtLeast(0))
+            seekWhenReady(svc, t.key, pos)
+            resultPos = -1L // nothing for the caller to seek
+        }
+        if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
+        finish()
+    }
+
+    /** The new song loads in the service; once it is ready, jump to the video's position. */
+    private fun seekWhenReady(svc: MusicService, key: String, pos: Long) {
+        if (pos < 3000L) return
+        val h = Handler(Looper.getMainLooper())
+        var tries = 0
+        val r = object : Runnable {
+            override fun run() {
+                tries++
+                if (svc.current?.key == key && svc.duration > 0) { svc.seekTo(pos.toInt()); return }
+                if (tries < 40) h.postDelayed(this, 250L)
+            }
+        }
+        h.postDelayed(r, 250L)
+    }
+
+    // ------------------------------------------------------------------ volume / menu / queue
+
+    /** Shows the device's own volume panel (media stream) without changing the level. */
+    private fun showSystemVolume() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
+    }
+
+    private fun showMoreMenu(anchor: View) {
+        val t = current
+        val popup = PopupMenu(this, anchor, Gravity.END)
+        popup.menu.add(0, M_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(speed)))
+        popup.menu.add(0, M_TIMER, 1, R.string.np_sleep_timer)
+        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 2, R.string.np_download)
+        popup.menu.add(0, M_SHARE, 3, R.string.np_share)
+        popup.menu.add(0, M_INFO, 5, R.string.np_info)
+        popup.setOnMenuItemClickListener {
+            when (it.itemId) {
+                M_SPEED -> showSpeedDialog()
+                M_TIMER -> showSleepTimerDialog()
+                M_DOWNLOAD -> SongDownloader.download(this, t)
+                M_SHARE -> SongShareCard.share(this, t, null, trackLink(t), getString(R.string.np_share_via))
+                M_INFO -> showInfo(t)
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun speedLabel(s: Float): String =
+        (if (s % 1f == 0f) s.toInt().toString() else s.toString().trimEnd('0')) + "x"
+
+    private fun showSpeedDialog() {
+        val speeds = floatArrayOf(0.5f, 1f, 1.5f, 2f)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.np_speed)
+            .setSingleChoiceItems(speeds.map { speedLabel(it) }.toTypedArray(), speeds.indexOf(speed)) { d, which ->
+                speed = speeds[which]
+                applySpeed()
+                d.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showSleepTimerDialog() {
+        val options = intArrayOf(0, 5, 15, 30, 45, 60, 90, 120)
+        val labels = options.map {
+            if (it == 0) getString(R.string.np_timer_off) else getString(R.string.bedtime_minutes, it)
+        }.toTypedArray()
+        val remaining = sleepAt - System.currentTimeMillis()
+        val title = if (sleepAt > 0 && remaining > 0) getString(R.string.np_timer_running, formatDuration(remaining))
+        else getString(R.string.np_sleep_timer)
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(labels) { _, which ->
+                val m = options[which]
+                handler.removeCallbacks(sleepRun)
+        handler.removeCallbacks(hideControls)
+                if (m == 0) {
+                    sleepAt = 0L
+                    Toast.makeText(this, R.string.np_timer_cancelled, Toast.LENGTH_SHORT).show()
+                } else {
+                    sleepAt = System.currentTimeMillis() + m * 60_000L
+                    handler.postDelayed(sleepRun, m * 60_000L)
+                    Toast.makeText(this, getString(R.string.video_timer_set, m), Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
+    }
+
+    private fun trackLink(t: Track): String =
+        if (t.source == Track.SOURCE_YOUTUBE && t.remoteId.isNotBlank()) "https://youtu.be/${t.remoteId}" else ""
+
+    private fun showInfo(t: Track) {
+        val rows = mutableListOf(getString(R.string.np_info_title) to t.title)
+        if (t.artist.isNotBlank()) rows += getString(R.string.np_info_artist) to t.artist
+        val dur = durMs.takeIf { it > 0 } ?: t.durationMs
+        if (dur > 0) rows += getString(R.string.np_info_duration) to formatDuration(dur)
+        rows += getString(R.string.np_info_source) to getString(
+            when (t.source) {
+                Track.SOURCE_YOUTUBE -> R.string.source_youtube
+                Track.SOURCE_DRIVE_VIDEO -> R.string.source_drive
+                else -> R.string.source_local
+            }
+        )
+        trackLink(t).takeIf { it.isNotBlank() }?.let { rows += getString(R.string.np_info_link) to it }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.np_info)
+            .setMessage(rows.joinToString("\n\n") { (k, v) -> "$k\n$v" })
+            .setPositiveButton(R.string.np_info_close, null)
+            .show()
+    }
+
+    /** Bottom sheet with the video queue (in play order); the current video is highlighted, tapping a row plays it. */
+    private fun showQueue() {
+        val tracks = queue.toList()
+        val d = resources.displayMetrics.density
+        val accent = themeAccent()
+        val primary = color(R.attr.colorTextPrimary)
+        val currentIdx = index
+        val dialog = BottomSheetDialog(this)
+        val title = TextView(this).apply {
+            text = getString(R.string.np_queue_title, tracks.size)
+            setTextColor(primary)
+            textSize = 16f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding((18 * d).toInt(), (16 * d).toInt(), (18 * d).toInt(), (8 * d).toInt())
+        }
+        val list = RecyclerView(this).apply {
+            layoutManager = LinearLayoutManager(this@VideoPlayerActivity)
+            adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                override fun getItemCount() = tracks.size
+                override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder =
+                    object : RecyclerView.ViewHolder(layoutInflater.inflate(R.layout.item_track, parent, false)) {}
+                override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int) {
+                    val t = tracks[pos]
+                    val v = h.itemView
+                    val name = v.findViewById<TextView>(R.id.trackTitle)
+                    name.text = t.title
+                    name.setTextColor(if (pos == currentIdx) accent else primary)
+                    v.findViewById<TextView>(R.id.trackArtist).text = t.artist
+                    v.findViewById<TextView>(R.id.trackDuration).text =
+                        if (t.durationMs > 0) formatDuration(t.durationMs) else ""
+                    v.setOnClickListener {
+                        dialog.dismiss()
+                        if (pos != currentIdx) playIndex(pos, 0L)
+                    }
+                }
+            }
+            scrollToPosition((currentIdx - 2).coerceAtLeast(0))
+        }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(color(R.attr.colorBg))
+            addView(title)
+            addView(list, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, (420 * d).toInt()))
+        }
+        dialog.setContentView(root)
+        dialog.show()
+    }
+
+    // ------------------------------------------------------------------ lifecycle
 
     override fun onPause() {
         super.onPause()
@@ -352,12 +818,15 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     override fun finish() {
         fileView?.let { posMs = it.currentPosition.toLong() }
-        setResult(RESULT_OK, Intent().putExtra(EXTRA_POSITION_MS, posMs))
+        setResult(RESULT_OK, Intent()
+            .putExtra(EXTRA_POSITION_MS, resultPos ?: posMs)
+            .putExtra(EXTRA_TO_MUSIC, toMusic))
         super.finish()
     }
 
     override fun onDestroy() {
         handler.removeCallbacks(poll)
+        handler.removeCallbacks(sleepRun)
         try { ytView?.release() } catch (_: Exception) { }
         fileView?.stopPlayback()
         loadToken++

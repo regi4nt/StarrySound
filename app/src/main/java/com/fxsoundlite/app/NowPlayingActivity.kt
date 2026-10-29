@@ -928,8 +928,12 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
             val svc = MusicService.instance ?: return@registerForActivityResult
             val pos = res.data?.getLongExtra(VideoPlayerActivity.EXTRA_POSITION_MS, -1L) ?: -1L
-            if (pos >= 0) svc.seekTo(pos.toInt())
-            if (resumeAudioAfterVideo) svc.play()
+            // The "video" button of the video player switches back to music mode: the audio resumes even if it was paused.
+            val toMusic = res.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_TO_MUSIC, false) == true
+            if (pos >= 0) {
+                svc.seekTo(pos.toInt())
+                if (resumeAudioAfterVideo || toMusic) svc.play()
+            }
             resumeAudioAfterVideo = false
         }
 
@@ -944,6 +948,6 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         resumeAudioAfterVideo = svc.isPlaying
         val pos = svc.position.toLong()
         if (svc.isPlaying) svc.pause()
-        videoLauncher.launch(VideoPlayerActivity.intent(this, t, pos))
+        videoLauncher.launch(VideoPlayerActivity.intent(this, t, pos, fromPlayer = true))
     }
 }
