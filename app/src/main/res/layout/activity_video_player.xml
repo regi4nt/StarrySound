@@ -252,7 +252,7 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/video_to_music"
                 android:padding="12dp"
-                android:src="@drawable/ic_videocam"
+                android:src="@drawable/ic_music"
                 android:tint="?attr/colorAccent" />
 
             <ImageButton
@@ -300,4 +300,64 @@
                 android:tint="?attr/colorTextSecondary" />
         </LinearLayout>
     </LinearLayout>
+
+    <!-- Landscape / full screen only (YouTube-like): top bar with back to portrait, title, shuffle / repeat (moved here
+         from the control row) and the overflow menu. Shown / hidden together with the other controls. -->
+    <LinearLayout
+        android:id="@+id/vpLandTop"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_overlay_top"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="8dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="20dp"
+        android:visibility="gone">
+
+        <ImageButton
+            android:id="@+id/vpLandBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/video_back_portrait"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back"
+            android:tint="#FFFFFF" />
+
+        <TextView
+            android:id="@+id/vpLandTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- vpPanel (shuffle / repeat) is inserted here in landscape. -->
+
+        <ImageButton
+            android:id="@+id/vpLandMore"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/np_more"
+            android:padding="8dp"
+            android:src="@drawable/ic_more_vert"
+            android:tint="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Landscape / full screen only: previous, play / pause, next in the middle of the video (moved here in code). -->
+    <LinearLayout
+        android:id="@+id/vpCenter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:visibility="gone" />
 </FrameLayout>

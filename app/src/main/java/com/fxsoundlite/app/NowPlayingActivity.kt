@@ -926,6 +926,8 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     /** Back from the video: the audio continues from the second the user reached in the video. */
     private val videoLauncher =
         registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { res ->
+            // The video's close arrow leaves the player altogether: this music player closes as well.
+            if (res.data?.getBooleanExtra(VideoPlayerActivity.EXTRA_CLOSE_ALL, false) == true) finish()
             val svc = MusicService.instance ?: return@registerForActivityResult
             val pos = res.data?.getLongExtra(VideoPlayerActivity.EXTRA_POSITION_MS, -1L) ?: -1L
             // The "video" button of the video player switches back to music mode: the audio resumes even if it was paused.

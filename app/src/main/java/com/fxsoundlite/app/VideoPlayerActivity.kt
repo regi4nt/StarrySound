@@ -63,6 +63,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         const val EXTRA_POSITION_MS = "position_ms"
         /** Result: the user switched to music mode and the music player already has this song, so the caller resumes it. */
         const val EXTRA_TO_MUSIC = "to_music"
+        /** Result: the close arrow was used on a video opened from the music player, so the caller closes too (back to the page before both players). */
+        const val EXTRA_CLOSE_ALL = "close_all"
         private const val EXTRA_FROM_PLAYER = "from_player"
         private const val EXTRA_Q_SOURCES = "q_sources"
         private const val EXTRA_Q_IDS = "q_ids"
@@ -113,6 +115,11 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var full = false
     private var orientationBeforeFull = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
+    // Landscape controls: portrait look to restore, and the cut-out / bar insets.
+    private var panelLp: ViewGroup.LayoutParams? = null
+    private var seekDefaultTrack: android.graphics.drawable.Drawable? = null
+    private var landInsets = androidx.core.graphics.Insets.NONE
+
     private lateinit var binding: ActivityVideoPlayerBinding
     private val handler = Handler(Looper.getMainLooper())
 
@@ -130,6 +137,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     // Result handed back to the caller.
     private var resultPos: Long? = null
     private var toMusic = false
+    private var closeAll = false
 
     // Sleep timer (own: the music service's timer would not stop a video).
     private var sleepAt = 0L
@@ -153,11 +161,14 @@ class VideoPlayerActivity : AppCompatActivity() {
         ThemeHelper.applyMode(this) // same light / dark mode and accent colour as the music player
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
+        overridePendingTransition(R.anim.slide_up, R.anim.stay) // opens with the same slide as the music player
         supportActionBar?.hide()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         volumeControlStream = AudioManager.STREAM_MUSIC // the hardware volume keys control the media volume
         binding = ActivityVideoPlayerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        panelLp = binding.vpPanel.layoutParams
+        seekDefaultTrack = binding.vpSeek.progressDrawable
 
         fromPlayer = intent.getBooleanExtra(EXTRA_FROM_PLAYER, false)
         val sources = intent.getIntArrayExtra(EXTRA_Q_SOURCES) ?: IntArray(0)
@@ -175,7 +186,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         index = (savedInstanceState?.getInt(EXTRA_INDEX) ?: intent.getIntExtra(EXTRA_INDEX, 0)).coerceIn(0, n - 1)
         val startMs = savedInstanceState?.getLong(EXTRA_POSITION_MS) ?: intent.getLongExtra(EXTRA_START_MS, 0L)
 
-        binding.vpClose.setOnClickListener { finish() }
+        binding.vpClose.setOnClickListener { closeAll = fromPlayer; finish() }
         binding.vpVolume.setOnClickListener { showSystemVolume() }
         binding.vpMore.setOnClickListener { showMoreMenu(it) }
         binding.vpPlay.setOnClickListener { togglePlay() }
@@ -190,6 +201,14 @@ class VideoPlayerActivity : AppCompatActivity() {
             val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             requestedOrientation = if (land) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
+        binding.vpLandBack.setOnClickListener { exitToPortrait() }
+        binding.vpLandMore.setOnClickListener { showMoreMenu(it) }
+        // Keep the landscape bars clear of a camera cut-out / rounded corners.
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(binding.vpRoot) { _, insets ->
+            landInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.systemBars())
+            applyLandInsets()
+            insets
+        }
         binding.vpTouch.setOnLongClickListener {
             it.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
             setFullscreen(!full)
@@ -203,7 +222,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
-                    full -> setFullscreen(false)
+                    full -> exitToPortrait()
                     resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ->
                         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                     else -> finish()
@@ -291,6 +310,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         playing = false
         val t = queue[i]
         binding.vpTitle.text = t.title
+        binding.vpLandTitle.text = t.title
         binding.vpArtist.text = t.artist
         binding.vpArtist.visibility = if (t.artist.isBlank()) View.GONE else View.VISIBLE
         val id = t.remoteId
@@ -397,26 +417,38 @@ class VideoPlayerActivity : AppCompatActivity() {
         applyVideoSize()
     }
 
+    /** Top-left button in landscape / full screen: always returns to portrait. */
+    private fun exitToPortrait() {
+        full = false
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        applyOrientation()
+    }
+
     private fun isOverlay(): Boolean =
         full || resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     private val hideControls = Runnable {
-        if (isOverlay() && playing) binding.vpControls.visibility = View.GONE
+        if (isOverlay() && playing) setOverlayShown(false)
     }
 
-    /** Portrait: the controls stay in the column under the title. Landscape / full screen: they lie over the bottom of the video. */
+    /**
+     * Portrait: the controls stay in the column under the title.
+     * Landscape / full screen (YouTube-like): top bar (back, title, shuffle / repeat, menu), previous / play / next in
+     * the middle of the video, and a slim bottom bar with the seek bar and the times.
+     */
     private fun placeControls(overlay: Boolean) {
         val c = binding.vpControls
         val parent = c.parent as ViewGroup
+        moveTransport(overlay)
         if (overlay) {
             if (parent !== binding.vpRoot) {
                 parent.removeView(c)
                 binding.vpRoot.addView(c, FrameLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
             }
-            // Translucent theme colour: the buttons keep their normal colours and stay readable over any picture.
-            c.setBackgroundColor(ColorUtils.setAlphaComponent(color(R.attr.colorBg), 0xCC))
-            c.setPadding(0, dp(8), 0, dp(12))
+            c.setBackgroundResource(R.drawable.bg_overlay_bottom)
+            compactControls(true)
+            applyLandInsets()
             showControls(true)
         } else {
             handler.removeCallbacks(hideControls)
@@ -427,13 +459,87 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
             c.background = null
             c.setPadding(0, 0, 0, 0)
+            compactControls(false)
             c.visibility = View.VISIBLE
+            binding.vpLandTop.visibility = View.GONE
+            binding.vpCenter.visibility = View.GONE
         }
+    }
+
+    /** Landscape: prev / play / next go to the middle of the video, shuffle / repeat to the top bar. Portrait: back into the row. */
+    private fun moveTransport(overlay: Boolean) {
+        val panel = binding.vpPanel
+        val center = binding.vpCenter
+        val top = binding.vpLandTop
+        val trio = listOf(binding.vpPrev, binding.vpPlay, binding.vpNext)
+        if (overlay) {
+            if (binding.vpPlay.parent !== center) {
+                for (v in trio) { (v.parent as ViewGroup).removeView(v); center.addView(v) }
+            }
+            if (panel.parent !== top) {
+                (panel.parent as ViewGroup).removeView(panel)
+                top.addView(panel, top.indexOfChild(binding.vpLandMore),
+                    LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }
+        } else {
+            if (binding.vpPlay.parent !== panel) {
+                for (v in trio) (v.parent as ViewGroup).removeView(v)
+                panel.addView(binding.vpPrev, 1)
+                panel.addView(binding.vpPlay, 2)
+                panel.addView(binding.vpNext, 3)
+            }
+            if (panel.parent !== binding.vpControls) {
+                (panel.parent as ViewGroup).removeView(panel)
+                binding.vpControls.addView(panel, panelLp)
+            }
+        }
+    }
+
+    private fun applyLandInsets() {
+        val i = landInsets
+        binding.vpLandTop.setPadding(dp(8) + i.left, dp(4) + i.top, dp(8) + i.right, dp(20))
+        val c = binding.vpControls
+        if (c.parent === binding.vpRoot) c.setPadding(i.left, dp(24), i.right, dp(4) + i.bottom)
+    }
+
+    private fun setOverlayShown(show: Boolean) {
+        val v = if (show) View.VISIBLE else View.GONE
+        binding.vpControls.visibility = v
+        val over = isOverlay()
+        binding.vpLandTop.visibility = if (over) v else View.GONE
+        binding.vpCenter.visibility = if (over) v else View.GONE
+    }
+
+    private fun sizeOf(v: View, size: Int, pad: Int) {
+        v.layoutParams = v.layoutParams.apply { width = dp(size); height = dp(size) }
+        v.setPadding(dp(pad), dp(pad), dp(pad), dp(pad))
+    }
+
+    /** Landscape / full screen: slim bottom bar, thin seek track, white times; portrait keeps its normal look. */
+    private fun compactControls(on: Boolean) {
+        sizeOf(binding.vpPlay, if (on) 60 else 68, if (on) 14 else 18)
+        sizeOf(binding.vpPrev, if (on) 48 else 56, 12)
+        sizeOf(binding.vpNext, if (on) 48 else 56, 12)
+        sizeOf(binding.vpShuffle, if (on) 36 else 48, if (on) 8 else 12)
+        sizeOf(binding.vpRepeat, if (on) 36 else 48, if (on) 8 else 12)
+        (binding.vpPlay.layoutParams as ViewGroup.MarginLayoutParams).apply {
+            leftMargin = dp(if (on) 20 else 8)
+            rightMargin = dp(if (on) 20 else 8)
+        }
+        (binding.vpSeek.layoutParams as ViewGroup.MarginLayoutParams).topMargin = dp(if (on) 0 else 16)
+        binding.vpSeek.progressDrawable =
+            if (on) androidx.appcompat.content.res.AppCompatResources.getDrawable(this, R.drawable.seek_thin_overlay)
+            else seekDefaultTrack
+        for (t in listOf(binding.vpElapsed, binding.vpTotal)) {
+            t.layoutParams = t.layoutParams.apply { height = dp(if (on) 24 else 40) }
+            t.setTextColor(if (on) android.graphics.Color.WHITE else color(R.attr.colorTextSecondary))
+        }
+        binding.vpControls.requestLayout()
     }
 
     private fun showControls(show: Boolean) {
         handler.removeCallbacks(hideControls)
-        binding.vpControls.visibility = if (show) View.VISIBLE else View.GONE
+        setOverlayShown(show)
         if (show) handler.postDelayed(hideControls, 3500L)
     }
 
@@ -648,6 +754,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             seekWhenReady(svc, t.key, pos)
             resultPos = -1L // nothing for the caller to seek
         }
+        // Opened from a list / search page: the music player opens (closing it returns to that page).
         if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
         finish()
     }
@@ -820,8 +927,10 @@ class VideoPlayerActivity : AppCompatActivity() {
         fileView?.let { posMs = it.currentPosition.toLong() }
         setResult(RESULT_OK, Intent()
             .putExtra(EXTRA_POSITION_MS, resultPos ?: posMs)
-            .putExtra(EXTRA_TO_MUSIC, toMusic))
+            .putExtra(EXTRA_TO_MUSIC, toMusic)
+            .putExtra(EXTRA_CLOSE_ALL, closeAll))
         super.finish()
+        overridePendingTransition(R.anim.stay, R.anim.slide_down) // same slide as the music player
     }
 
     override fun onDestroy() {

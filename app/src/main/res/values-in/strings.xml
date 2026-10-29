@@ -1017,6 +1017,7 @@
     <string name="quick_action_video">Preview video</string>
     <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>
     <string name="video_rotate">Putar layar</string>
+    <string name="video_back_portrait">Kembali ke potret</string>
     <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
     <string name="video_skipped">%d lagu tanpa video dilewati</string>
     <string name="video_to_music">Beralih ke musik</string>

@@ -621,6 +621,11 @@ class QuickFragment : Fragment(), QuickActions {
 
     /** Plays the song from the start, as a normal full song: from here on it is [MusicService]'s. */
     override fun onFull(pos: Int) {
+        // Video mode: the play button opens the clip as video (YouTube songs; other sources have no video and play as audio).
+        if (MusicPrefs.videoMode(requireContext()) && feed.getOrNull(pos)?.source == Track.SOURCE_YOUTUBE) {
+            onVideo(pos)
+            return
+        }
         val svc = service ?: MusicService.instance ?: return
         if (pos !in feed.indices) return
         val now = android.os.SystemClock.elapsedRealtime()

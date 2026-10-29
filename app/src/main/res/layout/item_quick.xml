@@ -205,7 +205,7 @@
             android:tint="?attr/colorOnAccent" />
 
 
-        <!-- Video preview of the song (opens the clip as video, see QuickFragment.onVideo) -->
+        <!-- Hidden: in video mode the play button above opens the clip as video (QuickFragment.onFull); in music mode there is no video button. -->
         <ImageButton
             android:id="@+id/actVideo"
             android:layout_width="48dp"
@@ -216,7 +216,8 @@
             android:scaleType="fitCenter"
             android:contentDescription="@string/quick_action_video"
             android:src="@drawable/ic_videocam"
-            android:tint="#FFFFFF" />
+            android:tint="#FFFFFF"
+            android:visibility="gone" />
 
         <!-- Liked songs: outline heart, filled + accent colour once liked (QuickFragment.applyState) -->
         <ImageButton

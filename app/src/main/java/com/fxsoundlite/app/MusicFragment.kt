@@ -188,6 +188,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     /** Pauses the audio player (the video has its own sound) and opens the video full screen. */
     private fun openVideo(t: Track) {
         service?.let { if (it.isPlaying) it.pause() }
+        keepListOnNextStart = true // coming back from the video: the page must look exactly as it was left
         // The videos of the list are the queue: the next one starts when this one ends.
         val queue = shown.filter { it.isVideoPlayable }
         val i = queue.indexOfFirst { it.source == t.source && it.remoteId == t.remoteId }
@@ -314,15 +315,20 @@ class MusicFragment : Fragment(), MusicService.Listener {
         })
     }
 
+    /** Set when a video is opened from this page: the next onStart() must not rebuild the list (keeps search results and scroll position). */
+    private var keepListOnNextStart = false
+
     override fun onStart() {
         super.onStart()
+        val keepList = keepListOnNextStart
+        keepListOnNextStart = false
         requireContext().bindService(
             Intent(requireContext(), MusicService::class.java), connection, Context.BIND_AUTO_CREATE
         )
         // Settings > Search tabs may have switched the current tab off meanwhile.
         if (!tabAllowed(source)) { source = Track.SOURCE_LOCAL; MusicPrefs.setLastSource(requireContext(), source); refreshList() }
         updateTabs()
-        if (source == Track.SOURCE_LOCAL) refreshList() // the user may have signed in or out of Google meanwhile
+        if (source == Track.SOURCE_LOCAL && !keepList) refreshList() // the user may have signed in or out of Google meanwhile
         // Re-check on every start: the user may have granted access in system settings meanwhile.
         if (!loadedOnce || loadedVersion != MusicLibrary.version ||
             (allTracks.isEmpty() && MusicLibrary.hasPermission(requireContext()))
@@ -333,8 +339,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
         // system has finished reading the new file's details).
         MusicLibrary.onChanged = { handler.postDelayed({ if (_binding != null) loadLibrary() }, 1500) }
         handler.post(tick)
-        // Back from Settings (key typed): update the prompts.
-        refreshList()
+        // Back from Settings (key typed): update the prompts. Not after a video: the list stays as it was.
+        if (!keepList) refreshList()
     }
 
     override fun onStop() {
