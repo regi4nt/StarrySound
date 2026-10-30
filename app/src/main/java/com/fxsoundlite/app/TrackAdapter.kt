@@ -123,6 +123,7 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
         holder.itemView.alpha = if (t.missing) 0.45f else 1f
         if (t.source == Track.SOURCE_RADIO) bindRadioStatus(holder, t)
         else if (YouTubeApi.isListRow(t)) holder.duration.text = "" // a playlist / mix row has no length
+        else if (t.source == Track.SOURCE_TV) holder.duration.text = "LIVE"
         else holder.duration.text = formatDuration(t.durationMs)
 
         val ctx = holder.itemView.context

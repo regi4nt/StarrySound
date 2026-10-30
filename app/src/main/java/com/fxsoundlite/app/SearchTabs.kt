@@ -11,6 +11,7 @@ object SearchTabs {
 
     enum class Tab(val key: String, val labelRes: Int) {
         YOUTUBE("youtube", R.string.source_youtube),
+        TV("tv", R.string.source_tv), // live TV, only in video mode, right of YouTube
         RADIO("radio", R.string.source_radio),
         ONLINE("online", R.string.source_online) // Internet Archive / Audius / Jamendo / ccMixter, right of Radio
     }

@@ -296,7 +296,7 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/video_rotate"
                 android:padding="12dp"
-                android:src="@drawable/ic_screen_rotation"
+                android:src="@drawable/ic_fullscreen"
                 android:tint="?attr/colorTextSecondary" />
         </LinearLayout>
     </LinearLayout>

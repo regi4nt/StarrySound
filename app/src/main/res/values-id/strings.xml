@@ -843,8 +843,24 @@
     <string name="np_video">Ganti ke video</string>
     <string name="quick_action_video">Preview video</string>
     <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>
-    <string name="video_rotate">Putar layar</string>
+    <string name="video_rotate">Layar penuh</string>
     <string name="video_back_portrait">Kembali ke potret</string>
     <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
     <string name="video_skipped">%d lagu tanpa video dilewati</string>
+    <string name="source_tv">TV</string>
+    <string name="tv_search_hint">Cari channel</string>
+    <string name="tv_source_label">TV: %1$s</string>
+    <string name="tv_source_title">Channel TV</string>
+    <string name="tv_own_links">%1$d link sendiri</string>
+    <string name="tv_no_source">tanpa sumber</string>
+    <string name="tv_count">%1$d channel</string>
+    <string name="tv_empty">Tidak ada channel. Pilih negara atau tambah link M3U sendiri.</string>
+    <string name="tv_loading">Memuat channel…</string>
+    <string name="tv_pick_country">Pilih negara (IPTV-org)</string>
+    <string name="tv_no_country">Tidak ada (hanya link sendiri)</string>
+    <string name="tv_add_link">Tambah link M3U sendiri</string>
+    <string name="tv_remove_links">Hapus link saya</string>
+    <string name="tv_reload">Muat ulang channel</string>
+    <string name="tv_link_hint">https://…/playlist.m3u</string>
+    <string name="tv_link_invalid">Link harus diawali http:// atau https://</string>
 </resources>

@@ -332,6 +332,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 if (p != null) p.loadVideo(id, startMs / 1000f) else setupYoutube(id, startMs)
             }
             Track.SOURCE_VIDEO -> { dropYoutube(); setupFile(Uri.parse(id), null, startMs) }
+            Track.SOURCE_TV -> { dropYoutube(); setupFile(Uri.parse(id), null, 0L) } // live stream: no start position
             Track.SOURCE_DRIVE_VIDEO -> {
                 dropYoutube()
                 val app = applicationContext
@@ -691,6 +692,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun seekTo(ms: Long) {
+        if (current.source == Track.SOURCE_TV) return // live
         val target = ms.coerceIn(0L, if (durMs > 0) durMs else Long.MAX_VALUE)
         posMs = target
         yt?.seekTo(target / 1000f)
@@ -716,11 +718,20 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun updateUi() {
         if (!::binding.isInitialized || queue.isEmpty()) return
         binding.vpPlay.setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
-        binding.vpTotal.text = formatDuration(durMs)
-        binding.vpSeek.max = (durMs / 1000L).toInt().coerceAtLeast(1)
-        if (!dragging) {
-            binding.vpSeek.progress = (posMs / 1000L).toInt()
-            binding.vpElapsed.text = formatDuration(posMs)
+        val live = current.source == Track.SOURCE_TV
+        binding.vpSeek.isEnabled = !live
+        if (live) { // live TV: nothing to seek in
+            binding.vpTotal.text = "LIVE"
+            binding.vpElapsed.text = ""
+            binding.vpSeek.max = 1
+            binding.vpSeek.progress = 0
+        } else {
+            binding.vpTotal.text = formatDuration(durMs)
+            binding.vpSeek.max = (durMs / 1000L).toInt().coerceAtLeast(1)
+            if (!dragging) {
+                binding.vpSeek.progress = (posMs / 1000L).toInt()
+                binding.vpElapsed.text = formatDuration(posMs)
+            }
         }
         // A single video has nothing to shuffle / skip to: hidden, but keeping their room so play stays centred.
         val multi = queue.size > 1

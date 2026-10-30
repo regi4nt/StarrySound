@@ -57,6 +57,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private var radioFailed = false
     private var radioLoading = false
     private var emptyAction: (() -> Unit)? = null
+    /** TV tab (video mode): the channels (null = not loaded yet). */
+    private var tvChannels: List<Track>? = null
+    private var tvFailed = false
+    private var tvLoading = false
+    private var tvToken = 0 // a result that belongs to an older source choice is dropped
+    private var tvForce = false
     private var loading = false
     private var loadedOnce = false
     private var permissionDeniedOnce = false
@@ -230,6 +236,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             // after you stop typing (the keyboard's Search key still searches right away).
             override fun afterTextChanged(s: Editable?) {
                 if (source == Track.SOURCE_LOCAL) { applyFilter(); return }
+                if (source == Track.SOURCE_TV) { showTv(); return } // the box just filters the channel list
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) { handler.postDelayed(liveSearch, 600); return } // empty box = popular songs
                 val q = s?.toString()?.trim().orEmpty()
@@ -254,7 +261,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             if (actionId == EditorInfo.IME_ACTION_SEARCH || enter) {
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) runOnlinePage()
-                else if (source != Track.SOURCE_LOCAL) runOnlineSearch()
+                else if (source != Track.SOURCE_LOCAL && source != Track.SOURCE_TV) runOnlineSearch()
                 hideKeyboard()
                 true
             } else false
@@ -266,11 +273,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
         source = MusicPrefs.lastSource(requireContext()).let { if (it == Track.SOURCE_DRIVE) Track.SOURCE_LOCAL else it }
         if (!tabAllowed(source)) source = Track.SOURCE_LOCAL
         loadSortModes()
-        binding.filterButton.setOnClickListener { showFilterDialog() }
+        binding.filterButton.setOnClickListener { if (source == Track.SOURCE_TV) showTvSourceDialog() else showFilterDialog() }
         binding.tabLocal.setOnClickListener { selectSource(Track.SOURCE_LOCAL) }
         binding.tabYoutube.setOnClickListener { selectSource(Track.SOURCE_YOUTUBE) }
         binding.tabOnline.setOnClickListener { selectSource(Track.SOURCE_ONLINE) }
         binding.tabRadio.setOnClickListener { selectSource(Track.SOURCE_RADIO) }
+        binding.tabTv.setOnClickListener { selectSource(Track.SOURCE_TV) }
         binding.radioSourceButton.setOnClickListener { showRadioSourceDialog() }
         loadOnlineSrc()
         updateSaverButton()
@@ -406,6 +414,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 binding.musicCount.text = ""
                 showEmpty(R.string.music_need_permission, R.string.music_allow_access) { requestLibraryAccess() }
             }
+        } else if (source == Track.SOURCE_TV) {
+            handler.removeCallbacks(liveSearch)
+            showTv()
         } else if (source == Track.SOURCE_ONLINE) {
             handler.removeCallbacks(liveSearch) // selectSource clears the box first, which schedules a search
             runOnlinePage()
@@ -537,12 +548,13 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun updateFilterButton() {
         val b = _binding ?: return
         b.filterButton.visibility =
-            if (source == Track.SOURCE_LOCAL || source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_RADIO || source == Track.SOURCE_ONLINE) View.VISIBLE else View.GONE
+            if (source == Track.SOURCE_LOCAL || source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_RADIO || source == Track.SOURCE_ONLINE || source == Track.SOURCE_TV) View.VISIBLE else View.GONE
         FilterUi.setButtonState(
             b.filterButton,
             when (source) {
                 Track.SOURCE_LOCAL -> deviceFilter.active || deviceSort != 0
                 Track.SOURCE_YOUTUBE -> ytFilter.active || MusicPrefs.ytNewest(requireContext())
+                Track.SOURCE_TV -> TvChannels.customUrls(requireContext()).isNotEmpty() // own links in use
                 Track.SOURCE_ONLINE -> onlineFilter.active || onlineSort != 0 || onlineGenre != null || onlineLossless || onlineCommercial
                 else -> radioFilter.active || radioSort != 0
             }
@@ -607,6 +619,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun tabAllowed(src: Int): Boolean = when (src) {
         Track.SOURCE_YOUTUBE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.YOUTUBE)
         // Online (Archive / Audius / Jamendo ...) and Radio have no video: hidden in video mode.
+        Track.SOURCE_TV -> MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.TV) // live TV needs the video player
         Track.SOURCE_ONLINE -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.ONLINE)
         Track.SOURCE_RADIO -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.RADIO)
         else -> true
@@ -616,6 +629,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         Track.SOURCE_ONLINE -> getString(R.string.source_online)
         Track.SOURCE_YOUTUBE -> getString(R.string.source_youtube)
         Track.SOURCE_RADIO -> getString(R.string.source_radio)
+        Track.SOURCE_TV -> getString(R.string.source_tv)
         else -> getString(R.string.source_local)
     }
 
@@ -624,10 +638,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabYoutube.isSelected = source == Track.SOURCE_YOUTUBE
         binding.tabRadio.isSelected = source == Track.SOURCE_RADIO
         binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
+        binding.tabTv.isSelected = source == Track.SOURCE_TV
         val ctx = requireContext()
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
         binding.tabOnline.visibility = if (tabAllowed(Track.SOURCE_ONLINE)) View.VISIBLE else View.GONE
         binding.tabRadio.visibility = if (tabAllowed(Track.SOURCE_RADIO)) View.VISIBLE else View.GONE
+        binding.tabTv.visibility = if (tabAllowed(Track.SOURCE_TV)) View.VISIBLE else View.GONE
                 updateFilterButton()
         binding.radioSourceButton.visibility = View.GONE // radio searches every directory at once
         binding.radioSourceButton.text =
@@ -636,6 +652,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             when (source) {
                 Track.SOURCE_LOCAL -> R.string.music_search_hint
                 Track.SOURCE_RADIO -> R.string.radio_search_hint
+                Track.SOURCE_TV -> R.string.tv_search_hint
                 Track.SOURCE_ONLINE -> R.string.online_archive_hint
                 else -> R.string.online_search_hint
             }
@@ -976,6 +993,138 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    // ------------------------------------------------------------------ TV tab (live channels, video mode)
+
+    /** Lists the channels (filtered by the search box); loads them the first time or after the source changed. */
+    private fun showTv() {
+        if (_binding == null || source != Track.SOURCE_TV) return
+        val all = tvChannels
+        if (all != null) {
+            val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
+            shown = if (q.isEmpty()) all else all.filter {
+                it.title.lowercase(Locale.getDefault()).contains(q) || it.artist.lowercase(Locale.getDefault()).contains(q)
+            }
+            adapter.submit(shown)
+            binding.musicCount.text = getString(R.string.tv_count, all.size)
+            if (shown.isEmpty()) showEmpty(if (all.isEmpty()) R.string.tv_empty else R.string.music_no_results) else showList()
+            adapter.setCurrentKey("")
+            return
+        }
+        shown = emptyList()
+        adapter.submit(shown)
+        binding.musicCount.text = sourceName(Track.SOURCE_TV)
+        if (tvFailed) {
+            showEmpty(R.string.online_network_error, R.string.radio_retry) { tvFailed = false; showTv() }
+            return
+        }
+        showEmpty(R.string.tv_loading)
+        loadTv()
+    }
+
+    private fun loadTv() {
+        if (tvLoading) return
+        tvLoading = true
+        val force = tvForce
+        tvForce = false
+        val token = tvToken
+        binding.searchProgress.visibility = View.VISIBLE
+        val app = requireContext().applicationContext
+        try {
+            netExecutor.execute {
+                val result = runCatching { TvChannels.load(app, force) }
+                handler.post {
+                    if (token != tvToken) return@post // source changed meanwhile; tvChanged started a new load
+                    tvLoading = false
+                    if (_binding == null) return@post
+                    binding.searchProgress.visibility = View.GONE
+                    result.onSuccess { tvChannels = it; tvFailed = false }.onFailure { tvFailed = true }
+                    if (source == Track.SOURCE_TV) showTv()
+                }
+            }
+        } catch (e: Exception) {
+            tvLoading = false
+            binding.searchProgress.visibility = View.GONE
+        }
+    }
+
+    /** Where the channels come from: an IPTV-org country and / or the user's own M3U links. */
+    private fun showTvSourceDialog() {
+        val ctx = requireContext()
+        val items = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        items += getString(R.string.tv_pick_country); actions.add { pickTvCountry() }
+        items += getString(R.string.tv_add_link); actions.add { addTvLink() }
+        if (TvChannels.customUrls(ctx).isNotEmpty()) { items += getString(R.string.tv_remove_links); actions.add { removeTvLinks() } }
+        items += getString(R.string.tv_reload); actions.add { tvChanged(force = true) }
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(R.string.tv_source_title)
+            .setItems(items.toTypedArray()) { _, which -> actions[which]() }
+            .setNegativeButton(R.string.radio_cancel, null)
+            .show()
+    }
+
+    private fun tvChanged(force: Boolean) {
+        if (_binding == null) return
+        tvChannels = null
+        tvFailed = false
+        tvToken++
+        tvLoading = false
+        tvForce = force
+        searchToken++
+        updateTabs()
+        binding.searchInput.setText("")
+        showTv()
+    }
+
+    private fun pickTvCountry() {
+        val ctx = requireContext()
+        val codes = listOf(TvChannels.NO_COUNTRY) + TvChannels.countries
+        val names = codes.map { if (it == TvChannels.NO_COUNTRY) getString(R.string.tv_no_country) else TvChannels.countryName(it) }
+        val cur = codes.indexOf(TvChannels.country(ctx)).coerceAtLeast(0)
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(R.string.tv_pick_country)
+            .setSingleChoiceItems(names.toTypedArray(), cur) { d, which ->
+                d.dismiss()
+                TvChannels.setCountry(ctx, codes[which])
+                tvChanged(force = false)
+            }
+            .setNegativeButton(R.string.radio_cancel, null)
+            .show()
+    }
+
+    private fun addTvLink() {
+        val ctx = requireContext()
+        val input = android.widget.EditText(ctx).apply {
+            setSingleLine()
+            setHint(R.string.tv_link_hint)
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(R.string.tv_add_link)
+            .setView(input)
+            .setPositiveButton(R.string.radio_save) { _, _ ->
+                if (TvChannels.addCustom(ctx, input.text.toString())) tvChanged(force = false)
+                else toast(R.string.tv_link_invalid)
+            }
+            .setNegativeButton(R.string.radio_cancel, null)
+            .show()
+    }
+
+    private fun removeTvLinks() {
+        val ctx = requireContext()
+        val urls = TvChannels.customUrls(ctx)
+        val checked = BooleanArray(urls.size)
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(R.string.tv_remove_links)
+            .setMultiChoiceItems(urls.toTypedArray(), checked) { _, i, on -> checked[i] = on }
+            .setPositiveButton(R.string.radio_save) { _, _ ->
+                val drop = urls.filterIndexed { i, _ -> checked[i] }
+                if (drop.isNotEmpty()) { TvChannels.removeCustom(ctx, drop); tvChanged(force = false) }
+            }
+            .setNegativeButton(R.string.radio_cancel, null)
+            .show()
+    }
+
     // ------------------------------------------------------------------ Google Drive songs (merged into Device)
 
     private var driveAll: List<Track>? = null
@@ -1170,7 +1319,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
         if (isArchiveAlbum(shown[position]) || YouTubeApi.isListRow(shown[position])) return // not a song: nothing to add to a playlist
-        if (shown[position].source == Track.SOURCE_VIDEO || shown[position].source == Track.SOURCE_DRIVE_VIDEO) return // a video file is not an audio track
+        if (shown[position].source == Track.SOURCE_VIDEO || shown[position].source == Track.SOURCE_DRIVE_VIDEO || shown[position].source == Track.SOURCE_TV) return // a video file is not an audio track
         val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
             Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
             Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()
@@ -1272,7 +1421,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         if (position !in shown.indices) return
         val tapped = shown[position]
         // Video mode: device videos and YouTube songs open as video (other sources have no video and stay audio).
-        if (tapped.source == Track.SOURCE_VIDEO || tapped.source == Track.SOURCE_DRIVE_VIDEO ||
+        if (tapped.source == Track.SOURCE_VIDEO || tapped.source == Track.SOURCE_DRIVE_VIDEO || tapped.source == Track.SOURCE_TV ||
             (MusicPrefs.videoMode(requireContext()) && tapped.source == Track.SOURCE_YOUTUBE && !YouTubeApi.isListRow(tapped))) {
             openVideo(tapped)
             return
@@ -1295,7 +1444,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                     if (_binding == null) return@post
                     binding.searchProgress.visibility = View.GONE
                     if (songs.isEmpty()) Toast.makeText(app, R.string.yt_list_failed, Toast.LENGTH_SHORT).show()
-                    else service?.setQueueAndPlay(songs, 0, fromYoutubeSearch = true)
+                    else playListSongs(songs)
                 }
             }
         } catch (e: Exception) {
@@ -1303,13 +1452,28 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    /** The videos of a tapped YouTube playlist / mix: a video queue in video mode, else the music queue. */
+    private fun playListSongs(songs: List<Track>) {
+        val ctx = context
+        if (ctx != null && MusicPrefs.videoMode(ctx)) {
+            val playable = songs.filter { it.isVideoPlayable && !it.missing }
+            if (playable.isNotEmpty()) {
+                (service ?: MusicService.instance)?.let { if (it.isPlaying) it.pause() } // the video has its own sound
+                keepListOnNextStart = true // coming back from the video: the page must look as it was left
+                startActivity(VideoPlayerActivity.queueIntent(ctx, playable, 0, 0L))
+                return
+            }
+        }
+        service?.setQueueAndPlay(songs, 0, fromYoutubeSearch = true)
+    }
+
     private fun onPlayPauseClicked() {
         val svc = service ?: return
         if (svc.current != null) {
             svc.togglePlayPause()
-        } else if (shown.any { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO && it.source != Track.SOURCE_DRIVE_VIDEO }) {
+        } else if (shown.any { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO && it.source != Track.SOURCE_DRIVE_VIDEO && it.source != Track.SOURCE_TV }) {
             // Nothing queued yet: play from the top of what's on screen.
-            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO && it.source != Track.SOURCE_DRIVE_VIDEO }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+            svc.setQueueAndPlay(shown.filter { !YouTubeApi.isListRow(it) && it.source != Track.SOURCE_VIDEO && it.source != Track.SOURCE_DRIVE_VIDEO && it.source != Track.SOURCE_TV }, 0, fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
         }
     }
 

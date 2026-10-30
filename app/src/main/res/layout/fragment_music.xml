@@ -121,6 +121,23 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
             <TextView
+                android:id="@+id/tabTv"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@drawable/chip_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="9dp"
+                android:text="@string/source_tv"
+                android:textColor="@color/chip_text_color"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+            <TextView
                 android:id="@+id/tabRadio"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"

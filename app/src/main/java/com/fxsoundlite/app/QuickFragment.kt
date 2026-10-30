@@ -323,7 +323,7 @@ class QuickFragment : Fragment(), QuickActions {
         // first reel loading, so the next swipes already have their link.
         val ctx = requireContext().applicationContext
         chunk.filter { it.source == Track.SOURCE_YOUTUBE }.take(3)
-            .forEach { YouTubeStreamEngine.prefetch(ctx, it.remoteId) }
+            .forEach { YouTubeStreamEngine.prefetch(ctx, it.remoteId, video = videoOn()) }
         if (wasEmpty) {
             currentPos = 0
             if (visible && !suppressAutoStart) startPreview(0, force = true)
@@ -366,6 +366,11 @@ class QuickFragment : Fragment(), QuickActions {
         if (!waitForSound) takeAudio()
         val e = engine ?: YouTubeStreamEngine(requireContext(), handler, engineCallback).also { engine = it }
         e.setVolume(if (waitForSound) 0f else 1f)
+        e.videoMode = videoOn()
+        // The reel's video view must be on screen for its surface to exist: switch it on before the player starts.
+        val vh0 = holderAt(pos)
+        if (e.videoMode) vh0?.b?.quickVideo?.visibility = View.VISIBLE
+        e.setSurface(if (e.videoMode) vh0?.surface else null) // (a reel whose view is not ready yet reports it later)
         e.load(t)
         // Called before the stream is ready: the engine starts at this position once it is.
         e.seekTo(clipStart.toInt())
@@ -375,7 +380,7 @@ class QuickFragment : Fragment(), QuickActions {
         val ahead = if (MusicPrefs.saver(requireContext())) 2 else 3
         for (d in 1..ahead) {
             feed.getOrNull(pos + d)?.let { n ->
-                if (n.source == Track.SOURCE_YOUTUBE) YouTubeStreamEngine.prefetch(requireContext(), n.remoteId)
+                if (n.source == Track.SOURCE_YOUTUBE) YouTubeStreamEngine.prefetch(requireContext(), n.remoteId, video = videoOn())
             }
         }
         updateUi()
@@ -475,6 +480,12 @@ class QuickFragment : Fragment(), QuickActions {
         binding.quickLock.setImageResource(if (on) R.drawable.ic_lock else R.drawable.ic_lock_open)
     }
 
+    /** Video mode (and no data saver): the reel plays its clip as video instead of showing the cover. */
+    private fun videoOn(): Boolean {
+        val c = context ?: return false
+        return MusicPrefs.videoMode(c) && !MusicPrefs.saver(c)
+    }
+
     private fun holderAt(pos: Int): QuickAdapter.VH? {
         val rv = _binding?.quickPager?.getChildAt(0) as? RecyclerView ?: return null
         return rv.findViewHolderForAdapterPosition(pos) as? QuickAdapter.VH
@@ -486,6 +497,13 @@ class QuickFragment : Fragment(), QuickActions {
         vh.b.quickSpinner.visibility =
             if (isCurrent && visible && !previewStarted && !paused && !clipDone && engine != null) View.VISIBLE else View.GONE
         vh.b.quickPausedIcon.visibility = if (isCurrent && paused) View.VISIBLE else View.GONE
+        // Video mode: the current reel's video view is on (transparent until the clip really has a picture); other reels keep the cover.
+        val e = engine
+        val wantVideo = isCurrent && videoOn() && (e == null || e.videoMode)
+        vh.b.quickVideo.visibility = if (wantVideo) View.VISIBLE else View.GONE
+        val videoShown = wantVideo && previewStarted && e?.showsVideo == true
+        vh.b.quickVideo.alpha = if (videoShown) 1f else 0f
+        vh.b.quickCover.visibility = if (videoShown) View.INVISIBLE else View.VISIBLE // the picture fills the page instead
         if (!isCurrent) vh.b.quickProgress.progress = 0
         feed.getOrNull(pos)?.let { applyLike(vh, it) }
         applyLyrics(vh, pos)
@@ -589,6 +607,18 @@ class QuickFragment : Fragment(), QuickActions {
 
     private fun updateUi() {
         holderAt(currentPos)?.let { applyState(it, currentPos) }
+        // The reels next to the current one show their cover again (the clip now plays on the current one).
+        for (d in intArrayOf(-1, 1)) holderAt(currentPos + d)?.b?.let { it.quickVideo.visibility = View.GONE; it.quickCover.visibility = View.VISIBLE }
+    }
+
+    override fun onVideoSurface(vh: QuickAdapter.VH, available: Boolean) {
+        val e = engine ?: return
+        val pos = vh.bindingAdapterPosition
+        if (available) {
+            if (pos == currentPos && e.videoMode) e.setSurface(vh.surface)
+        } else if (pos == currentPos || pos == RecyclerView.NO_POSITION) {
+            e.setSurface(null) // before the surface is released
+        }
     }
 
     override fun onBound(vh: QuickAdapter.VH, pos: Int) {

@@ -1023,7 +1023,7 @@
     <string name="np_video">Switch to video</string>
     <string name="quick_action_video">Video preview</string>
     <string name="private_mode_settings_desc">Do not remember what you play (history, taste, scrobbles).</string>
-    <string name="video_rotate">Rotate screen</string>
+    <string name="video_rotate">Fullscreen</string>
     <string name="video_back_portrait">Back to portrait</string>
     <string name="video_error_drive">Could not open the Drive video</string>
     <string name="video_skipped">%d songs without video were skipped</string>
@@ -1031,4 +1031,20 @@
     <string name="video_music_unavailable">Only YouTube videos can switch to music.</string>
     <string name="video_music_not_ready">The music player is not ready. Try again in a moment.</string>
     <string name="video_timer_set">Video stops in %d min.</string>
+    <string name="source_tv">TV</string>
+    <string name="tv_search_hint">Search channels</string>
+    <string name="tv_source_label">TV: %1$s</string>
+    <string name="tv_source_title">TV channels</string>
+    <string name="tv_own_links">%1$d own link(s)</string>
+    <string name="tv_no_source">no source</string>
+    <string name="tv_count">%1$d channels</string>
+    <string name="tv_empty">No channels. Pick a country or add your own M3U link.</string>
+    <string name="tv_loading">Loading channels…</string>
+    <string name="tv_pick_country">Pick a country (IPTV-org)</string>
+    <string name="tv_no_country">None (only my own links)</string>
+    <string name="tv_add_link">Add my own M3U link</string>
+    <string name="tv_remove_links">Remove my links</string>
+    <string name="tv_reload">Reload channels</string>
+    <string name="tv_link_hint">https://…/playlist.m3u</string>
+    <string name="tv_link_invalid">The link must start with http:// or https://</string>
 </resources>

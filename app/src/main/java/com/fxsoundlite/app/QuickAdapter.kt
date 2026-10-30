@@ -5,7 +5,10 @@ import android.graphics.Outline
 import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
+import android.graphics.SurfaceTexture
 import android.view.LayoutInflater
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
@@ -19,6 +22,8 @@ interface QuickActions {
     fun onFull(pos: Int)
     /** Video button: preview this reel's clip as video. */
     fun onVideo(pos: Int)
+    /** Video mode: the reel's video view got (available = true) or lost its surface. */
+    fun onVideoSurface(vh: QuickAdapter.VH, available: Boolean)
     /** Heart under "Full song": like / unlike the reel at [pos]. */
     fun onLike(pos: Int)
     fun onPlaylist(pos: Int)
@@ -38,7 +43,10 @@ class QuickAdapter(
     private val actions: QuickActions
 ) : RecyclerView.Adapter<QuickAdapter.VH>() {
 
-    class VH(val b: ItemQuickBinding) : RecyclerView.ViewHolder(b.root)
+    class VH(val b: ItemQuickBinding) : RecyclerView.ViewHolder(b.root) {
+        /** Surface of [ItemQuickBinding.quickVideo] while it has one. */
+        var surface: Surface? = null
+    }
 
     override fun getItemCount() = tracks.size
 
@@ -52,6 +60,21 @@ class QuickAdapter(
         b.quickCover.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
                 outline.setRoundRect(0, 0, view.width, view.height, radius)
+            }
+        }
+        b.quickVideo.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
+                vh.surface?.release()
+                vh.surface = Surface(st)
+                actions.onVideoSurface(vh, true)
+            }
+            override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {}
+            override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+            override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                actions.onVideoSurface(vh, false) // the player lets go of it first
+                vh.surface?.release()
+                vh.surface = null
+                return true
             }
         }
         // Blurred backdrop where the OS can do it cheaply (Android 12+); darkened on older ones.

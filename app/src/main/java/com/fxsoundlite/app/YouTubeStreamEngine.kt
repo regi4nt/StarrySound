@@ -10,6 +10,7 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.AudioTrackType
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import android.view.Surface
 import java.io.IOException
 import java.util.concurrent.Executors
 
@@ -101,6 +102,22 @@ class YouTubeStreamEngine(
             return best.content
         }
 
+        private fun vkey(videoId: String, q: StreamQuality.Level, lang: String = "") = key(videoId, q, lang) + "#vid"
+
+        /**
+         * Blocking: video id -> a progressive MP4 that already carries its sound (YouTube's "muxed" streams, in practice
+         * 360p), or null when there is none. Data saver / Low: the smallest; otherwise the biggest up to 480p.
+         */
+        private fun fetchVideoUrl(videoId: String, q: StreamQuality.Level): String? {
+            val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+            val muxed = info.videoStreams
+                .filter { !it.isVideoOnly && it.isUrl && !it.content.isNullOrBlank() && it.format?.suffix.equals("mp4", true) }
+                .sortedBy { it.height }
+            if (muxed.isEmpty()) return null
+            val pick = if (q == StreamQuality.Level.LOW) muxed.first() else (muxed.lastOrNull { it.height <= 480 } ?: muxed.first())
+            return pick.content
+        }
+
         /** MediaPlayer is happiest with AAC/M4A; take the stream matching the chosen quality of those, else any audio. */
         private fun pickAudio(list: List<AudioStream>, q: StreamQuality.Level, lang: String): AudioStream? {
             val usable = list.filter { it.isUrl && !it.content.isNullOrBlank() }
@@ -121,11 +138,11 @@ class YouTubeStreamEngine(
          * that song later is instant. Used by MusicService for the song after the current one.
          * Safe to call repeatedly: a cached link, or a recent attempt, makes it a no-op.
          */
-        fun prefetch(context: Context, videoId: String) {
+        fun prefetch(context: Context, videoId: String, video: Boolean = false) {
             if (!videoId.matches(ID_RE)) return
             val q = StreamQuality.effective(context)
             val lang = MusicPrefs.audioLang(context)
-            val k = key(videoId, q, lang)
+            val k = if (video) vkey(videoId, q, lang) else key(videoId, q, lang)
             if (cached(k) != null) return
             synchronized(prefetchTried) {
                 val last = prefetchTried[k]
@@ -136,7 +153,7 @@ class YouTubeStreamEngine(
                 prefetchExecutor.execute {
                     try {
                         if (cached(k) != null) return@execute
-                        fetchUrl(videoId, q, lang)?.let { store(k, it) }
+                        (if (video) fetchVideoUrl(videoId, q) else fetchUrl(videoId, q, lang))?.let { store(k, it) }
                     } catch (e: Throwable) {
                         Log.w(TAG, "prefetch failed for $videoId", e)
                     }
@@ -151,6 +168,23 @@ class YouTubeStreamEngine(
     /** Format of the stream playing now (null until the link is resolved). */
     val currentInfo: AudioInfo?
         get() = curId?.let { infoCache[key(it, StreamQuality.effective(appContext), MusicPrefs.audioLang(appContext))] }
+
+    /** Quick tab in video mode: play the video (with its sound) into [setSurface] instead of the audio only. Set before load(). */
+    var videoMode = false
+    /** True while the stream playing now really has a picture (a video was asked for and found). */
+    var showsVideo = false
+        private set
+    private var surface: Surface? = null
+
+    /** Where the picture goes (null = nowhere, the sound plays on). Can change while playing. */
+    fun setSurface(s: Surface?) {
+        surface = s
+        try { mp?.setSurface(s) } catch (_: Exception) { }
+        // A video was waiting for its picture area before starting (see startPlayer): go now.
+        if (s != null) pendingStart?.let { handler.removeCallbacks(it); pendingStart = null; it.run() }
+    }
+
+    private var pendingStart: Runnable? = null
 
     private var mp: MediaPlayer? = null
     private var prepared = false
@@ -200,9 +234,12 @@ class YouTubeStreamEngine(
         }
         curId = track.remoteId
         playing = true // optimistic, like play(): MusicService calls play() right after load()
-        val hit = cached(key(track.remoteId, StreamQuality.effective(appContext), MusicPrefs.audioLang(appContext)))
+        val q0 = StreamQuality.effective(appContext)
+        val lang0 = MusicPrefs.audioLang(appContext)
+        val video = videoMode
+        val hit = cached(if (video) vkey(track.remoteId, q0, lang0) else key(track.remoteId, q0, lang0))
         if (hit != null) { // link already known (e.g. prefetched): no waiting
-            startPlayer(hit, my)
+            startPlayer(hit, my, video)
             return
         }
         resolveAsync(track.remoteId, my, fresh = false)
@@ -216,31 +253,41 @@ class YouTubeStreamEngine(
         }
     }
 
-    /** Background thread: video id -> best audio stream URL (cached; [fresh] skips the cache). */
+    /** Background thread: video id -> best stream URL (cached; [fresh] skips the cache). In [videoMode] a muxed video first, audio if it has none. */
     private fun resolve(videoId: String, my: Int, fresh: Boolean) {
         val q = StreamQuality.effective(appContext)
         val lang = MusicPrefs.audioLang(appContext)
         val k = key(videoId, q, lang)
-        if (fresh) forget(k)
-        var url: String? = cached(k)
+        val vk = vkey(videoId, q, lang)
+        val wantVideo = videoMode
+        if (fresh) { forget(k); forget(vk) }
+        var url: String? = null
+        var isVideo = false
         var err = RemoteEngine.ERR_YT_UNPLAYABLE
         var network = false
-        if (url == null) {
-            try {
-                url = fetchUrl(videoId, q, lang)
-                if (url != null) store(k, url)
-            } catch (e: IOException) {
-                Log.w(TAG, "resolve failed (network)", e)
-                err = RemoteEngine.ERR_NETWORK
-                network = true
-            } catch (e: Throwable) {
-                Log.w(TAG, "resolve failed", e)
+        try {
+            if (wantVideo) {
+                url = cached(vk)
+                if (url == null) url = fetchVideoUrl(videoId, q)?.also { store(vk, it) }
+                isVideo = url != null
             }
+            if (url == null) {
+                url = cached(k)
+                if (url == null) url = fetchUrl(videoId, q, lang)?.also { store(k, it) }
+            }
+        } catch (e: IOException) {
+            Log.w(TAG, "resolve failed (network)", e)
+            err = RemoteEngine.ERR_NETWORK
+            network = true
+        } catch (e: Throwable) {
+            Log.w(TAG, "resolve failed", e)
         }
+        val u = url
+        val video = isVideo
         handler.post {
             if (released || my != token) return@post
             when {
-                url != null -> startPlayer(url, my)
+                u != null -> startPlayer(u, my, video)
                 network && recover() -> Unit // try again shortly
                 else -> fail(err)
             }
@@ -270,11 +317,25 @@ class YouTubeStreamEngine(
         return true
     }
 
-    private fun startPlayer(url: String, my: Int) {
+    private fun startPlayer(url: String, my: Int, video: Boolean = false, waited: Boolean = false) {
+        // The player must know its surface BEFORE it prepares: without one the video is never decoded (sound only).
+        // The picture area of a reel may not exist yet, so wait briefly for it, then go on with sound only.
+        if (video && surface == null && !waited) {
+            pendingStart?.let { handler.removeCallbacks(it) }
+            val r = Runnable {
+                pendingStart = null
+                if (!released && my == token) startPlayer(url, my, video, waited = true)
+            }
+            pendingStart = r
+            handler.postDelayed(r, 2000L)
+            return
+        }
         try {
             val m = MediaPlayer()
             mp = m
             prepared = false
+            showsVideo = video
+            if (video) surface?.let { m.setSurface(it) }
             m.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -287,6 +348,7 @@ class YouTubeStreamEngine(
                 if (released || mp !== it || my != token) return@setOnPreparedListener
                 handler.removeCallbacks(watchdog)
                 prepared = true
+                if (video) try { it.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING) } catch (_: Exception) { }
                 if (it.duration > 0) dur = it.duration
                 if (basePos > 0) it.seekTo(basePos)
                 if (playing) {
@@ -400,12 +462,15 @@ class YouTubeStreamEngine(
 
     private fun stopPlayer() {
         handler.removeCallbacks(watchdog)
+        pendingStart?.let { handler.removeCallbacks(it) }
+        pendingStart = null
         mp?.let {
             try { it.setOnErrorListener(null); it.setOnPreparedListener(null); it.setOnInfoListener(null); it.setOnCompletionListener(null); it.reset() } catch (_: Exception) { }
             try { it.release() } catch (_: Exception) { }
         }
         mp = null
         prepared = false
+        showsVideo = false
     }
 }
 
