@@ -451,10 +451,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 true
             } else false
         }
-        // "Create playlist" lives in the header, next to the title (was the first row of the list).
-        binding.plAddButton.setOnClickListener {
-            PlaylistUi.createPlaylist(requireContext()) { pl -> if (_binding != null) open(pl.id) }
-        }
+        // The "+" in the header, next to the title, offers two ways to add a playlist: create an empty one, or generate one.
+        binding.plAddButton.setOnClickListener { showAddMenu() }
         binding.plMoreButton.setOnClickListener { showMoreMenu() }
         binding.plFilterButton.setOnClickListener { showFilterDialog() }
         // "‹ Name · N songs" doubles as a back button while a list is open.
@@ -803,7 +801,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val likedName = getString(R.string.playlist_liked)
             val lists = PlaylistStore.playlists(ctx)
             val rows = mutableListOf<Row>()
-            // "Generate playlist" and "Convert playlist" live in the "⋮" menu.
+            // "Generate playlist" lives in the "+" button; "Convert playlist" in the "⋮" menu.
             val want = { kind: Int -> kindFilter == 0 || kindFilter == kind }
             if (want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
                 rows += Row(ROW_LIKED, PlaylistStore.LIKED_ID, likedName, songCount(PlaylistStore.liked(ctx).size))
@@ -1288,7 +1286,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private fun displayName(app: Context, pl: Playlist) =
         if (pl.id == PlaylistStore.LIKED_ID) app.getString(R.string.playlist_liked) else pl.name
 
-    /** The "⋮" menu: import / backup on the overview, export / share while a list is open. */
+    /** The "⋮" menu: convert / import / backup on the overview, export / share while a list is open. */
     private fun showMoreMenu() {
         val ctx = requireContext()
         val id = openList
@@ -1298,7 +1296,6 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             return
         }
         val labels = arrayOf(
-            getString(R.string.playlist_generate) + if (generating) " \u2026" else "",
             getString(R.string.convert_title),
             getString(R.string.playlist_menu_import_link),
             getString(R.string.playlist_menu_import_file),
@@ -1307,11 +1304,27 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         AlertDialog.Builder(ctx)
             .setItems(labels) { _, which ->
                 when (which) {
-                    0 -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
-                    1 -> showConvertDialog()
-                    2 -> promptImportLink()
-                    3 -> openFile.launch(arrayOf("*/*"))
+                    0 -> showConvertDialog()
+                    1 -> promptImportLink()
+                    2 -> openFile.launch(arrayOf("*/*"))
                     else -> createBackup.launch(PlaylistIo.backupFileName())
+                }
+            }
+            .show()
+    }
+
+    /** The "+" button: 1) create a playlist yourself, 2) have one generated (what used to be in the "⋮" menu). */
+    private fun showAddMenu() {
+        val ctx = requireContext()
+        val labels = arrayOf(
+            getString(R.string.playlist_create),
+            getString(R.string.playlist_generate) + if (generating) " \u2026" else ""
+        )
+        AlertDialog.Builder(ctx)
+            .setItems(labels) { _, which ->
+                when (which) {
+                    0 -> PlaylistUi.createPlaylist(ctx) { pl -> if (_binding != null) open(pl.id) }
+                    else -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
                 }
             }
             .show()

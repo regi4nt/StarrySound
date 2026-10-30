@@ -1050,11 +1050,7 @@
     <string name="tv_loading">Loading channels…</string>
     <string name="tv_pick_country">Pick a country (IPTV-org)</string>
     <string name="tv_no_country">None (only my own links)</string>
-    <string name="tv_add_link">Add my own M3U link</string>
     <string name="tv_remove_links">Remove my links</string>
-    <string name="tv_reload">Reload channels</string>
-    <string name="tv_link_hint">https://…/playlist.m3u</string>
-    <string name="tv_link_invalid">The link must start with http:// or https://</string>
     <string name="radio_pick_country">Pick a country</string>
     <string name="radio_filter_sort">Filter and sort</string>
     <string name="radio_worldwide">Worldwide</string>

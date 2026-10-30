@@ -1043,11 +1043,7 @@
     <string name="tv_loading">Memuat channel…</string>
     <string name="tv_pick_country">Pilih negara (IPTV-org)</string>
     <string name="tv_no_country">Tidak ada (hanya link sendiri)</string>
-    <string name="tv_add_link">Tambah link M3U sendiri</string>
     <string name="tv_remove_links">Hapus link saya</string>
-    <string name="tv_reload">Muat ulang channel</string>
-    <string name="tv_link_hint">https://…/playlist.m3u</string>
-    <string name="tv_link_invalid">Link harus diawali http:// atau https://</string>
     <string name="radio_pick_country">Pilih negara</string>
     <string name="radio_filter_sort">Filter dan urutkan</string>
     <string name="radio_worldwide">Seluruh dunia</string>

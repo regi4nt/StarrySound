@@ -1154,9 +1154,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val items = ArrayList<String>()
         val actions = ArrayList<() -> Unit>()
         items += getString(R.string.tv_pick_country); actions.add { pickTvCountry() }
-        items += getString(R.string.tv_add_link); actions.add { addTvLink() }
         if (TvChannels.customUrls(ctx).isNotEmpty()) { items += getString(R.string.tv_remove_links); actions.add { removeTvLinks() } }
-        items += getString(R.string.tv_reload); actions.add { tvChanged(force = true) }
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setTitle(R.string.tv_source_title)
             .setItems(items.toTypedArray()) { _, which -> actions[which]() }
@@ -1188,24 +1186,6 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 d.dismiss()
                 TvChannels.setCountry(ctx, codes[which])
                 tvChanged(force = false)
-            }
-            .setNegativeButton(R.string.radio_cancel, null)
-            .show()
-    }
-
-    private fun addTvLink() {
-        val ctx = requireContext()
-        val input = android.widget.EditText(ctx).apply {
-            setSingleLine()
-            setHint(R.string.tv_link_hint)
-            inputType = android.text.InputType.TYPE_TEXT_VARIATION_URI
-        }
-        androidx.appcompat.app.AlertDialog.Builder(ctx)
-            .setTitle(R.string.tv_add_link)
-            .setView(input)
-            .setPositiveButton(R.string.radio_save) { _, _ ->
-                if (TvChannels.addCustom(ctx, input.text.toString())) tvChanged(force = false)
-                else toast(R.string.tv_link_invalid)
             }
             .setNegativeButton(R.string.radio_cancel, null)
             .show()
