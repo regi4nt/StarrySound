@@ -24,7 +24,9 @@ import java.util.concurrent.Executors
 class YouTubeStreamEngine(
     context: Context,
     private val handler: Handler,
-    private val cb: RemoteEngine.Callback
+    private val cb: RemoteEngine.Callback,
+    /** Audio session of the app's music player: the EQ chain is attached to it, so YouTube audio gets the EQ too (0 = none). */
+    private val audioSessionId: Int = 0
 ) : TimedEngine() {
 
     companion object {
@@ -360,6 +362,9 @@ class YouTubeStreamEngine(
         }
         try {
             val m = MediaPlayer()
+            if (audioSessionId > 0) {
+                try { m.audioSessionId = audioSessionId } catch (e: Exception) { Log.d(TAG, "own audio session: " + e) } // must be set while idle
+            }
             mp = m
             prepared = false
             showsVideo = video

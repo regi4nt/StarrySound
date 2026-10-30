@@ -88,7 +88,12 @@ class EffectService : Service() {
 
     // Audio output changes (headphones in/out, Bluetooth on/off) for "Auto preset per output".
     // Debounced: Bluetooth reports several devices within a moment.
-    private val outputRefresh = Runnable { OutputPresets.refresh(this, effectManager) }
+    private val outputRefresh = Runnable {
+        // Switching speaker <-> wired <-> Bluetooth re-routes the audio; on many devices (A2DP / offload especially)
+        // the effects of the session are left bypassed after that. Rebuild them from the saved settings on the new route.
+        if (effectManager.isEnabled) effectManager.reapply()
+        OutputPresets.refresh(this, effectManager)
+    }
     private val outputCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>?) = scheduleOutputRefresh()
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>?) = scheduleOutputRefresh()
@@ -157,6 +162,7 @@ class EffectService : Service() {
             mainHandler.post { presetListeners.forEach { it() } }
         }
         instance = this
+        MusicService.instance?.onEffectServiceReady() // a song may already be playing without its EQ
         SpotifyEffects.register(this)
         try {
             getSystemService(AudioManager::class.java)?.registerAudioDeviceCallback(outputCallback, mainHandler)

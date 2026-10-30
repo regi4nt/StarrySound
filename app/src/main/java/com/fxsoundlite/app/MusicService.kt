@@ -884,6 +884,7 @@ class MusicService : MediaBrowserService() {
             fadeToken++ // a ramp still running from an earlier resume must not fight this one
             r.setVolume(startVol)
             r.setSpeed(playbackSpeed)
+            routeEffectsToMusic(viaRemote = true)
             r.play()
             if (fadeInMs > 0) rampVolume(fadeInMs)
             acquireWake()
@@ -1108,8 +1109,7 @@ class MusicService : MediaBrowserService() {
                 historyPickKey = null
                 MusicPrefs.addYoutubeHistory(this, track)
             }
-            routeEffectsToGlobal() // YouTube audio is not ours: effects go back to the global mix
-            playRemote(track)
+            playRemote(track) // YouTube's direct stream plays on the music audio session, so the EQ chain follows it there
             loadArtwork(track, token)
             return
         }
@@ -1252,6 +1252,7 @@ class MusicService : MediaBrowserService() {
         player = mp
         prepared = false
         playerOnMusicSession = false
+        musicRoutingFailed = false // a new player gets a fresh try (one failure used to switch the EQ off for good)
         if (musicSessionId > 0) {
             try {
                 mp.audioSessionId = musicSessionId // must happen while the player is still idle
@@ -1478,10 +1479,11 @@ class MusicService : MediaBrowserService() {
     private fun playRemote(track: Track) {
         if (remote == null || remoteKind != track.source) {
             releaseRemote()
-            remote = YouTubeEngine(applicationContext, handler, engineCallback)
+            remote = YouTubeEngine(applicationContext, handler, engineCallback, musicSessionId)
             remoteKind = track.source
         }
         val r = remote ?: return
+        routeEffectsToMusic(viaRemote = true)
         r.load(track)
         r.setSpeed(playbackSpeed)
         if (r.needsAudioFocus && !requestFocus()) {
@@ -1533,11 +1535,26 @@ class MusicService : MediaBrowserService() {
     // ---------------------------------------------------------------- effects routing
 
     /** Attaches the EQ chain to the local player's audio session (no-op if already there). */
-    private fun routeEffectsToMusic() {
-        if (musicRoutingFailed || !playerOnMusicSession || musicSessionId <= 0) return
-        val mgr = EffectService.instance?.effectManager ?: return
+    private fun routeEffectsToMusic(viaRemote: Boolean = false) {
+        if (musicRoutingFailed || (!playerOnMusicSession && !viaRemote) || musicSessionId <= 0) return
+        val svc = EffectService.instance
+        if (svc == null) {
+            // The EQ service is not running (started from a widget / boot, or the system stopped it): start it;
+            // it calls onEffectServiceReady() as soon as it is up, so the song gets its EQ instead of staying flat.
+            try { startService(Intent(this, EffectService::class.java)) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
+            return
+        }
+        val mgr = svc.effectManager
         if (mgr.boundSession == musicSessionId) return
         if (!mgr.rebind(musicSessionId)) musicRoutingFailed = true
+    }
+
+    /** Called by EffectService once it is running: attach the EQ chain to the song that is playing right now. */
+    fun onEffectServiceReady() {
+        handler.post {
+            if (remote != null && isPlaying) routeEffectsToMusic(viaRemote = true)
+            else if (player != null && prepared && isPlaying) routeEffectsToMusic()
+        }
     }
 
     /** Puts the EQ chain back on the global mix (no-op if it is already there). */

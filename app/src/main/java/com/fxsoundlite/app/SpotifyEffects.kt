@@ -8,7 +8,7 @@ import android.media.audiofx.AudioEffect
 import androidx.core.content.ContextCompat
 
 /**
- * Moves StarrySound's equalizer chain onto the audio session of the Spotify app.
+ * Moves StarrySound's equalizer chain onto the audio session of Spotify and of any other app that announces its session.
  *
  * Spotify announces its audio session with the standard OPEN / CLOSE_AUDIO_EFFECT_CONTROL_SESSION broadcasts (the way
  * system equalizers work). Those are implicit broadcasts, so the receiver is registered at runtime by
@@ -18,7 +18,6 @@ import androidx.core.content.ContextCompat
  */
 object SpotifyEffects {
     private var receiver: BroadcastReceiver? = null
-    private var session = 0
 
     fun register(svc: EffectService) {
         if (receiver != null) return
@@ -35,20 +34,32 @@ object SpotifyEffects {
     fun unregister(svc: EffectService) {
         receiver?.let { try { svc.unregisterReceiver(it) } catch (e: Exception) { android.util.Log.d("SpotifyEffects", "ignored: " + e) } }
         receiver = null
-        session = 0
+        open.clear()
     }
 
+    /** Sessions announced by other apps and still open (session id -> package), newest last. */
+    private val open = LinkedHashMap<Int, String>()
+
+    /** Other apps (YouTube, YouTube Music, VLC, ...) that announce their session get the EQ too. On by default. */
+    fun externalAppsOn(c: Context): Boolean =
+        c.getSharedPreferences("fxsoundlite_prefs", Context.MODE_PRIVATE).getBoolean("eq_external_apps", true)
+
     private fun handle(svc: EffectService, i: Intent) {
-        if (i.getStringExtra(AudioEffect.EXTRA_PACKAGE_NAME) != SpotifyAuth.PKG) return
+        val pkg = i.getStringExtra(AudioEffect.EXTRA_PACKAGE_NAME).orEmpty()
+        if (pkg.isEmpty() || pkg == svc.packageName) return
+        val spotify = pkg == SpotifyAuth.PKG
+        if (spotify && !SpotifyAuth.eqEnabled(svc)) return
+        if (!spotify && !externalAppsOn(svc)) return
         val sid = i.getIntExtra(AudioEffect.EXTRA_AUDIO_SESSION, -1)
         if (sid <= 0) return
         val mgr = svc.effectManager
         if (i.action == AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION) {
-            if (!SpotifyAuth.eqEnabled(svc) || MusicService.instance?.isPlaying == true) return // our own player keeps the chain
-            if (mgr.rebind(sid)) session = sid
-        } else if (sid == session) {
-            session = 0
-            if (mgr.boundSession == sid) mgr.rebind(AudioEffectManager.GLOBAL_SESSION)
+            if (MusicService.instance?.isPlaying == true) return // our own player keeps the chain
+            open[sid] = pkg
+            mgr.rebind(sid)
+        } else {
+            open.remove(sid)
+            if (mgr.boundSession == sid) mgr.rebind(open.keys.lastOrNull() ?: AudioEffectManager.GLOBAL_SESSION)
         }
     }
 }

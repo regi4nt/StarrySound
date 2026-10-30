@@ -442,12 +442,19 @@ class VideoPlayerActivity : AppCompatActivity() {
         yt = null
     }
 
+    /** Audio session of the playing VideoView (the EQ chain follows it), 0 = none. */
+    private var fileSessionId = 0
+
     private fun dropFile() {
         fileView?.let {
             handler.removeCallbacks(poll)
+            val sid = fileSessionId
             it.stopPlayback()
             binding.vpVideoFrame.removeView(it)
+            // The EQ chain was on this video's audio session: give it back to the global mix (the music player re-attaches it when it plays).
+            if (sid > 0) EffectService.instance?.effectManager?.let { m -> if (m.boundSession == sid) m.rebind(AudioEffectManager.GLOBAL_SESSION) }
         }
+        fileSessionId = 0
         fileView = null
         filePlayer = null
     }
@@ -833,6 +840,14 @@ class VideoPlayerActivity : AppCompatActivity() {
         dropFile()
         val vv = VideoView(this)
         binding.vpVideoFrame.addView(vv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER))
+        // Asking for the session id before the source is set fixes it for the player VideoView creates: the EQ chain can sit on it.
+        try {
+            val sid = vv.audioSessionId
+            if (sid > 0) {
+                fileSessionId = sid
+                EffectService.instance?.effectManager?.rebind(sid)
+            }
+        } catch (e: Exception) { android.util.Log.d("VideoPlayer", "ignored: " + e) }
         vv.setOnPreparedListener { mp ->
             filePlayer = mp
             failStreak = 0

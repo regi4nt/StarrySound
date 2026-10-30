@@ -15,12 +15,13 @@ import android.util.Log
 class YouTubeEngine(
     context: Context,
     private val handler: Handler,
-    private val cb: RemoteEngine.Callback
+    private val cb: RemoteEngine.Callback,
+    audioSessionId: Int = 0
 ) : RemoteEngine {
 
     private val appContext = context.applicationContext
 
-    private val stream = YouTubeStreamEngine(context, handler, forward { onStreamError(it) })
+    private val stream = YouTubeStreamEngine(context, handler, forward { onStreamError(it) }, audioSessionId)
     private val embed by lazy { YouTubeEmbedEngine(context, handler, forward { onEmbedError(it) }) }
     private val web by lazy { YouTubeWebEngine(context, handler, forward(null)) }
 
