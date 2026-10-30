@@ -1021,6 +1021,7 @@
     <string name="video_not_available">Lagu ini tidak punya video. Hanya lagu YouTube yang bisa diganti ke video.</string>
     <string name="video_error">Video ini tidak bisa diputar di dalam aplikasi. Membuka YouTube.</string>
     <string name="video_error_file">File video ini tidak bisa diputar.</string>
+    <string name="video_error_tv">Channel ini tidak bisa diputar saat ini.</string>
     <string name="np_video">Ganti ke video</string>
     <string name="quick_action_video">Preview video</string>
     <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>

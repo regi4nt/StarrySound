@@ -1028,6 +1028,7 @@
     <string name="video_not_available">No video for this song. Only YouTube songs can switch to video.</string>
     <string name="video_error">This video cannot be played inside the app. Opening YouTube instead.</string>
     <string name="video_error_file">This video file cannot be played.</string>
+    <string name="video_error_tv">This channel cannot be played right now.</string>
     <string name="np_video">Switch to video</string>
     <string name="quick_action_video">Video preview</string>
     <string name="private_mode_settings_desc">Do not remember what you play (history, taste, scrobbles).</string>

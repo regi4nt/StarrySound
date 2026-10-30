@@ -64,15 +64,6 @@
             android:visibility="gone">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/np_playing_from"
-                android:textAllCaps="true"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="10sp"
-                android:letterSpacing="0.08" />
-
-            <TextView
                 android:id="@+id/npFromName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

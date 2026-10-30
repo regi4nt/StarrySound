@@ -82,6 +82,13 @@ class VideoPlayerActivity : AppCompatActivity() {
         private const val EXTRA_Q_ARTS = "q_arts"
         private const val EXTRA_INDEX = "q_index"
 
+        /** Most videos / channels handed to the player in one Intent. */
+        private const val MAX_QUEUE = 150
+        /** Many IPTV servers refuse the default "stagefright" agent of Android's media player. */
+        private const val TV_UA = "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
+        /** After this many videos / channels in a row that failed, the player stops skipping to the next one. */
+        private const val MAX_FAIL_STREAK = 4
+
         private const val REPEAT_OFF = 0
         private const val REPEAT_ALL = 1
         private const val REPEAT_ONE = 2
@@ -109,17 +116,24 @@ class VideoPlayerActivity : AppCompatActivity() {
             queueIntent(c, listOf(t), 0, startMs, fromPlayer)
 
         /** A playlist as a video queue: plays [index] first and goes on with the next ones. Only [isVideoPlayable] tracks should be passed. */
-        fun queueIntent(c: Context, tracks: List<Track>, index: Int, startMs: Long = 0L, fromPlayer: Boolean = false): Intent =
-            Intent(c, VideoPlayerActivity::class.java)
+        fun queueIntent(c: Context, all: List<Track>, index: Int, startMs: Long = 0L, fromPlayer: Boolean = false): Intent {
+            // A whole IPTV country list holds thousands of channels: that many extras overflow the 1 MB Binder limit
+            // (TransactionTooLargeException = crash when a channel is tapped). Only a window around the tapped one goes along.
+            val from = if (all.size > MAX_QUEUE) (index - MAX_QUEUE / 2).coerceIn(0, all.size - MAX_QUEUE) else 0
+            // A TV channel saved as audio (radio twin) goes to the player as the live channel again.
+            val tracks = (if (all.size > MAX_QUEUE) all.subList(from, from + MAX_QUEUE) else all).map { PlayerMode.videoTrack(it) }
+            val idx = (index - from).coerceIn(0, (tracks.size - 1).coerceAtLeast(0))
+            return Intent(c, VideoPlayerActivity::class.java)
                 .putExtra(EXTRA_Q_SOURCES, IntArray(tracks.size) { tracks[it].source })
                 .putExtra(EXTRA_Q_IDS, Array(tracks.size) { tracks[it].remoteId })
                 .putExtra(EXTRA_Q_TITLES, Array(tracks.size) { tracks[it].title })
                 .putExtra(EXTRA_Q_ARTISTS, Array(tracks.size) { tracks[it].artist })
                 .putExtra(EXTRA_Q_DURS, LongArray(tracks.size) { tracks[it].durationMs })
                 .putExtra(EXTRA_Q_ARTS, Array(tracks.size) { tracks[it].artUrl })
-                .putExtra(EXTRA_INDEX, index)
+                .putExtra(EXTRA_INDEX, idx)
                 .putExtra(EXTRA_START_MS, startMs)
                 .putExtra(EXTRA_FROM_PLAYER, fromPlayer)
+        }
     }
 
     /** Video queue in play order (shuffled when [shuffle] is on); [original] keeps the order it came in. */
@@ -147,6 +161,9 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var yt: YouTubePlayer? = null
     private var fileView: VideoView? = null
     private var filePlayer: MediaPlayer? = null
+
+    /** Videos / channels in a row that could not be played (reset when one starts): stops an endless skip loop through a dead list. */
+    private var failStreak = 0
 
     private var posMs = 0L
     private var durMs = 0L
@@ -252,7 +269,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
         })
         binding.vpMusic.setOnClickListener { switchToMusic() }
-        binding.vpAddPlaylist.setOnClickListener { PlaylistUi.addToPlaylist(this, current) { } }
+        binding.vpAddPlaylist.setOnClickListener { PlaylistUi.addToPlaylist(this, if (current.source == Track.SOURCE_TV) PlayerMode.tvToAudio(current) else current) { } }
         binding.vpBg.setOnClickListener {
             MusicPrefs.setPlayerBgScreensaver(this, !MusicPrefs.playerBgScreensaver(this))
             applyPlayerBackground()
@@ -320,11 +337,25 @@ class VideoPlayerActivity : AppCompatActivity() {
     /** The video ended: repeat it, go on with the next one, or stop at the end of the queue. */
     private fun onEnded() {
         playing = false
+        if (current.source == Track.SOURCE_TV) {
+            // A live stream "ends" when the connection drops: connect again instead of jumping to another channel.
+            val token = loadToken
+            updateUi()
+            handler.postDelayed({ if (!isDestroyed && token == loadToken) playIndex(index, 0L) }, 2000L) // not in a tight loop when the server hangs up at once
+            return
+        }
         when {
             repeat == REPEAT_ONE || (repeat == REPEAT_ALL && queue.size == 1) -> playIndex(index, 0L)
             queue.size > 1 && (repeat == REPEAT_ALL || index < queue.size - 1) -> step(1)
             else -> updateUi()
         }
+    }
+
+    /** The current video / channel failed: try the next one, but never loop through a whole dead list; a single one just closes. */
+    private fun skipOrStop() {
+        if (queue.size <= 1) { finish(); return }
+        if (++failStreak >= minOf(queue.size, MAX_FAIL_STREAK)) { failStreak = 0; updateUi(); return } // stay: the toast said why
+        step(1)
     }
 
     private fun toggleShuffle() {
@@ -366,7 +397,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 }
             }
             Track.SOURCE_VIDEO -> { dropYoutube(); setupFile(Uri.parse(id), null, startMs) }
-            Track.SOURCE_TV -> { dropYoutube(); setupFile(Uri.parse(id), null, 0L) } // live stream: no start position
+            Track.SOURCE_TV -> { dropYoutube(); setupFile(Uri.parse(id), mapOf("User-Agent" to TV_UA), 0L) } // live stream: no start position
             Track.SOURCE_DRIVE_VIDEO -> {
                 dropYoutube()
                 val app = applicationContext
@@ -376,14 +407,14 @@ class VideoPlayerActivity : AppCompatActivity() {
                         if (isDestroyed || token != loadToken) return@runOnUiThread
                         if (req == null) {
                             Toast.makeText(this, R.string.video_error_drive, Toast.LENGTH_LONG).show()
-                            if (queue.size > 1) step(1) else finish()
+                            skipOrStop()
                         } else setupFile(Uri.parse(req.first), req.second, startMs)
                     }
                 }.start()
             }
             else -> {
                 Toast.makeText(this, R.string.video_not_available, Toast.LENGTH_SHORT).show()
-                if (queue.size > 1) step(1) else finish()
+                skipOrStop()
             }
         }
         updateUi()
@@ -591,6 +622,19 @@ class VideoPlayerActivity : AppCompatActivity() {
         if (show) handler.postDelayed(hideControls, 3500L)
     }
 
+    /** Remote control / headset keys (play, pause, next, previous, channel up / down) work in the video player too. */
+    override fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean {
+        when (keyCode) {
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, android.view.KeyEvent.KEYCODE_HEADSETHOOK -> togglePlay()
+            android.view.KeyEvent.KEYCODE_MEDIA_PLAY -> if (!playing) togglePlay()
+            android.view.KeyEvent.KEYCODE_MEDIA_PAUSE -> if (playing) togglePlay()
+            android.view.KeyEvent.KEYCODE_MEDIA_NEXT, android.view.KeyEvent.KEYCODE_CHANNEL_UP -> step(1)
+            android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS, android.view.KeyEvent.KEYCODE_CHANNEL_DOWN -> step(-1)
+            else -> return super.onKeyDown(keyCode, event)
+        }
+        return true
+    }
+
     /** Any touch on the controls keeps them shown a few seconds longer. */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_UP && isOverlay() && binding.vpControls.visibility == View.VISIBLE) {
@@ -664,7 +708,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
             override fun onStateChange(youTubePlayer: YouTubePlayer, state: PlayerConstants.PlayerState) {
                 playing = state == PlayerConstants.PlayerState.PLAYING || state == PlayerConstants.PlayerState.BUFFERING
-                if (state == PlayerConstants.PlayerState.PLAYING) applySpeed()
+                if (state == PlayerConstants.PlayerState.PLAYING) { failStreak = 0; applySpeed() }
                 updateUi()
                 if (state == PlayerConstants.PlayerState.ENDED) onEnded()
             }
@@ -734,7 +778,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private fun youtubeFailed(id: String) {
         Toast.makeText(this, R.string.video_error, Toast.LENGTH_LONG).show()
-        if (queue.size > 1) { step(1); return }
+        if (queue.size > 1) { skipOrStop(); return }
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id&t=${posMs / 1000}s")))
         } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
@@ -764,6 +808,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpVideoFrame.addView(vv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER))
         vv.setOnPreparedListener { mp ->
             filePlayer = mp
+            failStreak = 0
             showQuality(qualityLabel(mp.videoWidth, mp.videoHeight))
             updatePipParams() // PiP window gets this video's own ratio
             mp.setOnVideoSizeChangedListener { m, w, h -> if (m === filePlayer) { showQuality(qualityLabel(w, h)); updatePipParams() } }
@@ -774,8 +819,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         vv.setOnCompletionListener { onEnded() }
         vv.setOnErrorListener { _, _, _ ->
-            Toast.makeText(this, R.string.video_error_file, Toast.LENGTH_LONG).show()
-            if (queue.size > 1) step(1) else finish()
+            val live = queue.getOrNull(index)?.source == Track.SOURCE_TV
+            Toast.makeText(this, if (live) R.string.video_error_tv else R.string.video_error_file, Toast.LENGTH_LONG).show()
+            skipOrStop()
             true
         }
         if (headers != null) vv.setVideoURI(uri, headers) else vv.setVideoURI(uri)
@@ -786,6 +832,8 @@ class VideoPlayerActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ controls
 
     private fun togglePlay() {
+        // Live TV: a paused stream resumes minutes behind (or is dead): connect to the channel again.
+        if (current.source == Track.SOURCE_TV && !playing) { failStreak = 0; playIndex(index, 0L); return }
         yt?.let { if (playing) it.pause() else it.play(); return }
         fileView?.let {
             if (it.isPlaying) it.pause() else { it.start(); applySpeed() }
@@ -866,13 +914,16 @@ class VideoPlayerActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.video_music_not_ready, Toast.LENGTH_LONG).show()
                 return
             }
+            val sameChannel = PlayerMode.isTvAudio(svc.current) && svc.current?.remoteId == t.remoteId
+            if (!(fromPlayer && sameChannel) && queue.none { it.source == Track.SOURCE_TV && it.remoteId.isNotBlank() }) return
             pausePlayback() // the video must let go of the sound (and audio focus) before the audio starts
             PlayerMode.setMusic()
-            if (fromPlayer && PlayerMode.isTvAudio(svc.current)) {
+            if (fromPlayer && sameChannel) {
                 toMusic = true // opened from the music player that already has this channel: it resumes it
                 resultPos = 0L
             } else {
-                if (!playTvAsAudio(svc, t)) return
+                // Another channel than the one the music player holds (stepped with next / previous): load this one.
+                playTvAsAudio(svc, t)
                 resultPos = -1L // live: nothing for the caller to seek
                 if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
             }
@@ -924,6 +975,10 @@ class VideoPlayerActivity : AppCompatActivity() {
             // Opened from the music player: back returns to it (music mode); the close arrow leaves both and the
             // mini bar then opens the video again.
             closeAll = closeArrow
+            if (t.source == Track.SOURCE_TV && svc != null && !(PlayerMode.isTvAudio(svc.current) && svc.current?.remoteId == t.remoteId)) {
+                // Stepped to another channel in the video: the music player must carry on with that one, not the old one.
+                if (playing && playTvAsAudio(svc, t)) resultPos = -1L
+            }
             if (closeArrow && (t.source == Track.SOURCE_YOUTUBE || t.source == Track.SOURCE_TV)) PlayerMode.setVideo(t) else PlayerMode.setMusic()
             finish(); return
         }
@@ -1009,7 +1064,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun showMoreMenu(anchor: View) {
         val t = current
         val popup = PopupMenu(this, anchor, Gravity.END)
-        popup.menu.add(0, M_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(speed)))
+        if (t.source != Track.SOURCE_TV) popup.menu.add(0, M_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(speed))) // no speed for a live stream
         if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_QUALITY, 0, R.string.np_video_quality)
         // Captions only exist in the YouTube player (the plain video view has no subtitle track).
         if (t.source == Track.SOURCE_YOUTUBE && ytView != null) {
@@ -1138,7 +1193,6 @@ class VideoPlayerActivity : AppCompatActivity() {
             .setItems(labels) { _, which ->
                 val m = options[which]
                 handler.removeCallbacks(sleepRun)
-        handler.removeCallbacks(hideControls)
                 if (m == 0) {
                     sleepAt = 0L
                     Toast.makeText(this, R.string.np_timer_cancelled, Toast.LENGTH_SHORT).show()
@@ -1158,11 +1212,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         val rows = mutableListOf(getString(R.string.np_info_title) to t.title)
         if (t.artist.isNotBlank()) rows += getString(R.string.np_info_artist) to t.artist
         val dur = durMs.takeIf { it > 0 } ?: t.durationMs
-        if (dur > 0) rows += getString(R.string.np_info_duration) to formatDuration(dur)
+        if (dur > 0 && t.source != Track.SOURCE_TV) rows += getString(R.string.np_info_duration) to formatDuration(dur)
         rows += getString(R.string.np_info_source) to getString(
             when (t.source) {
                 Track.SOURCE_YOUTUBE -> R.string.source_youtube
                 Track.SOURCE_DRIVE_VIDEO -> R.string.source_drive
+                Track.SOURCE_TV -> R.string.source_tv
                 else -> R.string.source_local
             }
         )
