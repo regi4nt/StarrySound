@@ -907,6 +907,24 @@ class VideoPlayerActivity : AppCompatActivity() {
             if (closeArrow && t.source == Track.SOURCE_YOUTUBE) PlayerMode.setVideo(t) else PlayerMode.setMusic()
             finish(); return
         }
+        if (t.source == Track.SOURCE_TV && svc != null) {
+            // Live TV: carry on as audio only. The stream is played like a radio station (live, nothing to seek in).
+            // A paused channel is simply closed, there is no position to come back to.
+            val wasPlaying = playing
+            pausePlayback()
+            if (wasPlaying) {
+                val channels = queue.filter { it.source == Track.SOURCE_TV && it.remoteId.isNotBlank() }
+                val radio = channels.map {
+                    it.copy(source = Track.SOURCE_RADIO, durationMs = 0L, album = it.album.ifBlank { "TV" })
+                }
+                val start = channels.indexOfFirst { it.key == t.key }.coerceAtLeast(0)
+                if (radio.isNotEmpty()) {
+                    svc.setQueueAndPlay(radio, start)
+                    resultPos = -1L // nothing for the caller to seek
+                }
+            }
+            finish(); return
+        }
         if (t.source != Track.SOURCE_YOUTUBE || svc == null) { finish(); return }
         val pos = posMs
         val wasPlaying = playing
