@@ -588,6 +588,7 @@ class MusicService : MediaBrowserService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        PlayerMode.init(this)
         statsLast = SystemClock.elapsedRealtime()
         handler.postDelayed(statsTick, 5_000L)
         handler.postDelayed(prefetchTick, 4_000L)

@@ -164,13 +164,14 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         // Tapping the bar (anywhere except its buttons, which consume their own clicks) opens the
         // full-screen player.
         binding.miniPlayer.setOnClickListener {
+            PlayerMode.init(this)
             val svc = MusicService.instance
             val cur = svc?.current
             if (svc != null && cur != null && PlayerMode.isVideo(cur)) {
                 // Last used in video mode: the bar reopens the video at the second the audio reached.
                 val pos = svc.position.toLong()
                 if (svc.isPlaying) svc.pause()
-                startActivity(VideoPlayerActivity.intent(this, cur, pos))
+                startActivity(VideoPlayerActivity.intent(this, PlayerMode.videoTrack(cur), pos))
                 return@setOnClickListener
             }
             startActivity(Intent(this, NowPlayingActivity::class.java))

@@ -859,6 +859,19 @@ class VideoPlayerActivity : AppCompatActivity() {
     /** Switches the current YouTube song from video to music, continuing at the second the video reached. */
     private fun switchToMusic() {
         val t = current
+        if (t.source == Track.SOURCE_TV) {
+            val svc = MusicService.instance
+            if (svc == null) {
+                Toast.makeText(this, R.string.video_music_not_ready, Toast.LENGTH_LONG).show()
+                return
+            }
+            pausePlayback() // the video must let go of the sound (and audio focus) before the audio starts
+            if (!playTvAsAudio(svc, t)) return
+            resultPos = -1L // live: nothing for the caller to seek
+            if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
+            finish()
+            return
+        }
         if (t.source != Track.SOURCE_YOUTUBE) {
             Toast.makeText(this, R.string.video_music_unavailable, Toast.LENGTH_LONG).show()
             return
@@ -908,20 +921,12 @@ class VideoPlayerActivity : AppCompatActivity() {
             finish(); return
         }
         if (t.source == Track.SOURCE_TV && svc != null) {
-            // Live TV: carry on as audio only. The stream is played like a radio station (live, nothing to seek in).
-            // A paused channel is simply closed, there is no position to come back to.
+            // Live TV: carry on as audio only (a paused channel is simply closed: no position to come back to).
             val wasPlaying = playing
             pausePlayback()
-            if (wasPlaying) {
-                val channels = queue.filter { it.source == Track.SOURCE_TV && it.remoteId.isNotBlank() }
-                val radio = channels.map {
-                    it.copy(source = Track.SOURCE_RADIO, durationMs = 0L, album = it.album.ifBlank { "TV" })
-                }
-                val start = channels.indexOfFirst { it.key == t.key }.coerceAtLeast(0)
-                if (radio.isNotEmpty()) {
-                    svc.setQueueAndPlay(radio, start)
-                    resultPos = -1L // nothing for the caller to seek
-                }
+            if (wasPlaying && playTvAsAudio(svc, t)) {
+                PlayerMode.setVideo(t) // the mini bar opens the channel's video again
+                resultPos = -1L
             }
             finish(); return
         }
@@ -941,6 +946,15 @@ class VideoPlayerActivity : AppCompatActivity() {
         PlayerMode.setVideo(t) // the mini bar opens the video again
         resultPos = -1L // nothing for the caller to seek
         finish()
+    }
+
+    /** Plays the live TV channel [t] (and the other channels of the queue) as audio, like a radio station. */
+    private fun playTvAsAudio(svc: MusicService, t: Track): Boolean {
+        val channels = queue.filter { it.source == Track.SOURCE_TV && it.remoteId.isNotBlank() }
+        if (channels.isEmpty()) return false
+        val radio = channels.map { it.copy(source = Track.SOURCE_RADIO, durationMs = 0L, album = it.album.ifBlank { "TV" }) }
+        svc.setQueueAndPlay(radio, channels.indexOfFirst { it.key == t.key }.coerceAtLeast(0))
+        return true
     }
 
     /** The first play() can be refused while the video still holds the audio focus: try again a few times. */
