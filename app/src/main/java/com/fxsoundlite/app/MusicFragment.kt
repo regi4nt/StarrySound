@@ -831,8 +831,10 @@ class MusicFragment : Fragment(), MusicService.Listener {
         if (list.isEmpty()) {
             val filteredOut = (src == Track.SOURCE_RADIO && radioFilter.active) ||
                 (src == Track.SOURCE_YOUTUBE && ytFilter.active)
+            val searching = src == Track.SOURCE_RADIO && !inputBlank && binding.searchProgress.visibility == View.VISIBLE
             showEmpty(
-                if (!filteredOut && (inputBlank || onlineQuery[src].isNullOrBlank())) R.string.online_search_prompt
+                if (searching) R.string.radio_loading // a search is still running: not "no results" yet
+                else if (!filteredOut && (inputBlank || onlineQuery[src].isNullOrBlank())) R.string.online_search_prompt
                 else R.string.music_no_results
             )
         } else {
@@ -920,15 +922,22 @@ class MusicFragment : Fragment(), MusicService.Listener {
         try {
             netExecutor.execute {
                 if (token != searchToken) return@execute
+                fun toTrack(r: OnlineResult): Track = when (r) {
+                    is OnlineResult.Song -> r.track
+                    is OnlineResult.Album -> Track(
+                        0L, r.item.title, r.item.creator, "", 0L, Track.SOURCE_ONLINE, albumPrefix + r.item.identifier, r.item.thumbUrl
+                    )
+                }
                 val result = runCatching {
-                    (if (src == null) OnlineApi.searchAll(app, q, filter) else OnlineApi.search(app, src, q, filter)).map { r ->
-                        when (r) {
-                            is OnlineResult.Song -> r.track
-                            is OnlineResult.Album -> Track(
-                                0L, r.item.title, r.item.creator, "", 0L, Track.SOURCE_ONLINE, albumPrefix + r.item.identifier, r.item.thumbUrl
-                            )
+                    (if (src == null) OnlineApi.searchAll(app, q, filter) { part ->
+                        val tracks = part.map { toTrack(it) }
+                        handler.post {
+                            if (_binding != null && token == searchToken && source == Track.SOURCE_ONLINE) {
+                                onlineBase = tracks
+                                showOnlineList()
+                            }
                         }
-                    }
+                    } else OnlineApi.search(app, src, q, filter)).map { toTrack(it) }
                 }
                 handler.post {
                     if (_binding == null || token != searchToken || source != Track.SOURCE_ONLINE) return@post
@@ -1291,7 +1300,15 @@ class MusicFragment : Fragment(), MusicService.Listener {
             netExecutor.execute {
                 if (token != searchToken) return@execute // superseded while it was waiting: don't even start
                 val result = runCatching {
-                    if (src == Track.SOURCE_RADIO) RadioApi.searchAll(app, q) else YouTubeApi.userSearch(app, q)
+                    if (src == Track.SOURCE_RADIO) RadioApi.searchAll(app, q) { part ->
+                        // Stations show up as each directory answers, not only when the slowest one is done.
+                        handler.post {
+                            if (_binding != null && token == searchToken) {
+                                onlineResults[src] = part
+                                if (source == src) showOnline()
+                            }
+                        }
+                    } else YouTubeApi.userSearch(app, q)
                 }
                 handler.post {
                     if (_binding == null || token != searchToken) return@post

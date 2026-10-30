@@ -73,7 +73,7 @@ class MusicService : MediaBrowserService() {
         const val REPEAT_ONE = 2
 
         private const val KEY_SPEED = "playback_speed"
-        private const val CHANNEL_ID = "starrysound_music_channel"
+        private const val CHANNEL_ID = "starrysound_music_channel_v2" // new id: an old channel keeps whatever importance it was given
         private const val NOTIF_ID = 2
         private const val PREFS = "music_prefs"
         private const val KEY_SHUFFLE = "shuffle"            // old boolean, still read once
@@ -1774,10 +1774,16 @@ class MusicService : MediaBrowserService() {
 
     private fun createChannel() {
         val nm = getSystemService(NotificationManager::class.java) ?: return
+        nm.deleteNotificationChannel("starrysound_music_channel")
         nm.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID, getString(R.string.music_channel_name), NotificationManager.IMPORTANCE_LOW
-            ).apply { setShowBadge(false) }
+            ).apply {
+                setShowBadge(false)
+                setSound(null, null)       // never a sound or a pop-up banner when a song starts
+                enableVibration(false)
+                enableLights(false)
+            }
         )
     }
 
@@ -1810,6 +1816,7 @@ class MusicService : MediaBrowserService() {
             .setContentIntent(openIntent)
             .setDeleteIntent(servicePi(ACTION_STOP, 4))
             .setOnlyAlertOnce(true)
+            .setCategory(Notification.CATEGORY_TRANSPORT)
             .setShowWhen(false)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOngoing(playing)

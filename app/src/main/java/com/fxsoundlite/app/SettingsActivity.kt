@@ -670,18 +670,15 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    /** Online music: audio quality, which tabs Search shows, Jamendo key. */
+    /** Online music: which tabs Search shows, Jamendo key. */
     private fun setupOnlineAudio() {
-        val quality = findViewById<TextView>(R.id.audioQualityValue)
         val tabs = findViewById<TextView>(R.id.searchTabsValue)
         val jamendo = findViewById<TextView>(R.id.jamendoKeyValue)
         fun refresh() {
-            quality.text = StreamQuality.summary(this)
             tabs.text = SearchTabs.summary(this)
             jamendo.text = if (OnlineKeys.jamendo(this).isBlank()) getString(R.string.jamendo_key_not_set) else getString(R.string.jamendo_key_set)
         }
         refresh()
-        findViewById<View>(R.id.audioQualityRow).setOnClickListener { StreamQuality.showDialog(this) { refresh() } }
         findViewById<View>(R.id.searchTabsRow).setOnClickListener { SearchTabs.showDialog(this) { refresh() } }
         findViewById<View>(R.id.jamendoKeyRow).setOnClickListener { OnlineKeys.showJamendoDialog(this) { refresh() } }
     }

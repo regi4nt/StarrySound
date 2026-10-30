@@ -69,22 +69,41 @@ object OnlineApi {
      * while it has no key; a source that fails is skipped too. Only when every source fails does it throw.
      */
     @Throws(IOException::class)
-    fun searchAll(context: Context, query: String, filter: OnlineFilter = OnlineFilter()): List<OnlineResult> {
+    fun searchAll(
+        context: Context, query: String, filter: OnlineFilter = OnlineFilter(),
+        onPartial: ((List<OnlineResult>) -> Unit)? = null
+    ): List<OnlineResult> {
         linkResults(context, query)?.let { return it }
         val sources = OnlineSource.values().filter { !needsKey(context, it) }
         if (sources.isEmpty()) return emptyList()
         val pool = java.util.concurrent.Executors.newFixedThreadPool(sources.size)
-        val answers: List<Result<List<OnlineResult>>>
+        val answers = arrayOfNulls<Result<List<OnlineResult>>>(sources.size)
         try {
-            val jobs = sources.map { src -> java.util.concurrent.Callable { runCatching { searchSource(context, src, query, filter) } } }
-            answers = pool.invokeAll(jobs, 25, java.util.concurrent.TimeUnit.SECONDS).map { f ->
-                try { f.get() } catch (e: Exception) { Result.failure(e) } // cancelled (too slow) counts as failed
+            val cs = java.util.concurrent.ExecutorCompletionService<Pair<Int, Result<List<OnlineResult>>>>(pool)
+            sources.forEachIndexed { i, src -> cs.submit { i to runCatching { searchSource(context, src, query, filter) } } }
+            val deadline = android.os.SystemClock.elapsedRealtime() + 25_000L
+            var done = 0
+            while (done < sources.size) {
+                val left = deadline - android.os.SystemClock.elapsedRealtime()
+                if (left <= 0) break
+                val (i, r) = (cs.poll(left, java.util.concurrent.TimeUnit.MILLISECONDS) ?: break).get() // too slow = left out
+                answers[i] = r
+                done++
+                // Show what is in already instead of waiting for the slowest source.
+                if (onPartial != null && r.getOrNull()?.isNotEmpty() == true) {
+                    val part = mergeInterleaved(answers.mapNotNull { it?.getOrNull() })
+                    if (part.isNotEmpty()) onPartial(part)
+                }
             }
         } finally {
             pool.shutdownNow()
         }
-        val lists = answers.mapNotNull { it.getOrNull() }
-        if (lists.isEmpty()) throw (answers.firstNotNullOfOrNull { it.exceptionOrNull() } as? IOException ?: IOException("No source answered"))
+        val lists = answers.mapNotNull { it?.getOrNull() }
+        if (lists.isEmpty()) throw (answers.firstNotNullOfOrNull { it?.exceptionOrNull() } as? IOException ?: IOException("No source answered"))
+        return mergeInterleaved(lists)
+    }
+
+    private fun mergeInterleaved(lists: List<List<OnlineResult>>): List<OnlineResult> {
         val seen = HashSet<String>()
         val out = ArrayList<OnlineResult>()
         var i = 0

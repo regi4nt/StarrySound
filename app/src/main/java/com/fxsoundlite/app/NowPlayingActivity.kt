@@ -240,9 +240,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         val t = s?.current
         if (s == null || t == null) { finish(); return }
         binding.npTitle.text = t.title
-        val from = s.playingFrom
-        binding.npFromBox.visibility = if (from == null) View.GONE else View.VISIBLE
-        if (from != null) binding.npFromName.text = from
+        binding.npFromBox.visibility = View.GONE // the playlist name is no longer shown in the player
         if (lyricsMode && t.key != lyricsKey) loadLyrics(t)
         val artistLine = t.artist.ifBlank { t.album }
         binding.npArtist.text = if (s.isSmartPick(t)) "\u2726 " + getString(R.string.np_smart_pick) + " \u2022 " + artistLine else artistLine
@@ -713,24 +711,24 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         val popup = PopupMenu(this, anchor, Gravity.END)
         val isRadio = MusicService.instance?.current?.source == Track.SOURCE_RADIO
         // Listen together only for songs every guest can stream too (YouTube, Online tab, radio), not for files on this device or Drive.
-        // Same order value, so items keep the order they are added in: Listen together comes first, then Audio language.
+        // Menu order: Listen together, Quality, Audio language, Playback speed, (Caption, PiP: video player), Sleep timer, Download, Share, Info.
         val src = MusicService.instance?.current?.source
         if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_ONLINE || src == Track.SOURCE_RADIO) {
             popup.menu.add(0, MENU_LISTEN, 0, R.string.np_listen)
         }
         if (MusicService.instance?.current?.source == Track.SOURCE_YOUTUBE) {
-            popup.menu.add(0, MENU_AUDIO, 0, R.string.np_audio_track)
+            popup.menu.add(0, MENU_AUDIO, 2, R.string.np_audio_track)
         }
         if (!isRadio) { // live radio cannot be sped up: no item at all
-            popup.menu.add(0, MENU_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(MusicService.instance?.playbackSpeed ?: 1f)))
+            popup.menu.add(0, MENU_SPEED, 3, getString(R.string.np_speed_fmt, speedLabel(MusicService.instance?.playbackSpeed ?: 1f)))
         }
-        if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 0, R.string.np_audio_quality)
-        popup.menu.add(0, MENU_TIMER, 1, R.string.np_sleep_timer)
+        if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 1, R.string.np_audio_quality)
+        popup.menu.add(0, MENU_TIMER, 6, R.string.np_sleep_timer)
         if (MusicService.instance?.current?.source != Track.SOURCE_RADIO) {
-            popup.menu.add(0, MENU_DOWNLOAD, 2, R.string.np_download)
+            popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
         }
-        popup.menu.add(0, MENU_SHARE, 3, R.string.np_share)
-        popup.menu.add(0, MENU_INFO, 5, R.string.np_info)
+        popup.menu.add(0, MENU_SHARE, 8, R.string.np_share)
+        popup.menu.add(0, MENU_INFO, 9, R.string.np_info)
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
                 MENU_TIMER -> showSleepTimerDialog()

@@ -1063,6 +1063,8 @@
     <string name="video_quality_loading">Looking for video qualities…</string>
     <string name="video_quality_none">No other video quality is available for this video.</string>
     <string name="video_quality_failed">Could not load the video qualities.</string>
+    <string name="video_quality_unavailable">Not available for this video</string>
+    <string name="video_quality_unavailable_item">%1$dp · Not available for this video</string>
     <string name="np_pip">Picture-in-Picture</string>
     <string name="np_captions_fmt">Captions: %1$s</string>
     <string name="np_captions_on">On</string>

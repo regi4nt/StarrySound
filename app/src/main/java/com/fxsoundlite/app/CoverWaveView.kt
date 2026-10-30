@@ -105,7 +105,7 @@ class CoverWaveView @JvmOverloads constructor(
 
     private companion object {
         const val LAP_SECONDS = 10f
-        const val TAIL_FRACTION = 0.2f // length of the lit stretch, as a share of the outline
-        const val SLICES = 14
+        const val TAIL_FRACTION = 0.45f // length of the lit stretch, as a share of the outline
+        const val SLICES = 28 // more slices for the longer tail, so the fade stays smooth
     }
 }

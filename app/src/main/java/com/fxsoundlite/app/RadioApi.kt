@@ -76,7 +76,7 @@ object RadioApi {
     /** Searches every directory at once (no source choice) and merges the answers, interleaved so
      *  each directory is represented, duplicates (same stream URL) dropped. Shoutcast joins only
      *  when a key is saved. Fails only when every directory fails. */
-    fun searchAll(context: Context, query: String): List<Track> {
+    fun searchAll(context: Context, query: String, onPartial: ((List<Track>) -> Unit)? = null): List<Track> {
         val q = query.trim()
         LinkTracks.radioUrl(q)?.let { return RadioOrigin.tag(context, listOf(LinkTracks.radioTrack(it)), RadioOrigin.LINK) }
         val sources = mutableListOf(SRC_BROWSER, SRC_GARDEN, SRC_COLLECTION, SRC_SOMA, SRC_ICECAST, SRC_PARADISE)
@@ -104,12 +104,22 @@ object RadioApi {
                 val (i, r) = (cs.poll(left, TimeUnit.MILLISECONDS) ?: break).get()
                 results[i] = r
                 done++
+                // Show what is in already (bundled / fast directories first) instead of waiting for the slowest one.
+                if (onPartial != null && r.getOrNull()?.isNotEmpty() == true) {
+                    val part = mergeInterleaved(results.mapNotNull { it?.getOrNull() })
+                    if (part.isNotEmpty()) onPartial(part)
+                }
             }
         } finally {
             pool.shutdownNow()
         }
         val lists = results.mapNotNull { it?.getOrNull() }
         if (lists.isEmpty()) throw results.firstNotNullOfOrNull { it?.exceptionOrNull() } ?: IOException("no result")
+        return mergeInterleaved(lists)
+    }
+
+    /** One station from each directory in turn, duplicates (same stream URL) dropped. */
+    private fun mergeInterleaved(lists: List<List<Track>>): List<Track> {
         val seen = HashSet<String>()
         val out = ArrayList<Track>()
         var i = 0

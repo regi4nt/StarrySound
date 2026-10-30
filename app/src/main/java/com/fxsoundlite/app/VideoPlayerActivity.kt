@@ -1091,18 +1091,18 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun showMoreMenu(anchor: View) {
         val t = current
         val popup = PopupMenu(this, anchor, Gravity.END)
-        if (t.source != Track.SOURCE_TV) popup.menu.add(0, M_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(speed))) // no speed for a live stream
-        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_QUALITY, 0, R.string.np_video_quality)
+        if (t.source != Track.SOURCE_TV) popup.menu.add(0, M_SPEED, 3, getString(R.string.np_speed_fmt, speedLabel(speed))) // no speed for a live stream
+        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_QUALITY, 1, R.string.np_video_quality)
         // Captions only exist in the YouTube player (the plain video view has no subtitle track).
         if (t.source == Track.SOURCE_YOUTUBE && ytView != null) {
-            popup.menu.add(0, M_CAPTIONS, 0, getString(R.string.np_captions_fmt,
+            popup.menu.add(0, M_CAPTIONS, 4, getString(R.string.np_captions_fmt,
                 getString(if (captionsPref()) R.string.np_captions_on else R.string.np_captions_off)))
         }
-        popup.menu.add(0, M_TIMER, 1, R.string.np_sleep_timer)
-        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 2, R.string.np_download)
-        if (pipSupported()) popup.menu.add(0, M_PIP, 3, R.string.np_pip)
-        popup.menu.add(0, M_SHARE, 3, R.string.np_share)
-        popup.menu.add(0, M_INFO, 5, R.string.np_info)
+        popup.menu.add(0, M_TIMER, 6, R.string.np_sleep_timer)
+        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 7, R.string.np_download)
+        if (pipSupported()) popup.menu.add(0, M_PIP, 5, R.string.np_pip)
+        popup.menu.add(0, M_SHARE, 8, R.string.np_share)
+        popup.menu.add(0, M_INFO, 9, R.string.np_info)
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
                 M_SPEED -> showSpeedDialog()
@@ -1156,8 +1156,18 @@ class VideoPlayerActivity : AppCompatActivity() {
                 if (isDestroyed || token != loadToken) return@runOnUiThread
                 if (choices == null) { Toast.makeText(this, R.string.video_quality_failed, Toast.LENGTH_SHORT).show(); return@runOnUiThread }
                 if (choices.isEmpty()) { Toast.makeText(this, R.string.video_quality_none, Toast.LENGTH_LONG).show() }
-                val heights = listOf(0) + choices.map { it.first }
-                val labels = heights.map { if (it == 0) getString(R.string.video_quality_auto) else "${it}p" }.toTypedArray()
+                // The full ladder is listed; heights this video cannot play as one file (YouTube keeps picture and
+                // sound apart above ~360p) are marked and do nothing, instead of being missing.
+                val playable = choices.map { it.first }.toSet()
+                val ladder = (listOf(144, 240, 360, 480, 720, 1080, 1440, 2160) + playable).distinct().sorted()
+                val heights = listOf(0) + ladder
+                val labels = heights.map {
+                    when {
+                        it == 0 -> getString(R.string.video_quality_auto)
+                        it in playable -> "${it}p"
+                        else -> getString(R.string.video_quality_unavailable_item, it)
+                    }
+                }.toTypedArray()
                 val cur = videoQualityPref()
                 val checked = heights.indexOf(cur).let { if (it < 0) 0 else it }
                 AlertDialog.Builder(this)
@@ -1165,6 +1175,10 @@ class VideoPlayerActivity : AppCompatActivity() {
                     .setSingleChoiceItems(labels, checked) { d, which ->
                         d.dismiss()
                         val h = heights[which]
+                        if (h != 0 && h !in playable) {
+                            Toast.makeText(this, R.string.video_quality_unavailable, Toast.LENGTH_SHORT).show()
+                            return@setSingleChoiceItems
+                        }
                         getSharedPreferences(VQ_PREFS, Context.MODE_PRIVATE).edit().putInt(VQ_KEY, h).apply()
                         if (h == cur) return@setSingleChoiceItems
                         applyVideoQuality(t, h, choices)

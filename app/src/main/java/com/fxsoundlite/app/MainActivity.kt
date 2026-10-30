@@ -181,8 +181,52 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) }
         }
         binding.miniPlay.setOnClickListener { MusicService.instance?.togglePlayPause() }
+        setupMiniSwipeToClose()
         MusicService.addGlobalListener(this)
         onMusicStateChanged()
+    }
+
+    /** Swiping the mini player sideways closes the player: playback stops and the bar goes away. A tap still opens the player. */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun setupMiniSwipeToClose() {
+        val bar = binding.miniPlayer
+        val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
+        var downX = 0f
+        var downY = 0f
+        var dragging = false
+        bar.setOnTouchListener { v, ev ->
+            when (ev.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> { downX = ev.rawX; downY = ev.rawY; dragging = false; false }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val dx = ev.rawX - downX
+                    val dy = ev.rawY - downY
+                    if (!dragging && Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy) * 1.5f) {
+                        dragging = true
+                        v.parent?.requestDisallowInterceptTouchEvent(true) // the pager must not take the swipe
+                    }
+                    if (dragging) { v.translationX = dx; v.alpha = (1f - Math.abs(dx) / v.width).coerceIn(0.2f, 1f) }
+                    dragging
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (!dragging) return@setOnTouchListener false
+                    dragging = false
+                    val dx = v.translationX
+                    if (Math.abs(dx) > v.width * 0.3f) {
+                        val out = if (dx > 0) v.width.toFloat() else -v.width.toFloat()
+                        v.animate().translationX(out).alpha(0f).setDuration(150L).withEndAction {
+                            MusicService.instance?.stopPlayback()
+                            v.visibility = android.view.View.GONE
+                            v.translationX = 0f
+                            v.alpha = 1f
+                        }.start()
+                    } else {
+                        v.animate().translationX(0f).alpha(1f).setDuration(150L).start()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     override fun onMusicStateChanged() {
