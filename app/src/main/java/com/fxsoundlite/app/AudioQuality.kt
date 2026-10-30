@@ -147,7 +147,7 @@ object AudioQuality {
             }
             return AudioInfo(codec, lossless, rate, depth, channels, kbps)
         } finally {
-            try { ex.release() } catch (_: Exception) { }
+            try { ex.release() } catch (e: Exception) { android.util.Log.d("AudioQuality", "ignored: " + e) }
         }
     }
 
@@ -158,7 +158,7 @@ object AudioQuality {
             context.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
                 if (it.moveToFirst() && !it.isNull(0)) return it.getLong(0)
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("AudioQuality", "ignored: " + e) }
         return try { context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: 0L } catch (_: Exception) { 0L }
     }
 

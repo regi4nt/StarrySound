@@ -46,7 +46,7 @@ object DriveMusic {
     /** May throw UserRecoverableAuthException (consent needed): the caller shows [e.intent]. */
     private fun token(c: Context, refresh: Boolean): String {
         val account = GoogleSignIn.getLastSignedInAccount(c)?.account ?: throw NotSignedInException()
-        if (refresh) cachedToken?.let { try { GoogleAuthUtil.clearToken(c, it) } catch (_: Exception) { } }
+        if (refresh) cachedToken?.let { try { GoogleAuthUtil.clearToken(c, it) } catch (e: Exception) { android.util.Log.d("DriveMusic", "ignored: " + e) } }
         val t = GoogleAuthUtil.getToken(c, account, "oauth2:$SCOPE_DRIVE_READONLY")
         cachedToken = t
         return t
@@ -234,7 +234,7 @@ object DriveMusic {
         /** Stops the download too (a song that was skipped should not keep downloading). */
         override fun close() {
             synchronized(lock) { closed = true; lock.notifyAll() }
-            try { synchronized(raf) { raf.close() } } catch (_: Exception) { }
+            try { synchronized(raf) { raf.close() } } catch (e: Exception) { android.util.Log.d("DriveMusic", "ignored: " + e) }
         }
     }
 
@@ -393,12 +393,12 @@ object DriveMusic {
 
     /** Trims the song cache to the limit (called at app start). */
     fun trimToLimit(c: Context) {
-        try { trim(cacheDir(c), keep = File("")) } catch (_: Exception) { }
+        try { trim(cacheDir(c), keep = File("")) } catch (e: Exception) { android.util.Log.d("DriveMusic", "ignored: " + e) }
     }
 
     /** Forget the account's token and downloaded songs (sign-out). */
     fun clear(c: Context) {
         cachedToken = null
-        try { cacheDir(c).listFiles()?.forEach { it.delete() } } catch (_: Exception) { }
+        try { cacheDir(c).listFiles()?.forEach { it.delete() } } catch (e: Exception) { android.util.Log.d("DriveMusic", "ignored: " + e) }
     }
 }

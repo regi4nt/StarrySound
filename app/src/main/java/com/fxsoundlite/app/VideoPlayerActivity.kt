@@ -178,6 +178,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     private val current: Track get() = queue[index]
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        PlayerMode.init(this)
         ThemeHelper.applyMode(this) // same light / dark mode and accent colour as the music player
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
@@ -391,7 +392,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun dropYoutube() {
         ytView?.let {
             lifecycle.removeObserver(it)
-            try { it.release() } catch (_: Exception) { }
+            try { it.release() } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
             binding.vpVideoFrame.removeView(it)
         }
         ytView = null
@@ -736,7 +737,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         if (queue.size > 1) { step(1); return }
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id&t=${posMs / 1000}s")))
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
         finish()
     }
 
@@ -818,7 +819,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         )
         val mp = filePlayer ?: return
         if (Build.VERSION.SDK_INT >= 23 && fileView?.isPlaying == true) { // a paused player would start playing when the speed is set
-            try { mp.playbackParams = mp.playbackParams.setSpeed(speed) } catch (_: Exception) { }
+            try { mp.playbackParams = mp.playbackParams.setSpeed(speed) } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
         }
     }
 
@@ -866,9 +867,15 @@ class VideoPlayerActivity : AppCompatActivity() {
                 return
             }
             pausePlayback() // the video must let go of the sound (and audio focus) before the audio starts
-            if (!playTvAsAudio(svc, t)) return
-            resultPos = -1L // live: nothing for the caller to seek
-            if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
+            PlayerMode.setMusic()
+            if (fromPlayer && PlayerMode.isTvAudio(svc.current)) {
+                toMusic = true // opened from the music player that already has this channel: it resumes it
+                resultPos = 0L
+            } else {
+                if (!playTvAsAudio(svc, t)) return
+                resultPos = -1L // live: nothing for the caller to seek
+                if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
+            }
             finish()
             return
         }
@@ -917,7 +924,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             // Opened from the music player: back returns to it (music mode); the close arrow leaves both and the
             // mini bar then opens the video again.
             closeAll = closeArrow
-            if (closeArrow && t.source == Track.SOURCE_YOUTUBE) PlayerMode.setVideo(t) else PlayerMode.setMusic()
+            if (closeArrow && (t.source == Track.SOURCE_YOUTUBE || t.source == Track.SOURCE_TV)) PlayerMode.setVideo(t) else PlayerMode.setMusic()
             finish(); return
         }
         if (t.source == Track.SOURCE_TV && svc != null) {
@@ -952,7 +959,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun playTvAsAudio(svc: MusicService, t: Track): Boolean {
         val channels = queue.filter { it.source == Track.SOURCE_TV && it.remoteId.isNotBlank() }
         if (channels.isEmpty()) return false
-        val radio = channels.map { it.copy(source = Track.SOURCE_RADIO, durationMs = 0L, album = it.album.ifBlank { "TV" }) }
+        val radio = channels.map { PlayerMode.tvToAudio(it) }
         svc.setQueueAndPlay(radio, channels.indexOfFirst { it.key == t.key }.coerceAtLeast(0))
         return true
     }
@@ -1289,14 +1296,14 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun updatePipParams() {
         if (!inPip) return
         pipShownPlaying = playing
-        try { setPictureInPictureParams(pipParams()) } catch (_: Exception) { }
+        try { setPictureInPictureParams(pipParams()) } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
     }
 
     /** Refreshes the play / pause button of the PiP window when the state changed. */
     private fun refreshPipActions() {
         if (!inPip || pipShownPlaying == playing) return
         pipShownPlaying = playing
-        try { setPictureInPictureParams(pipParams()) } catch (_: Exception) { }
+        try { setPictureInPictureParams(pipParams()) } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
     }
 
     /** PiP window: header, title, controls and second row are hidden, the video fills the whole window. */
@@ -1337,7 +1344,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun unregisterPipReceiver() {
-        pipReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) { } }
+        pipReceiver?.let { try { unregisterReceiver(it) } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) } }
         pipReceiver = null
     }
 
@@ -1379,7 +1386,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         unregisterPipReceiver()
         handler.removeCallbacks(poll)
         handler.removeCallbacks(sleepRun)
-        try { ytView?.release() } catch (_: Exception) { }
+        try { ytView?.release() } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
         fileView?.stopPlayback()
         loadToken++
         super.onDestroy()

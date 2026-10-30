@@ -127,7 +127,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     val c = consent
                     if (c != null && !ytConsentAsked) {
                         ytConsentAsked = true
-                        try { ytConsentLauncher.launch(c) } catch (_: Exception) { }
+                        try { ytConsentLauncher.launch(c) } catch (e: Exception) { android.util.Log.d("PlaylistFragment", "ignored: " + e) }
                     }
                 }
                 refresh()
@@ -201,7 +201,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     val c = consent
                     if (c != null && !drvConsentAsked) {
                         drvConsentAsked = true
-                        try { drvConsentLauncher.launch(c) } catch (_: Exception) { }
+                        try { drvConsentLauncher.launch(c) } catch (e: Exception) { android.util.Log.d("PlaylistFragment", "ignored: " + e) }
                     }
                 }
                 refresh()
@@ -651,7 +651,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     sortMode = which
                     try {
                         ctx.getSharedPreferences(SORT_PREFS, Context.MODE_PRIVATE).edit().putInt(SORT_KEY, which).apply()
-                    } catch (_: Exception) { }
+                    } catch (e: Exception) { android.util.Log.d("PlaylistFragment", "ignored: " + e) }
                 }
             )
             FilterUi.showSongFilter(ctx, tracks, songFilter, sort) { if (_binding != null) refresh() }
@@ -672,7 +672,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 listSort = which
                 try {
                     ctx.getSharedPreferences(SORT_PREFS, Context.MODE_PRIVATE).edit().putInt(LIST_SORT_KEY, which).apply()
-                } catch (_: Exception) { }
+                } catch (e: Exception) { android.util.Log.d("PlaylistFragment", "ignored: " + e) }
             }
         )
         val kindOption = KindOption(

@@ -98,7 +98,7 @@ object RadioPlaylist {
                     conn.disconnect()
                 }
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("RadioPlaylist", "ignored: " + e) }
         return url
     }
 
@@ -108,7 +108,7 @@ object RadioPlaylist {
         val out = LinkedHashSet<String>()
         for (entry in parse(text, url)) {
             if (isPlaylistUrl(entry)) {
-                try { out.addAll(resolve(entry, depth + 1)) } catch (_: IOException) { }
+                try { out.addAll(resolve(entry, depth + 1)) } catch (e: IOException) { android.util.Log.d("RadioPlaylist", "ignored: " + e) }
             } else {
                 out.add(entry)
             }

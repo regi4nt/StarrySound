@@ -151,7 +151,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                         val c = consent
                         if (c != null && !driveConsentAsked) {
                             driveConsentAsked = true
-                            try { driveConsentLauncher.launch(c) } catch (_: Exception) { }
+                            try { driveConsentLauncher.launch(c) } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) }
                         }
                     }
                     if (source == Track.SOURCE_LOCAL && MusicPrefs.videoMode(requireContext())) applyVideoFilter()
@@ -469,11 +469,11 @@ class MusicFragment : Fragment(), MusicService.Listener {
         try {
             deviceSort = sortPrefs().getInt("device", 0)
             radioSort = sortPrefs().getInt("radio", 0)
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) }
     }
 
     private fun saveSortMode(key: String, v: Int) {
-        try { sortPrefs().edit().putInt(key, v).apply() } catch (_: Exception) { }
+        try { sortPrefs().edit().putInt(key, v).apply() } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) }
     }
 
     private fun byText(a: String, b: String) = java.text.Collator.getInstance().compare(a.trim(), b.trim())
@@ -865,7 +865,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private fun loadOnlineSrc() {
         // Stored as an index into the dialog's list: 0 = all sources, 1.. = a single source.
-        try { onlineSrc = OnlineSource.values().getOrNull(sortPrefs().getInt("online_src_all", 0) - 1) } catch (_: Exception) { }
+        try { onlineSrc = OnlineSource.values().getOrNull(sortPrefs().getInt("online_src_all", 0) - 1) } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) }
     }
 
     private fun onlineOption(): OnlineOption {
@@ -874,7 +874,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         return OnlineOption(
             listOf(getString(R.string.online_src_all)) + all.map { getString(it.labelRes) },
             { onlineSrc?.let { all.indexOf(it) + 1 } ?: 0 },
-            { onlineSrc = all.getOrNull(it - 1); try { sortPrefs().edit().putInt("online_src_all", it).apply() } catch (_: Exception) { } },
+            { onlineSrc = all.getOrNull(it - 1); try { sortPrefs().edit().putInt("online_src_all", it).apply() } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) } },
             listOf(getString(R.string.online_genre_all)) + genres.map { g -> g.replaceFirstChar { c -> c.uppercase() } },
             { onlineGenre?.let { genres.indexOf(it) + 1 } ?: 0 }, { onlineGenre = if (it == 0) null else genres[it - 1] },
             { onlineLossless }, { onlineLossless = it }, { onlineCommercial }, { onlineCommercial = it }
@@ -1259,7 +1259,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                         val c = consent
                         if (c != null && !driveConsentAsked) {
                             driveConsentAsked = true
-                            try { driveConsentLauncher.launch(c); return@post } catch (_: Exception) { }
+                            try { driveConsentLauncher.launch(c); return@post } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) }
                         }
                         if (driveAll == null) driveError = when {
                             e is DriveMusic.NotSignedInException -> getString(R.string.drive_music_need_signin)

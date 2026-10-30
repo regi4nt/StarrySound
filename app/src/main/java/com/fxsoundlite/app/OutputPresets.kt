@@ -88,7 +88,7 @@ object OutputPresets {
     /** Called whenever a preset is applied: with the feature on, it becomes the active output's preset. */
     fun remember(c: Context, presetName: String) {
         if (!enabled(c)) return
-        try { setPresetFor(c, current(c), presetName) } catch (_: Exception) { }
+        try { setPresetFor(c, current(c), presetName) } catch (e: Exception) { android.util.Log.d("OutputPresets", "ignored: " + e) }
     }
 
     /** Right after the user switches the feature on: what is playing now is this output's preset. */

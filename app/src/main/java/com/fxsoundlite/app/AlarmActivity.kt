@@ -226,7 +226,7 @@ class AlarmActivity : AppCompatActivity() {
             .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
             .putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
             .putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, WakeAlarm.effectiveToneUri(ctx))
-        try { toneLauncher.launch(i) } catch (_: Exception) { }
+        try { toneLauncher.launch(i) } catch (e: Exception) { android.util.Log.d("AlarmActivity", "ignored: " + e) }
     }
 
     private fun buildSnoozeChips() {

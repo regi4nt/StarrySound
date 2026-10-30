@@ -121,7 +121,7 @@ object TasteSignals {
         autoSyncing = true
         val app = c.applicationContext
         Thread {
-            try { syncAccount(app) } catch (_: Exception) { } finally { autoSyncing = false }
+            try { syncAccount(app) } catch (e: Exception) { android.util.Log.d("TasteSignals", "ignored: " + e) } finally { autoSyncing = false }
         }.start()
     }
 

@@ -99,7 +99,7 @@ class NowPlayingListenerService : NotificationListenerService() {
     private fun stopListening() {
         handler.removeCallbacks(tick)
         if (listening) {
-            try { manager?.removeOnActiveSessionsChangedListener(sessionsListener) } catch (_: Exception) { }
+            try { manager?.removeOnActiveSessionsChangedListener(sessionsListener) } catch (e: Exception) { android.util.Log.d("NowPlayingListenerServi", "ignored: " + e) }
             listening = false
         }
         detach()
@@ -114,7 +114,7 @@ class NowPlayingListenerService : NotificationListenerService() {
     }
 
     private fun detach() {
-        controllers.forEach { try { it.unregisterCallback(callback) } catch (_: Exception) { } }
+        controllers.forEach { try { it.unregisterCallback(callback) } catch (e: Exception) { android.util.Log.d("NowPlayingListenerServi", "ignored: " + e) } }
         controllers = emptyList()
     }
 

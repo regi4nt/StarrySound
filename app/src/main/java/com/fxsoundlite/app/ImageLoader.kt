@@ -37,7 +37,7 @@ object ImageLoader {
 
     private fun localCover(ctx: Context, track: Track): Bitmap? {
         if (Build.VERSION.SDK_INT >= 29) {
-            try { return ctx.contentResolver.loadThumbnail(track.uri, Size(256, 256), null) } catch (_: Exception) {}
+            try { return ctx.contentResolver.loadThumbnail(track.uri, Size(256, 256), null) } catch (e: Exception) { android.util.Log.d("ImageLoader", "ignored: " + e) }
         }
         val r = MediaMetadataRetriever()
         return try {
@@ -46,7 +46,7 @@ object ImageLoader {
         } catch (_: Exception) {
             null
         } finally {
-            try { r.release() } catch (_: Exception) {}
+            try { r.release() } catch (e: Exception) { android.util.Log.d("ImageLoader", "ignored: " + e) }
         }
     }
 

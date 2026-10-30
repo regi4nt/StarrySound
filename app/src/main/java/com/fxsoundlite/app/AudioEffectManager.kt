@@ -147,7 +147,7 @@ class AudioEffectManager(private val context: Context) {
     /** Throws the effect chain away and builds it again from the saved settings (same session). */
     fun reapply(): Boolean {
         releaseSessionEffects()
-        try { reverb?.release() } catch (_: Exception) {}
+        try { reverb?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
         reverb = null
         initialize()
         notifyWidgets()
@@ -184,18 +184,18 @@ class AudioEffectManager(private val context: Context) {
 
     /** Releases everything that lives on [boundSession] (all but the global reverb). */
     private fun releaseSessionEffects() {
-        try { equalizer?.release() } catch (_: Exception) {}
-        try { bassBoost?.release() } catch (_: Exception) {}
-        try { virtualizer?.release() } catch (_: Exception) {}
-        try { loudness?.release() } catch (_: Exception) {}
-        try { dynamicsProcessing?.release() } catch (_: Exception) {}
+        try { equalizer?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
+        try { bassBoost?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
+        try { virtualizer?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
+        try { loudness?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
+        try { dynamicsProcessing?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
         equalizer = null; bassBoost = null; virtualizer = null; loudness = null
         dynamicsProcessing = null
     }
 
     fun release() {
         releaseSessionEffects()
-        try { reverb?.release() } catch (_: Exception) {}
+        try { reverb?.release() } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
         reverb = null
     }
 
@@ -580,7 +580,7 @@ class AudioEffectManager(private val context: Context) {
         val bands = bandCount()
         for (i in 0 until bands) {
             val saved = prefs.getInt("band_$i", 0)
-            try { equalizer?.setBandLevel(i.toShort(), saved.toShort()) } catch (_: Exception) {}
+            try { equalizer?.setBandLevel(i.toShort(), saved.toShort()) } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
         }
         setBassBoost(prefs.getInt("bass", 0).toShort())
         setVirtualizer(prefs.getInt("virtualizer", 0).toShort())

@@ -112,7 +112,7 @@ object YouTubeApi {
     }
 
     private fun initNewPipe() {
-        try { org.schabi.newpipe.extractor.NewPipe.init(NewPipeDownloader) } catch (_: Throwable) { }
+        try { org.schabi.newpipe.extractor.NewPipe.init(NewPipeDownloader) } catch (e: Throwable) { android.util.Log.d("YouTubeApi", "ignored: " + e) }
     }
 
     /** A playable row for one NewPipe video item; null for live streams and items without a video id. */
@@ -182,7 +182,7 @@ object YouTubeApi {
             val pool = java.util.concurrent.Executors.newFixedThreadPool(minOf(8, todo.size))
             try {
                 val jobs = todo.map { t -> pool.submit { probeShort(t.remoteId)?.let { shortsCache[t.remoteId] = it } } }
-                jobs.forEach { try { it.get(8, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { } }
+                jobs.forEach { try { it.get(8, java.util.concurrent.TimeUnit.SECONDS) } catch (e: Exception) { android.util.Log.d("YouTubeApi", "ignored: " + e) } }
             } finally {
                 pool.shutdownNow()
             }
@@ -343,7 +343,7 @@ object YouTubeApi {
                 if (country != null) org.schabi.newpipe.extractor.localization.ContentCountry(country)
                 else org.schabi.newpipe.extractor.localization.ContentCountry.DEFAULT
             )
-        } catch (_: Throwable) { }
+        } catch (e: Throwable) { android.util.Log.d("YouTubeApi", "ignored: " + e) }
         val items = ArrayList<org.schabi.newpipe.extractor.InfoItem>()
         val result = try {
             val service = org.schabi.newpipe.extractor.ServiceList.YouTube
@@ -356,7 +356,7 @@ object YouTubeApi {
             if (opts?.newest == true && info.hasNextPage()) {
                 try {
                     items += org.schabi.newpipe.extractor.search.SearchInfo.getMoreItems(service, handler, info.nextPage).items
-                } catch (_: Exception) { }
+                } catch (e: Exception) { android.util.Log.d("YouTubeApi", "ignored: " + e) }
             }
             info
         } catch (e: java.io.IOException) {

@@ -89,7 +89,7 @@ class YouTubeEmbedEngine(
         override fun run() {
             if (released || !playing) return
             val m = fb ?: return
-            try { setClock(m.currentPosition, true) } catch (_: Exception) { }
+            try { setClock(m.currentPosition, true) } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
             handler.postDelayed(this, 1000)
         }
     }
@@ -183,7 +183,7 @@ class YouTubeEmbedEngine(
     override fun play() {
         setClock(basePos, true) // optimistic; the real state arrives via onStateChange
         if (usingFallback) {
-            try { fb?.start() } catch (_: Exception) { }
+            try { fb?.start() } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
             handler.removeCallbacks(poll)
             handler.postDelayed(poll, 1000)
             return
@@ -195,7 +195,7 @@ class YouTubeEmbedEngine(
         setClock(position, false)
         handler.removeCallbacks(poll)
         if (usingFallback) {
-            try { fb?.pause() } catch (_: Exception) { }
+            try { fb?.pause() } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
             return
         }
         safe { player?.pause() }
@@ -204,7 +204,7 @@ class YouTubeEmbedEngine(
     override fun seekTo(ms: Int) {
         setClock(ms, playing)
         if (usingFallback) {
-            try { fb?.seekTo(ms) } catch (_: Exception) { }
+            try { fb?.seekTo(ms) } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
             return
         }
         safe { player?.seekTo(ms / 1000f) }
@@ -212,7 +212,7 @@ class YouTubeEmbedEngine(
 
     override fun setVolume(v: Float) {
         if (usingFallback) {
-            try { fb?.setVolume(v, v) } catch (_: Exception) { }
+            try { fb?.setVolume(v, v) } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
             return
         }
         safe { player?.setVolume((v * 100).toInt().coerceIn(0, 100)) }
@@ -298,7 +298,7 @@ class YouTubeEmbedEngine(
 
     private fun stopFallback() {
         fb?.let {
-            try { it.setOnErrorListener(null); it.release() } catch (_: Exception) { }
+            try { it.setOnErrorListener(null); it.release() } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
         }
         fb = null
         usingFallback = false
@@ -369,7 +369,7 @@ class YouTubeEmbedEngine(
 
     /** Throws the player away and builds a new one (with the current origin); onReady() reloads the video. */
     private fun recreateView() {
-        try { view?.release() } catch (_: Exception) { }
+        try { view?.release() } catch (e: Exception) { android.util.Log.d("YouTubeEmbedEngine", "ignored: " + e) }
         view = null
         player = null
         playerReady = false

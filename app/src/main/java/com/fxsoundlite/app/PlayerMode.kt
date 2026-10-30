@@ -8,12 +8,15 @@ import android.content.Context
  * player is used again. The mode stays when the song changes: in video mode the bar opens the video of the new song.
  *
  * The mode is saved, so it survives closing the app: call [init] once (MusicService / MainActivity do).
- * A live TV channel plays as a radio track in the service; the channel is remembered here so the bar can reopen it.
+ * A live TV channel plays as a radio track in the service, marked with [TV_ALBUM], so every channel of the queue
+ * can be turned back into its video (and is kept out of "Recently played").
  */
 object PlayerMode {
+    /** Album of a TV channel that plays as audio: tells it apart from a real radio station. */
+    const val TV_ALBUM = "\u200BTV"
+
     private const val PREFS = "player_mode"
     @Volatile private var video = false
-    @Volatile private var tv: Track? = null
     @Volatile private var loaded = false
     private var appCtx: Context? = null
 
@@ -21,44 +24,27 @@ object PlayerMode {
     fun init(c: Context) {
         if (loaded) return
         appCtx = c.applicationContext
-        val p = appCtx!!.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        video = p.getBoolean("video", false)
-        val url = p.getString("tvUrl", "") ?: ""
-        tv = if (url.isNotBlank()) Track(
-            id = 0L, title = p.getString("tvTitle", "") ?: "", artist = p.getString("tvArtist", "") ?: "",
-            album = "", durationMs = 0L, source = Track.SOURCE_TV, remoteId = url, artUrl = p.getString("tvArt", "") ?: ""
-        ) else null
+        video = appCtx!!.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("video", false)
         loaded = true
     }
 
     private fun save() {
-        val c = appCtx ?: return
-        val t = tv
-        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean("video", video)
-            .putString("tvUrl", t?.remoteId ?: "")
-            .putString("tvTitle", t?.title ?: "")
-            .putString("tvArtist", t?.artist ?: "")
-            .putString("tvArt", t?.artUrl ?: "")
-            .apply()
+        appCtx?.getSharedPreferences(PREFS, Context.MODE_PRIVATE)?.edit()?.putBoolean("video", video)?.apply()
     }
 
-    fun setVideo(t: Track? = null) {
-        video = true
-        tv = if (t != null && t.source == Track.SOURCE_TV) t else null
-        save()
-    }
+    fun setVideo(@Suppress("UNUSED_PARAMETER") t: Track? = null) { video = true; save() }
 
-    fun setMusic() { video = false; tv = null; save() }
+    fun setMusic() { video = false; save() }
 
-    private fun isTvAudio(t: Track?): Boolean {
-        val c = tv
-        return c != null && t != null && t.source == Track.SOURCE_RADIO && t.remoteId == c.remoteId
-    }
+    /** True for a TV channel that plays as audio (a radio track made by [tvToAudio]). */
+    fun isTvAudio(t: Track?): Boolean = t != null && t.source == Track.SOURCE_RADIO && t.album == TV_ALBUM
 
-    /** True when the mini bar should open the video of [t]: a YouTube song, or the TV channel that is playing as audio. */
+    /** The audio twin of a TV channel: played by the service like a radio station. */
+    fun tvToAudio(t: Track): Track = t.copy(source = Track.SOURCE_RADIO, durationMs = 0L, album = TV_ALBUM)
+
+    /** True when the mini bar should open the video of [t]: a YouTube song, or a TV channel playing as audio. */
     fun isVideo(t: Track?): Boolean = video && t != null && (t.source == Track.SOURCE_YOUTUBE || isTvAudio(t))
 
     /** The track to hand to the video player: the TV channel for its audio twin, else [t] itself. */
-    fun videoTrack(t: Track): Track = if (isTvAudio(t)) tv ?: t else t
+    fun videoTrack(t: Track): Track = if (isTvAudio(t)) t.copy(source = Track.SOURCE_TV, album = "") else t
 }

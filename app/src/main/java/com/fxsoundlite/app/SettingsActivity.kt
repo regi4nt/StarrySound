@@ -1301,7 +1301,7 @@ class SettingsActivity : AppCompatActivity() {
                 if (!ok) {
                     val intent = consent
                     if (intent != null) {
-                        try { tasteConsentLauncher.launch(intent) } catch (_: Exception) { }
+                        try { tasteConsentLauncher.launch(intent) } catch (e: Exception) { android.util.Log.d("SettingsActivity", "ignored: " + e) }
                     } else {
                         Toast.makeText(this, R.string.taste_acc_failed, Toast.LENGTH_LONG).show()
                     }

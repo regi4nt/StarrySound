@@ -47,7 +47,7 @@ object CacheCleaner {
             val others = (c.cacheDir.listFiles() ?: emptyArray()).filter { it != driveDir }
             if (others.sumOf { dirSize(it) } > AUTO_TRIM_BYTES) others.forEach { it.deleteRecursively() }
             DriveMusic.trimToLimit(c)
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("CacheCleaner", "ignored: " + e) }
     }
 
     /** Clears everything listed above on a background thread; [onDone] runs on the main thread with the freed bytes. */
@@ -58,14 +58,14 @@ object CacheCleaner {
         try {
             WebStorage.getInstance().deleteAllData()
             WebView(app).also { it.clearCache(true); it.destroy() }
-        } catch (_: Throwable) { }
+        } catch (e: Throwable) { android.util.Log.d("CacheCleaner", "ignored: " + e) }
         Thread {
             val before = size(app)
             try {
                 wipe(app.cacheDir); wipe(app.externalCacheDir); wipe(File(app.dataDir, "code_cache"))
                 mlKitDirs(app).forEach { it.deleteRecursively() }
                 webDataDirs(app).forEach { it.deleteRecursively() }
-            } catch (_: Exception) { }
+            } catch (e: Exception) { android.util.Log.d("CacheCleaner", "ignored: " + e) }
             val freed = (before - size(app)).coerceAtLeast(0L)
             main.post { onDone(freed) }
         }.start()

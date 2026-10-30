@@ -526,7 +526,7 @@ class BedtimeActivity : AppCompatActivity() {
                         val c = consent
                         if (c != null && !driveConsentAsked) {
                             driveConsentAsked = true
-                            try { driveConsentLauncher.launch(c); return@post } catch (_: Exception) { }
+                            try { driveConsentLauncher.launch(c); return@post } catch (e: Exception) { android.util.Log.d("BedtimeActivity", "ignored: " + e) }
                         }
                         if (driveAll == null) driveError = when {
                             e is DriveMusic.NotSignedInException -> context.getString(R.string.drive_music_need_signin)

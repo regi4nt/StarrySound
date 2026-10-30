@@ -747,7 +747,7 @@ class QuickFragment : Fragment(), QuickActions {
         val am = ctx.getSystemService(AudioManager::class.java) ?: return
         try {
             am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI)
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("QuickFragment", "ignored: " + e) }
     }
 
     /** Lyrics on / off from the three-dot menu: repaints the reels that are on screen (current and its neighbours). */

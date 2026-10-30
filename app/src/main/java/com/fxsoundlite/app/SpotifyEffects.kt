@@ -29,11 +29,11 @@ object SpotifyEffects {
             addAction(AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION)
             addAction(AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION)
         }
-        try { ContextCompat.registerReceiver(svc, r, f, ContextCompat.RECEIVER_EXPORTED); receiver = r } catch (_: Exception) { }
+        try { ContextCompat.registerReceiver(svc, r, f, ContextCompat.RECEIVER_EXPORTED); receiver = r } catch (e: Exception) { android.util.Log.d("SpotifyEffects", "ignored: " + e) }
     }
 
     fun unregister(svc: EffectService) {
-        receiver?.let { try { svc.unregisterReceiver(it) } catch (_: Exception) { } }
+        receiver?.let { try { svc.unregisterReceiver(it) } catch (e: Exception) { android.util.Log.d("SpotifyEffects", "ignored: " + e) } }
         receiver = null
         session = 0
     }

@@ -45,7 +45,7 @@ object YouTubeAccount {
     @Synchronized
     private fun token(c: Context, refresh: Boolean, scope: String): String {
         val account = GoogleSignIn.getLastSignedInAccount(c)?.account ?: throw DriveMusic.NotSignedInException()
-        if (refresh) cachedTokens[scope]?.let { try { GoogleAuthUtil.clearToken(c, it) } catch (_: Exception) { } }
+        if (refresh) cachedTokens[scope]?.let { try { GoogleAuthUtil.clearToken(c, it) } catch (e: Exception) { android.util.Log.d("YouTubeAccount", "ignored: " + e) } }
         val t = GoogleAuthUtil.getToken(c, account, "oauth2:$scope")
         cachedTokens[scope] = t
         return t

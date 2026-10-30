@@ -47,7 +47,7 @@ object SpotifyRemote {
                 c.sendBroadcast(Intent(Intent.ACTION_MEDIA_BUTTON).setPackage(SpotifyAuth.PKG)
                     .putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(action, code)))
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("SpotifyRemote", "ignored: " + e) }
     }
 
     /** Blocking. True when Spotify accepted the request. 404 = no active Spotify device (open the app first). */

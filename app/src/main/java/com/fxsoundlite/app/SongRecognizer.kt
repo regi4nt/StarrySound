@@ -56,7 +56,7 @@ object SongRecognizer {
                 if (sec != lastTick) { lastTick = sec; onTick(sec) }
             }
         } finally {
-            try { rec.stop() } catch (_: Exception) {}
+            try { rec.stop() } catch (e: Exception) { android.util.Log.d("SongRecognizer", "ignored: " + e) }
             rec.release()
         }
         val data = pcm.toByteArray()

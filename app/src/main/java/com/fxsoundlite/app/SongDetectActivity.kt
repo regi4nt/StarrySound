@@ -139,7 +139,7 @@ class SongDetectActivity : AppCompatActivity() {
         speech = null
         io.shutdown()
         if (bound) {
-            try { applicationContext.unbindService(connection) } catch (_: Exception) {}
+            try { applicationContext.unbindService(connection) } catch (e: Exception) { android.util.Log.d("SongDetectActivity", "ignored: " + e) }
             bound = false
         }
         service = null

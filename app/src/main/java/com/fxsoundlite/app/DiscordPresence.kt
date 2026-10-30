@@ -108,10 +108,11 @@ object DiscordPresence : MusicService.Listener {
             if (initedId == 0L) return
             shown = false
         }
+        if (svc == null || t == null) return
         val nowSec = System.currentTimeMillis() / 1000
-        val start = nowSec - svc!!.position / 1000
-        if (shown && t!!.key == lastKey && abs(start - lastStart) <= 3) return // same song, no seek
-        val live = t!!.source == Track.SOURCE_RADIO || svc.duration <= 0
+        val start = nowSec - svc.position / 1000
+        if (shown && t.key == lastKey && abs(start - lastStart) <= 3) return // same song, no seek
+        val live = t.source == Track.SOURCE_RADIO || svc.duration <= 0
         val end = if (live) 0L else start + svc.duration / 1000
         val artist = if (t.source == Track.SOURCE_RADIO && t.artist.isBlank()) c.getString(R.string.source_radio) else t.artist
         try {
@@ -142,6 +143,6 @@ object DiscordPresence : MusicService.Listener {
         if (!shown) return
         shown = false
         lastKey = ""
-        if (DiscordNative.available) try { DiscordNative.nativeClear() } catch (_: Throwable) { }
+        if (DiscordNative.available) try { DiscordNative.nativeClear() } catch (e: Throwable) { android.util.Log.d("DiscordPresence", "ignored: " + e) }
     }
 }

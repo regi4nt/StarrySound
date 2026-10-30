@@ -180,7 +180,7 @@ class YouTubeStreamEngine(
                         Log.w(TAG, "prefetch failed for $videoId", e)
                     }
                 }
-            } catch (_: Exception) { }
+            } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
         }
     }
 
@@ -203,7 +203,7 @@ class YouTubeStreamEngine(
     /** Where the picture goes (null = nowhere, the sound plays on). Can change while playing. */
     fun setSurface(s: Surface?) {
         surface = s
-        try { mp?.setSurface(s) } catch (_: Exception) { }
+        try { mp?.setSurface(s) } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
         // A video was waiting for its picture area before starting (see startPlayer): go now.
         if (s != null) pendingStart?.let { handler.removeCallbacks(it); pendingStart = null; it.run() }
     }
@@ -235,7 +235,7 @@ class YouTubeStreamEngine(
                 val p = m.currentPosition
                 setClock(p, true)
                 if (retries > 0 && p - recoverPos > HEALTHY_AFTER_MS) retries = 0
-            } catch (_: Exception) { }
+            } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
             handler.postDelayed(this, if (MusicPrefs.saver(appContext)) 3000L else 1000L)
         }
     }
@@ -446,7 +446,7 @@ class YouTubeStreamEngine(
         setClock(basePos, true)
         val m = mp
         if (m != null && prepared) {
-            try { applySpeed(m); m.start() } catch (_: Exception) { }
+            try { applySpeed(m); m.start() } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
             handler.removeCallbacks(poll)
             handler.postDelayed(poll, 1000)
             cb.onStateChanged()
@@ -457,30 +457,30 @@ class YouTubeStreamEngine(
         setClock(position, false)
         handler.removeCallbacks(poll)
         handler.removeCallbacks(watchdog)
-        try { if (prepared) mp?.pause() } catch (_: Exception) { }
+        try { if (prepared) mp?.pause() } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
     }
 
     override fun seekTo(ms: Int) {
         setClock(ms, playing)
-        try { if (prepared) mp?.seekTo(ms) } catch (_: Exception) { }
+        try { if (prepared) mp?.seekTo(ms) } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
     }
 
     /** Set before start() only: on some Android versions changing the speed of a paused player starts it. */
     private fun applySpeed(m: MediaPlayer) {
         if (clockSpeed == 1f) return
-        try { m.playbackParams = m.playbackParams.setSpeed(clockSpeed) } catch (_: Exception) { }
+        try { m.playbackParams = m.playbackParams.setSpeed(clockSpeed) } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
     }
 
     override fun setSpeed(s: Float) {
         setClock(position, playing) // keep the interpolated clock continuous across the change
         clockSpeed = s
         val m = mp ?: return
-        if (prepared) try { if (m.isPlaying) m.playbackParams = m.playbackParams.setSpeed(s) } catch (_: Exception) { }
+        if (prepared) try { if (m.isPlaying) m.playbackParams = m.playbackParams.setSpeed(s) } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
     }
 
     override fun setVolume(v: Float) {
         volume = v
-        try { mp?.setVolume(v, v) } catch (_: Exception) { }
+        try { mp?.setVolume(v, v) } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
     }
 
     override fun release() {
@@ -496,8 +496,8 @@ class YouTubeStreamEngine(
         pendingStart?.let { handler.removeCallbacks(it) }
         pendingStart = null
         mp?.let {
-            try { it.setOnVideoSizeChangedListener(null); it.setOnErrorListener(null); it.setOnPreparedListener(null); it.setOnInfoListener(null); it.setOnCompletionListener(null); it.reset() } catch (_: Exception) { }
-            try { it.release() } catch (_: Exception) { }
+            try { it.setOnVideoSizeChangedListener(null); it.setOnErrorListener(null); it.setOnPreparedListener(null); it.setOnInfoListener(null); it.setOnCompletionListener(null); it.reset() } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
+            try { it.release() } catch (e: Exception) { android.util.Log.d("YouTubeStreamEngine", "ignored: " + e) }
         }
         mp = null
         prepared = false

@@ -321,7 +321,7 @@ object DriveSync {
         snap.optJSONObject("stats")?.let { StatsStore.importJson(c, it, merge) }
         // Songs from another phone are matched to this phone's files by title + artist (see LocalMatcher);
         // refresh its file index here, on the sync thread, rather than on the first screen that reads a playlist.
-        try { LocalMatcher.refresh(c) } catch (_: Exception) { }
+        try { LocalMatcher.refresh(c) } catch (e: Exception) { android.util.Log.d("DriveSync", "ignored: " + e) }
     }
 
     private fun upload(c: Context, existing: RemoteFile?, startedAt: Long) {

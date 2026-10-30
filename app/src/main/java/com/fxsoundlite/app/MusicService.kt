@@ -535,7 +535,7 @@ class MusicService : MediaBrowserService() {
         // Only touch a player that is already playing (see YouTubeStreamEngine.applySpeed); a paused one
         // gets the speed in play().
         if (p != null && prepared && current?.source != Track.SOURCE_RADIO) {
-            try { if (p.isPlaying) p.playbackParams = p.playbackParams.setSpeed(playbackSpeed) } catch (_: Exception) { }
+            try { if (p.isPlaying) p.playbackParams = p.playbackParams.setSpeed(playbackSpeed) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
         }
         notifyListeners()
     }
@@ -543,7 +543,7 @@ class MusicService : MediaBrowserService() {
     private fun applyLocalSpeed(p: MediaPlayer) {
         if (current?.source == Track.SOURCE_RADIO) return
         if (playbackSpeed == 1f && !p.isPlaying) return
-        try { p.playbackParams = p.playbackParams.setSpeed(playbackSpeed) } catch (_: Exception) { }
+        try { p.playbackParams = p.playbackParams.setSpeed(playbackSpeed) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
     }
 
     val isPlaying: Boolean
@@ -858,8 +858,8 @@ class MusicService : MediaBrowserService() {
             handler.postDelayed({
                 if (my != fadeToken) return@postDelayed // paused, ducked or restarted meanwhile
                 val v = i / steps.toFloat()
-                try { player?.setVolume(v, v) } catch (_: Exception) { }
-                try { remote?.setVolume(v) } catch (_: Exception) { }
+                try { player?.setVolume(v, v) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
+                try { remote?.setVolume(v) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
             }, ms * i / steps)
         }
     }
@@ -1009,7 +1009,7 @@ class MusicService : MediaBrowserService() {
                 },
                 android.widget.Toast.LENGTH_SHORT
             ).show()
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
         notifyListeners()
     }
 
@@ -1064,7 +1064,9 @@ class MusicService : MediaBrowserService() {
         val track = queue.getOrNull(newIndex) ?: return
         index = newIndex
         noteSmartPlayed(track)
-        try { MusicPrefs.addRecent(this, track) } catch (_: Exception) { } // Home "Recently played"
+        if (!PlayerMode.isTvAudio(track)) { // a TV channel playing as audio is not a song for "Recently played"
+            try { MusicPrefs.addRecent(this, track) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) } // Home "Recently played"
+        }
         statsListened = 0L
         statsCounted = false
         lfmListened = 0L
@@ -1202,7 +1204,7 @@ class MusicService : MediaBrowserService() {
                     }
                     if (fl != null) {
                         // Downloaded copy on disk: read format / bit depth / sample rate for the player's quality badge.
-                        try { artExecutor.execute { AudioQuality.probeFile(applicationContext, track, fl); handler.post { notifyListeners() } } } catch (_: Exception) { }
+                        try { artExecutor.execute { AudioQuality.probeFile(applicationContext, track, fl); handler.post { notifyListeners() } } } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
                     }
                     val mp = try {
                         createPlayer().also {
@@ -1432,7 +1434,8 @@ class MusicService : MediaBrowserService() {
 
     private fun onPlaybackError() {
         consecutiveErrors++
-        if (consecutiveErrors >= queue.size || queue.size <= 1) {
+        // A TV channel that cannot play as audio must not skip silently to the next channel: stop and say so.
+        if (consecutiveErrors >= queue.size || queue.size <= 1 || PlayerMode.isTvAudio(current)) {
             // Everything failed (or the only track did): give up.
             routeEffectsToGlobal()
             releasePlayer()
@@ -1455,8 +1458,8 @@ class MusicService : MediaBrowserService() {
 
     private fun releasePlayer() {
         player?.let {
-            try { it.reset() } catch (_: Exception) {}
-            try { it.release() } catch (_: Exception) {}
+            try { it.reset() } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
+            try { it.release() } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
         }
         player = null
         prepared = false
@@ -1642,7 +1645,7 @@ class MusicService : MediaBrowserService() {
 
     private fun unregisterNoisy() {
         if (!noisyRegistered) return
-        try { unregisterReceiver(noisyReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(noisyReceiver) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
         noisyRegistered = false
     }
 
@@ -1696,7 +1699,7 @@ class MusicService : MediaBrowserService() {
         } catch (e: Exception) {
             null
         } finally {
-            try { r.release() } catch (_: Exception) {}
+            try { r.release() } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) }
         }
     }
 

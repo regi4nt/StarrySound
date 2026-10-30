@@ -198,7 +198,7 @@ object SongDownloader {
                     resolver.update(uri, done, null, null)
                     MusicLibrary.notifyChanged() // the Device tab picks the new song up
                 },
-                abort = { try { resolver.delete(uri, null, null) } catch (_: Exception) { } }
+                abort = { try { resolver.delete(uri, null, null) } catch (e: Exception) { android.util.Log.d("SongDownloader", "ignored: " + e) } }
             )
         }
         @Suppress("DEPRECATION")
@@ -239,7 +239,7 @@ object SongDownloader {
                 .setOnlyAlertOnce(true)
                 .build()
             nm(app)?.notify(id, n)
-        } catch (_: Exception) { } // notifications may be blocked; the download itself carries on
+        } catch (e: Exception) { android.util.Log.d("SongDownloader", "ignored: " + e) } // notifications may be blocked; the download itself carries on
     }
 
     private fun finishNotification(app: Context, id: Int, title: String, success: Boolean) {
@@ -251,7 +251,7 @@ object SongDownloader {
                 .setAutoCancel(true)
                 .build()
             nm(app)?.notify(id, n)
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("SongDownloader", "ignored: " + e) }
     }
 
     // ------------------------------------------------------------------ helpers

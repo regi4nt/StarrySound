@@ -148,7 +148,7 @@ class YouTubeWebEngine(
     }
 
     private fun run(js: String) {
-        try { web?.evaluateJavascript(js, null) } catch (_: Exception) { }
+        try { web?.evaluateJavascript(js, null) } catch (e: Exception) { android.util.Log.d("YouTubeWebEngine", "ignored: " + e) }
     }
 
     override fun play() {
@@ -182,7 +182,7 @@ class YouTubeWebEngine(
 
     private fun destroyWeb() {
         web?.let {
-            try { it.stopLoading(); it.loadUrl("about:blank"); it.onPause(); it.destroy() } catch (_: Exception) { }
+            try { it.stopLoading(); it.loadUrl("about:blank"); it.onPause(); it.destroy() } catch (e: Exception) { android.util.Log.d("YouTubeWebEngine", "ignored: " + e) }
         }
         web = null
     }

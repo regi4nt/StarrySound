@@ -588,7 +588,7 @@ class HomeFragment : Fragment() {
                 statsHandler.post { updateNetStatus() }
             }
         }
-        try { cm.registerDefaultNetworkCallback(cb); netCallback = cb } catch (_: Exception) { }
+        try { cm.registerDefaultNetworkCallback(cb); netCallback = cb } catch (e: Exception) { android.util.Log.d("HomeFragment", "ignored: " + e) }
     }
 
     private fun stopNetWatch() {
@@ -597,7 +597,7 @@ class HomeFragment : Fragment() {
         statsHandler.removeCallbacks(netPoll)
         val cb = netCallback ?: return
         netCallback = null
-        try { context?.getSystemService(android.net.ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) } catch (_: Exception) { }
+        try { context?.getSystemService(android.net.ConnectivityManager::class.java)?.unregisterNetworkCallback(cb) } catch (e: Exception) { android.util.Log.d("HomeFragment", "ignored: " + e) }
     }
 
     override fun onStart() {
@@ -615,7 +615,7 @@ class HomeFragment : Fragment() {
         effectService?.removePresetListener(presetListener)
         // Unbind even if onServiceConnected has not fired yet, or the connection leaks.
         if (bindRequested || bound) {
-            try { requireContext().unbindService(connection) } catch (_: IllegalArgumentException) { }
+            try { requireContext().unbindService(connection) } catch (e: IllegalArgumentException) { android.util.Log.d("HomeFragment", "ignored: " + e) }
             bindRequested = false
             bound = false
         }

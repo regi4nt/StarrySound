@@ -150,7 +150,7 @@ object ListenTogether {
     } catch (e: Exception) { null }
 
     private fun delete(path: String) {
-        try { Http.request("DELETE", "$base/$path.json") } catch (_: Exception) { }
+        try { Http.request("DELETE", "$base/$path.json") } catch (e: Exception) { android.util.Log.d("ListenTogether", "ignored: " + e) }
     }
 
     /** Server time minus local time, measured with one write/read round trip. */
@@ -260,7 +260,7 @@ object ListenTogether {
         main.removeCallbacks(hostLoop)
         main.removeCallbacks(guestLoop)
         MusicService.removeGlobalListener(hostListener)
-        try { streamConn?.disconnect() } catch (_: Exception) { }
+        try { streamConn?.disconnect() } catch (e: Exception) { android.util.Log.d("ListenTogether", "ignored: " + e) }
         streamConn = null
         lastPushed = null
         lastState = null
@@ -303,11 +303,13 @@ object ListenTogether {
         // Online-tab songs and radio stations are plain https audio links: guests play the same link.
         val link = !yt && !alt && svc != null && t != null &&
             (t.source == Track.SOURCE_ONLINE || t.source == Track.SOURCE_RADIO) && t.remoteId.startsWith("http")
-        val live = link && t!!.source == Track.SOURCE_RADIO // a live stream has no position to sync
-        val has = yt || alt || link
-        val vid = if (yt) t!!.remoteId else if (alt) "q:" + t!!.key else if (link) "u:" + t!!.remoteId else ""
-        val playing = has && svc!!.isPlaying
-        val pos = if (has && !live) svc!!.position.toLong() else 0L
+        val tr = t
+        val sv = svc
+        val live = link && tr != null && tr.source == Track.SOURCE_RADIO // a live stream has no position to sync
+        val has = (yt || alt || link) && tr != null && sv != null
+        val vid = if (!has || tr == null) "" else if (yt) tr.remoteId else if (alt) "q:" + tr.key else "u:" + tr.remoteId
+        val playing = has && sv != null && sv.isPlaying
+        val pos = if (has && !live && sv != null) sv.position.toLong() else 0L
         val now = serverNow()
         val last = lastPushed
         val expected = when {
@@ -318,9 +320,10 @@ object ListenTogether {
         val changed = last == null || last.vid != vid || last.playing != playing || (!live && abs(pos - expected) > 1500)
         if (!changed && !force) return
         val st = State(
-            vid, if (has) t!!.title else "", if (has) t!!.artist else "", if (has) t!!.artUrl else "",
-            if (has) svc!!.duration.toLong() else 0L, playing, pos, now,
-            if (alt) "${t!!.title} ${t.artist}".trim() else "",
+            vid, if (has && tr != null) tr.title else "", if (has && tr != null) tr.artist else "",
+            if (has && tr != null) tr.artUrl else "",
+            if (has && sv != null) sv.duration.toLong() else 0L, playing, pos, now,
+            if (alt && tr != null) "${tr.title} ${tr.artist}".trim() else "",
             if (live) "radio" else if (link) "online" else ""
         )
         lastPushed = st

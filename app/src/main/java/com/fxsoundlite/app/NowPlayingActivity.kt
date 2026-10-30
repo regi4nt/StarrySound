@@ -57,6 +57,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        PlayerMode.init(this) // load the saved mode first, or it would overwrite this setMusic() later
         PlayerMode.setMusic() // music player in use: the mini bar opens this one again
         ThemeHelper.applyMode(this)
         ThemeHelper.applyAccent(this)
@@ -965,13 +966,15 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     private fun openVideo() {
         val svc = MusicService.instance ?: return
         val t = svc.current ?: return
-        if (t.source != Track.SOURCE_YOUTUBE) {
+        PlayerMode.init(this)
+        val tvAudio = PlayerMode.isTvAudio(t) // a live TV channel playing as audio: back to its video
+        if (t.source != Track.SOURCE_YOUTUBE && !tvAudio) {
             android.widget.Toast.makeText(this, R.string.video_not_available, android.widget.Toast.LENGTH_LONG).show()
             return
         }
         resumeAudioAfterVideo = svc.isPlaying
-        val pos = svc.position.toLong()
+        val pos = if (tvAudio) 0L else svc.position.toLong() // live: no position
         if (svc.isPlaying) svc.pause()
-        videoLauncher.launch(VideoPlayerActivity.intent(this, t, pos, fromPlayer = true))
+        videoLauncher.launch(VideoPlayerActivity.intent(this, PlayerMode.videoTrack(t), pos, fromPlayer = true))
     }
 }

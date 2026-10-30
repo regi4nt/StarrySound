@@ -160,7 +160,7 @@ class EffectService : Service() {
         SpotifyEffects.register(this)
         try {
             getSystemService(AudioManager::class.java)?.registerAudioDeviceCallback(outputCallback, mainHandler)
-        } catch (_: Exception) { }
+        } catch (e: Exception) { android.util.Log.d("EffectService", "ignored: " + e) }
         scheduleOutputRefresh() // first evaluation: the output that is active at start
         syncWatchdog()
     }
@@ -321,7 +321,7 @@ class EffectService : Service() {
         instance = null
         mainHandler.removeCallbacks(outputRefresh)
         mainHandler.removeCallbacks(watchdog)
-        try { getSystemService(AudioManager::class.java)?.unregisterAudioDeviceCallback(outputCallback) } catch (_: Exception) { }
+        try { getSystemService(AudioManager::class.java)?.unregisterAudioDeviceCallback(outputCallback) } catch (e: Exception) { android.util.Log.d("EffectService", "ignored: " + e) }
         effectManager.onStateChanged = null
         SpotifyEffects.unregister(this)
         try {

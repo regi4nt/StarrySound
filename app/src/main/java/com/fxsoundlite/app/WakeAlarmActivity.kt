@@ -172,7 +172,7 @@ class WakeAlarmActivity : AppCompatActivity() {
     private fun stopAll() {
         finished = true
         handler.removeCallbacksAndMessages(null)
-        try { ringtone?.stop() } catch (_: Exception) { }
+        try { ringtone?.stop() } catch (e: Exception) { android.util.Log.d("WakeAlarmActivity", "ignored: " + e) }
         if (started) service?.pause()
         finish()
     }
@@ -180,9 +180,9 @@ class WakeAlarmActivity : AppCompatActivity() {
     override fun onDestroy() {
         finished = true
         handler.removeCallbacksAndMessages(null)
-        try { ringtone?.stop() } catch (_: Exception) { }
+        try { ringtone?.stop() } catch (e: Exception) { android.util.Log.d("WakeAlarmActivity", "ignored: " + e) }
         if (bound) {
-            try { applicationContext.unbindService(connection) } catch (_: Exception) { }
+            try { applicationContext.unbindService(connection) } catch (e: Exception) { android.util.Log.d("WakeAlarmActivity", "ignored: " + e) }
             bound = false
         }
         service = null

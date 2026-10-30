@@ -627,13 +627,15 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
         val has = svc != null && t != null // radio too: a live station has no length, the card shows --:--
         npBody?.visibility = if (has) View.VISIBLE else View.GONE
         npEmpty?.visibility = if (has) View.GONE else View.VISIBLE
-        val playing = has && svc!!.isPlaying
+        val playing = has && svc != null && svc.isPlaying
         rings.forEach { it.background = ringDrawable(playing) }
         if (!has) return
+        val track = t ?: return
+        val service = svc ?: return
 
-        npTitle?.text = t!!.title
-        npArtist?.text = t.artist
-        val art = t.artUrl
+        npTitle?.text = track.title
+        npArtist?.text = track.artist
+        val art = track.artUrl
         if (art != shownArt) {
             shownArt = art
             npCover?.setImageDrawable(null)
@@ -644,14 +646,14 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
             }
         }
         npPlay?.setImageResource(if (playing) R.drawable.ic_pause else R.drawable.ic_play)
-        val dur = svc!!.duration
-        val pos = svc.position.coerceIn(0, if (dur > 0) dur else Int.MAX_VALUE)
+        val dur = service.duration
+        val pos = service.position.coerceIn(0, if (dur > 0) dur else Int.MAX_VALUE)
         npCur?.text = fmt(pos)
         npDur?.text = if (dur > 0) fmt(dur) else "--:--"
-        val track = npTrack
+        val bar = npTrack
         val fill = npFill
-        if (track != null && fill != null) {
-            val w = if (dur > 0) (track.width.toLong() * pos / dur).toInt() else 0
+        if (bar != null && fill != null) {
+            val w = if (dur > 0) (bar.width.toLong() * pos / dur).toInt() else 0
             val lp = fill.layoutParams
             if (lp.width != w) { lp.width = w; fill.layoutParams = lp }
         }
