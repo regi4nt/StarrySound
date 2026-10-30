@@ -245,14 +245,29 @@ class AudioEffectManager(private val context: Context) {
      *  notification can show the current preset and stay in sync. */
     var onStateChanged: (() -> Unit)? = null
 
+    /** Manual band change (user dragged a band slider). [levelMb] is the level actually heard, i.e.
+     *  it already includes Master Gain, so the master-gain-free "base" is derived from it. */
     fun setBandLevel(band: Short, levelMb: Short) {
+        writeBand(band, levelMb.toInt())
+        prefs.edit().putInt("base_band_$band", levelMb.toInt() - masterGainMb).apply()
+    }
+
+    /** Sends one band to the engine and stores what is heard. Does NOT touch the base level. */
+    private fun writeBand(band: Short, levelMb: Int) {
         try {
-            equalizer?.setBandLevel(band, levelMb)
-            prefs.edit().putInt("band_$band", levelMb.toInt()).apply()
+            val range = bandLevelRangeMb()
+            val v = levelMb.coerceIn(range[0], range[1])
+            equalizer?.setBandLevel(band, v.toShort())
+            prefs.edit().putInt("band_$band", v).apply()
         } catch (e: Exception) {
             Log.e(TAG, "setBandLevel failed: ${e.message}")
         }
     }
+
+    /** The band's level WITHOUT Master Gain, never clamped, so Master Gain stays fully reversible
+     *  (older installs have no base value yet: derive it from the stored heard level). */
+    private fun baseLevelMb(i: Int): Int =
+        prefs.getInt("base_band_$i", prefs.getInt("band_$i", 0) - masterGainMb)
 
     fun setBassBoost(strength0to1000: Short) {
         try {
@@ -391,7 +406,6 @@ class AudioEffectManager(private val context: Context) {
     /** Log-frequency-interpolate a preset's curve onto this device's actual EQ bands. */
     fun applyPreset(preset: Presets.Preset) {
         val bands = bandCount()
-        val range = bandLevelRangeMb()
         val masterGain = masterGainMb
         for (i in 0 until bands) {
             val freqHz = bandFrequencyHz(i.toShort()).toDouble()
@@ -401,9 +415,9 @@ class AudioEffectManager(private val context: Context) {
             if (i >= bands - 2) {
                 gainDb += (preset.clarity0to100 / 100.0) * 2.0
             }
-            var levelMb = (gainDb * 100).toInt() + masterGain
-            levelMb = levelMb.coerceIn(range[0], range[1])
-            setBandLevel(i.toShort(), levelMb.toShort())
+            val baseMb = (gainDb * 100).toInt()
+            prefs.edit().putInt("base_band_$i", baseMb).apply()
+            writeBand(i.toShort(), baseMb + masterGain)
         }
         setBassBoost(preset.bassBoost0to1000)
         setVirtualizer(preset.virtualizer0to1000)
@@ -530,16 +544,14 @@ class AudioEffectManager(private val context: Context) {
         private set(value) = prefs.edit().putInt("master_gain_mb", value).apply()
 
     fun setMasterGain(newMb: Int) {
-        val range = bandLevelRangeMb()
-        val delta = newMb - masterGainMb
-        if (delta != 0) {
-            for (i in 0 until bandCount()) {
-                val current = prefs.getInt("band_$i", 0)
-                val shifted = (current + delta).coerceIn(range[0], range[1])
-                setBandLevel(i.toShort(), shifted.toShort())
-            }
-        }
+        // Read the bases BEFORE changing the stored master gain (the migration fallback in
+        // baseLevelMb() depends on the old value), then persist them so they are fixed from now on.
+        val bases = (0 until bandCount().toInt()).map { baseLevelMb(it) }
+        val ed = prefs.edit()
+        bases.forEachIndexed { i, b -> ed.putInt("base_band_$i", b) }
+        ed.apply()
         masterGainMb = newMb
+        bases.forEachIndexed { i, b -> writeBand(i.toShort(), b + newMb) }
     }
 
     /**

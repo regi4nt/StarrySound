@@ -1063,6 +1063,11 @@
     <string name="video_quality_none">No other video quality is available for this video.</string>
     <string name="video_quality_failed">Could not load the video qualities.</string>
     <string name="np_pip">Picture-in-Picture</string>
+    <string name="np_captions_fmt">Captions: %1$s</string>
+    <string name="np_captions_on">On</string>
+    <string name="np_captions_off">Off</string>
+    <string name="np_captions_toast_on">Captions on (if the video has them)</string>
+    <string name="np_captions_toast_off">Captions off</string>
     <string name="pip_not_supported">Picture-in-Picture is not available on this device</string>
     <string name="pip_play">Play</string>
     <string name="pip_pause">Pause</string>

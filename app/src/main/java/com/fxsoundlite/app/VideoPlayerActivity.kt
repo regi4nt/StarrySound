@@ -93,6 +93,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         private const val M_INFO = 5
         private const val M_QUALITY = 6
         private const val M_PIP = 7
+        private const val M_CAPTIONS = 8
+        private const val CC_PREFS = "video_captions"
+        private const val CC_KEY = "on" // captions (subtitles) of YouTube videos: off by default
         private const val PIP_ACTION = "com.fxsoundlite.app.VIDEO_PIP_ACTION"
         private const val PIP_EXTRA = "pip_cmd"
         private const val PIP_PLAY_PAUSE = 1
@@ -289,6 +292,13 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpBgAnimated.stop() // no animation loop while off screen
         if (musicBound) { musicBound = false; unbindService(musicConn) }
         super.onStop()
+        // The X of the PiP window: on some Android versions the mode change arrives before onStop (page still
+        // "started"), so it looked like an expand. A stop right after leaving PiP means it was closed: stop and close.
+        if (inPip || pipClosedMaybe) {
+            pipClosedMaybe = false
+            pausePlayback()
+            finish()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -641,6 +651,8 @@ class VideoPlayerActivity : AppCompatActivity() {
             .controls(0) // own controls below the video
             .rel(0)
             .fullscreen(0)
+            .ccLoadPolicy(if (captionsPref()) 1 else 0) // 1 = captions shown from the start (when the video has them)
+            .langPref(java.util.Locale.getDefault().language)
             .origin("https://" + packageName.lowercase())
             .build()
         v.initialize(object : AbstractYouTubePlayerListener() {
@@ -752,7 +764,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         vv.setOnPreparedListener { mp ->
             filePlayer = mp
             showQuality(qualityLabel(mp.videoWidth, mp.videoHeight))
-            mp.setOnVideoSizeChangedListener { m, w, h -> if (m === filePlayer) showQuality(qualityLabel(w, h)) }
+            updatePipParams() // PiP window gets this video's own ratio
+            mp.setOnVideoSizeChangedListener { m, w, h -> if (m === filePlayer) { showQuality(qualityLabel(w, h)); updatePipParams() } }
             durMs = mp.duration.toLong().coerceAtLeast(0L)
             if (startMs > 0) mp.seekTo(startMs.toInt())
             vv.start()
@@ -959,6 +972,11 @@ class VideoPlayerActivity : AppCompatActivity() {
         val popup = PopupMenu(this, anchor, Gravity.END)
         popup.menu.add(0, M_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(speed)))
         if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_QUALITY, 0, R.string.np_video_quality)
+        // Captions only exist in the YouTube player (the plain video view has no subtitle track).
+        if (t.source == Track.SOURCE_YOUTUBE && ytView != null) {
+            popup.menu.add(0, M_CAPTIONS, 0, getString(R.string.np_captions_fmt,
+                getString(if (captionsPref()) R.string.np_captions_on else R.string.np_captions_off)))
+        }
         popup.menu.add(0, M_TIMER, 1, R.string.np_sleep_timer)
         if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 2, R.string.np_download)
         if (pipSupported()) popup.menu.add(0, M_PIP, 3, R.string.np_pip)
@@ -968,6 +986,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             when (it.itemId) {
                 M_SPEED -> showSpeedDialog()
                 M_QUALITY -> showVideoQualityDialog()
+                M_CAPTIONS -> toggleCaptions(t)
                 M_TIMER -> showSleepTimerDialog()
                 M_DOWNLOAD -> SongDownloader.download(this, t)
                 M_PIP -> enterPip()
@@ -977,6 +996,26 @@ class VideoPlayerActivity : AppCompatActivity() {
             true
         }
         popup.show()
+    }
+
+    private fun captionsPref(): Boolean = getSharedPreferences(CC_PREFS, Context.MODE_PRIVATE).getBoolean(CC_KEY, false)
+
+    /**
+     * Captions on / off of the YouTube player. The IFrame player only reads its caption policy when it is created, so the
+     * player is rebuilt with the new setting and goes on from the current second.
+     */
+    private fun toggleCaptions(t: Track) {
+        if (t.source != Track.SOURCE_YOUTUBE || ytView == null) return
+        val on = !captionsPref()
+        getSharedPreferences(CC_PREFS, Context.MODE_PRIVATE).edit().putBoolean(CC_KEY, on).apply()
+        Toast.makeText(this, if (on) R.string.np_captions_toast_on else R.string.np_captions_toast_off, Toast.LENGTH_SHORT).show()
+        val start = posMs
+        val wasPlaying = playing
+        showQuality(null)
+        dropYoutube()
+        setupYoutube(t.remoteId, start)
+        if (!wasPlaying) handler.postDelayed({ if (!isDestroyed) yt?.pause() }, 1500L)
+        updateUi()
     }
 
     private fun videoQualityPref(): Int = getSharedPreferences(VQ_PREFS, Context.MODE_PRIVATE).getInt(VQ_KEY, 0)
@@ -1148,7 +1187,14 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        if (!isInPictureInPictureMode) fileView?.pause() // the PiP window keeps playing
+        // The PiP window keeps playing. onPause comes before onPictureInPictureModeChanged when PiP starts, so
+        // isInPictureInPictureMode alone is not reliable here: also check our own flags.
+        if (!isInPictureInPictureMode && !inPip && !pipEntering) fileView?.pause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        pipClosedMaybe = false // back on screen: the PiP window was expanded, not closed
     }
 
     // ------------------------------------------------------------------ picture-in-picture
@@ -1157,6 +1203,8 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var inPip = false
     private var pipReceiver: BroadcastReceiver? = null
     private var pipShownPlaying: Boolean? = null
+    private var pipEntering = false      // enterPip() was called, the mode change did not arrive yet
+    private var pipClosedMaybe = false   // left PiP while not resumed: expand (onResume follows) or close (onStop follows)
 
     private fun pipSupported(): Boolean =
         Build.VERSION.SDK_INT >= 26 && packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
@@ -1197,10 +1245,19 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun enterPip() {
         if (!pipSupported()) { Toast.makeText(this, R.string.pip_not_supported, Toast.LENGTH_SHORT).show(); return }
         try {
-            if (enterPictureInPictureMode(pipParams())) pipShownPlaying = playing
+            pipEntering = true
+            if (enterPictureInPictureMode(pipParams())) pipShownPlaying = playing else pipEntering = false
         } catch (_: Exception) {
+            pipEntering = false
             Toast.makeText(this, R.string.pip_not_supported, Toast.LENGTH_SHORT).show()
         }
+    }
+
+    /** Window shape + buttons again (e.g. the real video size is known only after the video is prepared, or the next video has another ratio). */
+    private fun updatePipParams() {
+        if (!inPip) return
+        pipShownPlaying = playing
+        try { setPictureInPictureParams(pipParams()) } catch (_: Exception) { }
     }
 
     /** Refreshes the play / pause button of the PiP window when the state changed. */
@@ -1255,12 +1312,14 @@ class VideoPlayerActivity : AppCompatActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         inPip = isInPictureInPictureMode
+        pipEntering = false
         if (isInPictureInPictureMode) {
             registerPipReceiver()
             applyPipLayout()
         } else {
             unregisterPipReceiver()
             pipShownPlaying = null
+            if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) pipClosedMaybe = true
             // The X of the PiP window closes it while this page is no longer visible: stop the video and close.
             if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
                 pausePlayback()

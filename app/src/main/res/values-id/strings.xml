@@ -879,6 +879,11 @@
     <string name="video_quality_none">Tidak ada kualitas video lain untuk video ini.</string>
     <string name="video_quality_failed">Gagal memuat kualitas video.</string>
     <string name="np_pip">Picture-in-Picture (jendela mini)</string>
+    <string name="np_captions_fmt">Teks / caption: %1$s</string>
+    <string name="np_captions_on">Hidup</string>
+    <string name="np_captions_off">Mati</string>
+    <string name="np_captions_toast_on">Caption dihidupkan (jika videonya punya)</string>
+    <string name="np_captions_toast_off">Caption dimatikan</string>
     <string name="pip_not_supported">Picture-in-Picture tidak tersedia di perangkat ini</string>
     <string name="pip_play">Putar</string>
     <string name="pip_pause">Jeda</string>
