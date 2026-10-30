@@ -82,6 +82,25 @@ object TvChannels {
         return out.distinctBy { it.remoteId }
     }
 
+    /** True when [q] (what was typed in the search box) is a link, not a channel name. */
+    fun isLink(q: String): Boolean = (q.startsWith("http://") || q.startsWith("https://")) && !q.any { it.isWhitespace() } && q.length > 12
+
+    /**
+     * A link pasted in the search box: a playlist gives its channels (the second value is true), anything else
+     * (a single stream such as a .m3u8) is one channel of its own. Throws when the link cannot be read.
+     */
+    fun loadLink(c: Context, url: String): Pair<List<Track>, Boolean> {
+        val body = try { Http.request("GET", url, readTimeoutMs = 30_000).takeIf { it.code in 200..299 }?.body } catch (e: Exception) { null }
+            ?: throw java.io.IOException("link unreachable")
+        val channels = parse(body)
+        if (channels.isNotEmpty()) return channels.distinctBy { it.remoteId } to true
+        // No named channels: a media playlist / direct stream. Play the link itself.
+        val name = url.substringBefore('?').trimEnd('/').substringAfterLast('/').substringBeforeLast('.').ifBlank { "TV" }
+        return listOf(
+            Track(id = 0L, title = name, artist = "", album = "", durationMs = 0L, source = Track.SOURCE_TV, remoteId = url, artUrl = "")
+        ) to false
+    }
+
     private fun fetch(app: Context, url: String, force: Boolean): String {
         val f = File(app.cacheDir, "tv_" + Integer.toHexString(url.hashCode()) + ".m3u")
         if (!force && f.exists() && System.currentTimeMillis() - f.lastModified() < CACHE_MS) {
@@ -124,5 +143,100 @@ object TvChannels {
             }
         }
         return out
+    }
+
+    // ------------------------------------------------------------------ Home shelves (recommended / popular TV)
+
+    /** Well-known free-to-air channels per country, best first (matched by name inside the IPTV-org playlist). */
+    private val localFavourites = mapOf(
+        "id" to listOf("RCTI", "SCTV", "Indosiar", "Trans TV", "Trans7", "Kompas TV", "Metro TV", "tvOne", "MNCTV", "TVRI", "NET", "CNN Indonesia", "GTV", "RTV", "iNews", "Moji"),
+        "my" to listOf("TV3", "Astro Awani", "NTV7", "8TV", "TV9", "RTM", "Bernama"),
+        "sg" to listOf("CNA", "Channel 5", "Channel 8", "Channel U", "Suria", "Vasantham"),
+        "th" to listOf("Channel 3", "Channel 7", "Thai PBS", "PPTV", "Workpoint", "One31", "Amarin"),
+        "ph" to listOf("GMA", "ABS-CBN", "TV5", "PTV", "A2Z", "Kapamilya"),
+        "gb" to listOf("BBC One", "BBC News", "ITV", "Channel 4", "Sky News", "BBC Two", "GB News"),
+        "us" to listOf("NBC", "ABC", "CBS", "PBS", "Fox", "CNN", "NASA", "Bloomberg"),
+        "au" to listOf("ABC", "SBS", "Nine", "Seven", "Ten", "Sky News"),
+        "in" to listOf("Aaj Tak", "NDTV", "India Today", "ABP", "DD National", "Zee", "Republic"),
+        "jp" to listOf("NHK", "TBS", "Fuji", "TV Asahi", "Nippon", "TV Tokyo"),
+        "kr" to listOf("KBS", "MBC", "SBS", "Arirang", "YTN", "JTBC"),
+        "de" to listOf("DW", "ARD", "ZDF", "RTL", "Sat.1", "ProSieben", "Tagesschau"),
+        "fr" to listOf("France 24", "TF1", "France 2", "France 3", "M6", "BFM", "LCI"),
+        "es" to listOf("La 1", "Antena 3", "Telecinco", "La Sexta", "RTVE", "24h"),
+        "br" to listOf("Globo", "Record", "SBT", "Band", "TV Brasil", "CNN Brasil"),
+        "tr" to listOf("TRT", "ATV", "Show TV", "Kanal D", "Star TV", "NTV", "Haber"),
+        "sa" to listOf("Al Arabiya", "Saudi", "SBC", "Al Ekhbariya", "MBC")
+    )
+
+    /** International channels, best first (name inside the IPTV-org playlists listed in [intlSources]). */
+    private val intlFavourites = listOf(
+        "Al Jazeera English", "DW English", "France 24 English", "NASA", "Bloomberg", "Sky News", "Euronews English",
+        "CNA", "CGTN", "BBC News", "Arirang", "NHK World", "Red Bull TV", "WION", "TRT World", "ABC News Live"
+    )
+    private val intlSources = listOf("qa", "de", "fr", "us", "gb", "sg", "cn", "kr", "jp", "in", "tr", "au")
+
+    private fun homeCountry(c: Context): String {
+        val dev = DeviceCountry.codeOrNull(c)
+        return if (dev != null && dev in countries) dev else country(c).takeIf { it != NO_COUNTRY } ?: "id"
+    }
+
+    private fun loadCode(app: Context, code: String): List<Track> =
+        try { parse(fetch(app, "https://iptv-org.github.io/iptv/countries/$code.m3u", false)) } catch (e: Exception) { emptyList() }
+
+    private fun byName(pool: List<Track>, names: List<String>): List<Track> {
+        val out = ArrayList<Track>()
+        for (n in names) {
+            // whole-word-ish match so "NET" does not hit "Planet"
+            val rx = Regex("(^|[^A-Za-z0-9])" + Regex.escape(n) + "([^A-Za-z0-9]|$)", RegexOption.IGNORE_CASE)
+            pool.firstOrNull { rx.containsMatchIn(it.title) && out.none { o -> o.remoteId == it.remoteId } }?.let { out += it }
+        }
+        return out
+    }
+
+    /** Local channels ranked: the well-known ones first, then News / General / Entertainment, then the rest. */
+    private fun rankedLocal(app: Context, code: String): List<Track> {
+        val pool = loadCode(app, code).distinctBy { it.remoteId }
+        val fav = byName(pool, localFavourites[code].orEmpty())
+        val rest = pool.filter { t -> fav.none { it.remoteId == t.remoteId } }
+        val good = rest.filter { it.artist.contains("News", true) || it.artist.contains("General", true) || it.artist.contains("Entertainment", true) }
+        return (fav + good + rest).distinctBy { it.remoteId }
+    }
+
+    private fun rankedIntl(app: Context, homeCode: String): List<Track> {
+        val pool = ArrayList<Track>()
+        for (code in intlSources) pool += loadCode(app, code)
+        // Channels of the device's own country are "local", not international.
+        val own = loadCode(app, homeCode).map { it.remoteId }.toSet()
+        return byName(pool.filter { it.remoteId !in own }, intlFavourites)
+    }
+
+    /** Home "Popular TV": 5 well-known channels of the device's country + 5 international ones. */
+    fun popularMixed(c: Context): List<Track> {
+        val app = c.applicationContext
+        val local = rankedLocal(app, homeCountry(app))
+        val intl = rankedIntl(app, homeCountry(app))
+        if (local.isEmpty() && intl.isEmpty()) throw java.io.IOException("tv playlists unreachable")
+        val out = ArrayList<Track>()
+        out += local.take(5)
+        out += intl.take(5)
+        (local.drop(5) + intl.drop(5)).forEach { if (out.size < 10 && out.none { o -> o.remoteId == it.remoteId }) out += it }
+        return out
+    }
+
+    /** Home "Recommended TV": the next 5 local and next 5 international channels after the popular ones, interleaved. */
+    fun recommended(c: Context): List<Track> {
+        val app = c.applicationContext
+        val code = homeCountry(app)
+        val local = rankedLocal(app, code).drop(5)
+        val intl = rankedIntl(app, code).drop(5)
+        if (local.isEmpty() && intl.isEmpty()) throw java.io.IOException("tv playlists unreachable")
+        val out = ArrayList<Track>()
+        var i = 0
+        while (out.size < 10 && (i < local.size || i < intl.size)) {
+            if (i < intl.size) out += intl[i]
+            if (i < local.size && out.size < 10) out += local[i]
+            i++
+        }
+        return out.take(10)
     }
 }

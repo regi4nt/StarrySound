@@ -51,7 +51,7 @@ object HomePlaylists {
         val day = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
         val moodCount = if (saver) 1 else 3 - queries.size.coerceAtMost(2) // taste first, moods fill the rest
         repeat(moodCount.coerceAtLeast(1)) { i -> queries += MOODS[(day + i) % MOODS.size] }
-        if (isIndonesian()) queries += "playlist santai indonesia"
+        if (isIndonesian(context)) queries += "playlist santai indonesia"
         return merge(queries.take(if (saver) 1 else 4))
     }
 
@@ -60,11 +60,12 @@ object HomePlaylists {
         val saver = MusicPrefs.saver(context)
         val y = Calendar.getInstance().get(Calendar.YEAR)
         val localQ = ArrayList<String>()
-        if (isIndonesian()) {
+        if (isIndonesian(context)) {
             localQ += "playlist lagu indonesia terpopuler $y"
             if (!saver) localQ += "lagu indonesia hits $y playlist"
         } else {
-            Locale.getDefault().getDisplayCountry(Locale.ENGLISH).takeIf { it.isNotBlank() }
+            DeviceCountry.codeOrNull(context)?.let { Locale("", it.uppercase(Locale.US)).getDisplayCountry(Locale.ENGLISH) }
+                ?.takeIf { it.isNotBlank() }
                 ?.let { localQ += "top hits $it $y playlist" }
         }
         val intlQ = ArrayList<String>()
@@ -119,7 +120,9 @@ object HomePlaylists {
 
     // ------------------------------------------------------------------ internals
 
-    private fun isIndonesian(): Boolean = Locale.getDefault().language.let { it == "in" || it == "id" }
+    /** Indonesian searches when the app language is Indonesian, or the device is in Indonesia. */
+    private fun isIndonesian(context: Context): Boolean =
+        Locale.getDefault().language.let { it == "in" || it == "id" } || DeviceCountry.codeOrNull(context) == "id"
 
     /** Top artists of the user's taste (like +3, YouTube history +1, each play +1), best first. */
     private fun taste(context: Context): List<String> {

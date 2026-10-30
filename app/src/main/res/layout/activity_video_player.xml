@@ -68,6 +68,7 @@
             android:id="@+id/vpStage"
             android:layout_width="match_parent"
             android:layout_height="0dp"
+            android:layout_marginBottom="12dp"
             android:layout_weight="1">
 
             <!-- Its size is set in code (applyVideoSize). -->
@@ -92,7 +93,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="24dp"
-            android:layout_marginTop="12dp"
             android:orientation="vertical">
 
             <TextView
@@ -105,15 +105,40 @@
                 android:textSize="22sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/vpArtist"
+            <!-- Artist, with the video quality badge (e.g. 1080p) on its right, like the music player's audio quality badge. -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="15sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/vpArtist"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/vpQuality"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/chip_bg"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:maxWidth="170dp"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="3dp"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Seek bar, time row and main buttons. In landscape / full screen this group is moved over the video
@@ -144,7 +169,7 @@
                 <TextView
                     android:id="@+id/vpElapsed"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="wrap_content"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:gravity="center_vertical"
                     android:minWidth="56dp"
@@ -161,7 +186,7 @@
                 <TextView
                     android:id="@+id/vpTotal"
                     android:layout_width="wrap_content"
-                    android:layout_height="40dp"
+                    android:layout_height="wrap_content"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
                     android:gravity="center_vertical|end"
                     android:minWidth="56dp"

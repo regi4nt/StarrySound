@@ -237,6 +237,7 @@
     <string name="mini_play_pause">Putar / jeda</string>
     <string name="mini_next">Berikutnya</string>
     <string name="np_close">Tutup pemutar</string>
+    <string name="np_playing_from">Diputar dari playlist</string>
     <string name="saver_switch_label">Hemat data</string>
     <string name="saver_mode_off">Normal</string>
     <string name="saver_mode_on">Hemat</string>
@@ -312,6 +313,11 @@
     <string name="select_pick_one">Pilih minimal satu lagu</string>
     <string name="select_exit">Keluar dari mode pilih</string>
     <string name="playlist_rename">Ganti nama</string>
+    <string name="playlist_pin">Sematkan playlist</string>
+    <string name="playlist_unpin">Lepas sematan</string>
+    <string name="playlist_pin_full">Maksimal 4 playlist yang bisa disematkan. Lepas salah satu dulu.</string>
+    <string name="playlist_pinned">Disematkan di atas</string>
+    <string name="playlist_unpinned">Sematan dilepas</string>
     <string name="playlist_menu_edit">Edit</string>
     <string name="playlist_delete">Hapus</string>
     <string name="track_delete_device">Hapus dari perangkat</string>
@@ -587,6 +593,8 @@
     <string name="home_new_releases">Rilis baru</string>
     <string name="home_radio_reco">Stasiun radio yang direkomendasikan</string>
     <string name="home_radio_popular">Radio populer</string>
+    <string name="home_tv_reco">TV yang direkomendasikan</string>
+    <string name="home_tv_popular">TV populer</string>
     <string name="settings_cat_general_sub">Tema, warna aksen, bahasa</string>
     <string name="settings_cat_player_sub">Cover pemutar, bentuk cover</string>
     <string name="settings_cat_screensaver_sub">Latar, jam, sapaan, lagu yang diputar, screensaver saat mengisi daya</string>
@@ -848,7 +856,7 @@
     <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
     <string name="video_skipped">%d lagu tanpa video dilewati</string>
     <string name="source_tv">TV</string>
-    <string name="tv_search_hint">Cari channel</string>
+    <string name="tv_search_hint">Cari channel atau tempel link M3U</string>
     <string name="tv_source_label">TV: %1$s</string>
     <string name="tv_source_title">Channel TV</string>
     <string name="tv_own_links">%1$d link sendiri</string>
@@ -863,4 +871,21 @@
     <string name="tv_reload">Muat ulang channel</string>
     <string name="tv_link_hint">https://…/playlist.m3u</string>
     <string name="tv_link_invalid">Link harus diawali http:// atau https://</string>
+    <string name="radio_pick_country">Pilih negara</string>
+    <string name="radio_filter_sort">Filter dan urutkan</string>
+    <string name="radio_worldwide">Seluruh dunia</string>
+    <string name="tv_link_failed">Link tidak bisa dibaca.</string>
+    <string name="tv_link_added">Playlist ditambahkan ke link TV Anda</string>
+    <string name="np_audio_quality">Kualitas audio</string>
+    <string name="np_video_quality">Kualitas video</string>
+    <string name="video_quality_auto">Otomatis (pemutar YouTube)</string>
+    <string name="video_quality_loading">Mencari kualitas video…</string>
+    <string name="video_quality_none">Tidak ada kualitas video lain untuk video ini.</string>
+    <string name="video_quality_failed">Gagal memuat kualitas video.</string>
+    <string name="np_pip">Picture-in-Picture (jendela mini)</string>
+    <string name="pip_not_supported">Picture-in-Picture tidak tersedia di perangkat ini</string>
+    <string name="pip_play">Putar</string>
+    <string name="pip_pause">Jeda</string>
+    <string name="pip_prev">Video sebelumnya</string>
+    <string name="pip_next">Video berikutnya</string>
 </resources>

@@ -61,6 +61,11 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private var tvChannels: List<Track>? = null
     private var tvFailed = false
     private var tvLoading = false
+    /** A playlist / stream link pasted in the TV search box: its channels, loaded automatically after typing stops. */
+    private var tvLinkQuery: String? = null
+    private var tvLinkResult: List<Track>? = null
+    private var tvLinkFailed: String? = null
+    private val tvLinkRun = Runnable { loadTvLink(binding.searchInput.text?.toString()?.trim().orEmpty()) }
     private var tvToken = 0 // a result that belongs to an older source choice is dropped
     private var tvForce = false
     private var loading = false
@@ -236,7 +241,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
             // after you stop typing (the keyboard's Search key still searches right away).
             override fun afterTextChanged(s: Editable?) {
                 if (source == Track.SOURCE_LOCAL) { applyFilter(); return }
-                if (source == Track.SOURCE_TV) { showTv(); return } // the box just filters the channel list
+                if (source == Track.SOURCE_TV) { // the box filters the channel list; a pasted link loads by itself
+                    handler.removeCallbacks(tvLinkRun)
+                    if (TvChannels.isLink(s?.toString()?.trim().orEmpty())) handler.postDelayed(tvLinkRun, 600)
+                    showTv()
+                    return
+                }
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) { handler.postDelayed(liveSearch, 600); return } // empty box = popular songs
                 val q = s?.toString()?.trim().orEmpty()
@@ -261,7 +271,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
             if (actionId == EditorInfo.IME_ACTION_SEARCH || enter) {
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) runOnlinePage()
-                else if (source != Track.SOURCE_LOCAL && source != Track.SOURCE_TV) runOnlineSearch()
+                else if (source == Track.SOURCE_TV) { handler.removeCallbacks(tvLinkRun); tvLinkRun.run() }
+                else if (source != Track.SOURCE_LOCAL) runOnlineSearch()
                 hideKeyboard()
                 true
             } else false
@@ -273,7 +284,13 @@ class MusicFragment : Fragment(), MusicService.Listener {
         source = MusicPrefs.lastSource(requireContext()).let { if (it == Track.SOURCE_DRIVE) Track.SOURCE_LOCAL else it }
         if (!tabAllowed(source)) source = Track.SOURCE_LOCAL
         loadSortModes()
-        binding.filterButton.setOnClickListener { if (source == Track.SOURCE_TV) showTvSourceDialog() else showFilterDialog() }
+        binding.filterButton.setOnClickListener {
+            when (source) {
+                Track.SOURCE_TV -> showTvSourceDialog()
+                Track.SOURCE_RADIO -> showRadioMenu()
+                else -> showFilterDialog()
+            }
+        }
         binding.tabLocal.setOnClickListener { selectSource(Track.SOURCE_LOCAL) }
         binding.tabYoutube.setOnClickListener { selectSource(Track.SOURCE_YOUTUBE) }
         binding.tabOnline.setOnClickListener { selectSource(Track.SOURCE_ONLINE) }
@@ -675,6 +692,37 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     )
 
+    /** Radio's button next to the search box: pick the country of the first list, or filter / sort what is shown. */
+    private fun showRadioMenu() {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setItems(arrayOf(getString(R.string.radio_pick_country), getString(R.string.radio_filter_sort))) { _, which ->
+                if (which == 0) pickRadioCountry() else showFilterDialog()
+            }
+            .show()
+    }
+
+    private fun pickRadioCountry() {
+        val ctx = requireContext()
+        val codes = listOf("") + TvChannels.countries
+        val names = codes.map { if (it.isEmpty()) getString(R.string.radio_worldwide) else TvChannels.countryName(it) }
+        val cur = codes.indexOf(MusicPrefs.radioCountry(ctx)).coerceAtLeast(0)
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(R.string.radio_pick_country)
+            .setSingleChoiceItems(names.toTypedArray(), cur) { d, which ->
+                d.dismiss()
+                MusicPrefs.setRadioCountry(ctx, codes[which])
+                // The first list belongs to the old country.
+                radioDefault = null
+                radioFailed = false
+                radioLoading = false
+                searchToken++
+                binding.searchProgress.visibility = View.GONE
+                if (binding.searchInput.text.isNullOrBlank()) refreshList() else binding.searchInput.setText("")
+            }
+            .setNegativeButton(R.string.radio_cancel, null)
+            .show()
+    }
+
     private fun showRadioSourceDialog() {
         val ctx = requireContext()
         val current = radioSourceIds.indexOf(MusicPrefs.radioSource(ctx)).coerceAtLeast(0)
@@ -977,9 +1025,15 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.searchProgress.visibility = View.VISIBLE
         val app = requireContext().applicationContext
         try {
+            val country = MusicPrefs.radioCountry(app)
             netExecutor.execute {
-                val result = runCatching { RadioApi.popularAll(app) }
+                val result = runCatching { RadioApi.popularCountry(app, country) }
                 handler.post {
+                    if (country != MusicPrefs.radioCountry(app)) { // another country was picked meanwhile: that load decides
+                        radioLoading = false
+                        if (_binding != null && source == Track.SOURCE_RADIO && binding.searchInput.text.isNullOrBlank()) showOnline()
+                        return@post
+                    }
                     radioLoading = false
                     if (_binding == null) return@post
                     binding.searchProgress.visibility = View.GONE
@@ -998,6 +1052,23 @@ class MusicFragment : Fragment(), MusicService.Listener {
     /** Lists the channels (filtered by the search box); loads them the first time or after the source changed. */
     private fun showTv() {
         if (_binding == null || source != Track.SOURCE_TV) return
+        val typed = binding.searchInput.text?.toString()?.trim().orEmpty()
+        if (TvChannels.isLink(typed)) { // a pasted playlist / stream link: show what it holds
+            val res = tvLinkResult
+            if (tvLinkQuery == typed && res != null) {
+                shown = res
+                adapter.submit(shown)
+                binding.musicCount.text = getString(R.string.tv_count, res.size)
+                showList()
+                adapter.setCurrentKey("")
+            } else {
+                shown = emptyList()
+                adapter.submit(shown)
+                binding.musicCount.text = sourceName(Track.SOURCE_TV)
+                showEmpty(if (tvLinkFailed == typed) R.string.tv_link_failed else R.string.tv_loading)
+            }
+            return
+        }
         val all = tvChannels
         if (all != null) {
             val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
@@ -1019,6 +1090,36 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
         showEmpty(R.string.tv_loading)
         loadTv()
+    }
+
+    private fun loadTvLink(url: String) {
+        if (_binding == null || source != Track.SOURCE_TV || !TvChannels.isLink(url)) return
+        if (tvLinkQuery == url && tvLinkResult != null) return
+        tvLinkFailed = null
+        binding.searchProgress.visibility = View.VISIBLE
+        val app = requireContext().applicationContext
+        try {
+            netExecutor.execute {
+                val result = runCatching { TvChannels.loadLink(app, url) }
+                handler.post {
+                    if (_binding == null) return@post
+                    binding.searchProgress.visibility = View.GONE
+                    if (binding.searchInput.text?.toString()?.trim() != url) return@post // typed on meanwhile
+                    result.onSuccess { (list, isPlaylist) ->
+                        tvLinkQuery = url
+                        tvLinkResult = list
+                        // A playlist is kept with the user's own links, so the TV list has it from now on.
+                        if (isPlaylist && !TvChannels.customUrls(app).contains(url) && TvChannels.addCustom(app, url)) {
+                            tvChannels = null
+                            toast(R.string.tv_link_added)
+                        }
+                    }.onFailure { tvLinkFailed = url }
+                    showTv()
+                }
+            }
+        } catch (e: Exception) {
+            binding.searchProgress.visibility = View.GONE
+        }
     }
 
     private fun loadTv() {

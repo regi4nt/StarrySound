@@ -2267,48 +2267,6 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
-        <!-- Private mode (moved here from the Search page): nothing played is remembered while on -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/private_mode_desc"
-                    android:textColor="?attr/colorTextPrimary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/private_mode_settings_desc"
-                    android:textColor="?attr/colorTextSecondary"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <Switch
-                android:id="@+id/privateSwitch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:thumbTint="?attr/colorAccent"
-                android:trackTint="?attr/colorTrackBg" />
-        </LinearLayout>
-
         <!-- Spotify: import playlists + remote control of the Spotify app -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -2494,6 +2452,48 @@
             android:textSize="12sp"
             android:textStyle="bold"
             android:letterSpacing="0.08" />
+
+        <!-- Private mode (moved here from the Search page): nothing played is remembered while on -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/private_mode_desc"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/private_mode_settings_desc"
+                    android:textColor="?attr/colorTextSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <Switch
+                android:id="@+id/privateSwitch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:thumbTint="?attr/colorAccent"
+                android:trackTint="?attr/colorTrackBg" />
+        </LinearLayout>
 
         <!-- Auto preset per output (speaker / jack / Bluetooth) -->
         <LinearLayout

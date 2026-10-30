@@ -1,6 +1,7 @@
 package com.fxsoundlite.app
 
 import android.content.res.ColorStateList
+import android.graphics.Matrix
 import android.graphics.Outline
 import android.graphics.RenderEffect
 import android.graphics.Shader
@@ -50,6 +51,28 @@ class QuickAdapter(
 
     override fun getItemCount() = tracks.size
 
+    companion object {
+        /**
+         * A TextureView stretches the video to its own size. This scales it like "center crop": the video
+         * fills the whole page, keeps its proportions and the outer parts (left / right or top / bottom)
+         * are cut off. [w] x [h] is the video's picture size; null / 0 removes the transform.
+         */
+        fun cropToFill(tv: TextureView, w: Int, h: Int) {
+            if (w <= 0 || h <= 0) { tv.tag = null; tv.setTransform(null); return }
+            tv.tag = intArrayOf(w, h)
+            val vw = tv.width.toFloat()
+            val vh = tv.height.toFloat()
+            if (vw <= 0f || vh <= 0f) return // applied by the layout listener once the view has a size
+            val scale = maxOf(vw / w, vh / h)
+            val m = Matrix()
+            m.setScale(w * scale / vw, h * scale / vh, vw / 2f, vh / 2f)
+            tv.setTransform(m)
+        }
+
+        /** Video mode (and no data saver): the page shows the video, never the small cover. */
+        fun videoOn(ctx: android.content.Context) = MusicPrefs.videoMode(ctx) && !MusicPrefs.saver(ctx)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val b = ItemQuickBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         val vh = VH(b)
@@ -77,9 +100,11 @@ class QuickAdapter(
                 return true
             }
         }
-        // Blurred backdrop where the OS can do it cheaply (Android 12+); darkened on older ones.
-        if (Build.VERSION.SDK_INT >= 31) {
-            b.quickBg.setRenderEffect(RenderEffect.createBlurEffect(60f, 60f, Shader.TileMode.CLAMP))
+        // The video follows the view's size (rotation, split screen): crop it again to fill.
+        b.quickVideo.addOnLayoutChangeListener { v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                (v.tag as? IntArray)?.let { cropToFill(v as TextureView, it[0], it[1]) }
+            }
         }
 
         fun pos(): Int = vh.bindingAdapterPosition
@@ -103,6 +128,14 @@ class QuickAdapter(
         b.quickBadge.text = ctx.getString(
             R.string.quick_badge
         ) + " · " + formatDuration(QuickFeed.chorusStartMs(t.durationMs))
+
+        // Video mode: no small cover. The song's picture fills the whole page (sharp, centre cropped) until the
+        // first video frame arrives; otherwise the cover is shown over a blurred backdrop (Android 12+).
+        val videoMode = videoOn(ctx)
+        b.quickCover.visibility = if (videoMode) View.INVISIBLE else View.VISIBLE // INVISIBLE: spinner / lyrics stay anchored to it
+        if (Build.VERSION.SDK_INT >= 31) {
+            b.quickBg.setRenderEffect(if (videoMode) null else RenderEffect.createBlurEffect(60f, 60f, Shader.TileMode.CLAMP))
+        }
 
         // Cover: placeholder first; the real image replaces it once downloaded. Saver mode keeps
         // the placeholder (same rule as every other list in the app).

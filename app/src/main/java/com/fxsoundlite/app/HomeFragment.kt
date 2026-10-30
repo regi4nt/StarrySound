@@ -38,6 +38,7 @@ class HomeFragment : Fragment() {
     private var effectManager: AudioEffectManager? = null
     private var effectService: EffectService? = null
     private var bound = false
+    private var bindRequested = false
 
     private val powerListener: (Boolean) -> Unit = { on -> if (_binding != null) applyPowerVisualState(on) }
     // Redraws the preset name when it is changed from the notification or widget while Home is showing.
@@ -82,8 +83,13 @@ class HomeFragment : Fragment() {
         binding.tileDetect.setOnClickListener { startActivity(Intent(requireContext(), SongDetectActivity::class.java)) }
         binding.tileAlarm.setOnClickListener { startActivity(Intent(requireContext(), AlarmActivity::class.java)) }
 
+        // These do not need the effect engine either: they must work even if EffectService binds slowly.
+        setupSettingsButton()
+        binding.eqCard.setOnClickListener { startActivity(Intent(requireContext(), EqualizerActivity::class.java)) }
+
         binding.greetingText.text = greeting()
         buildShelves()
+        restoreOnlineShelves()
 
         binding.aiList.layoutManager = LinearLayoutManager(requireContext(), LinearLayoutManager.HORIZONTAL, false)
         binding.aiList.adapter = aiAdapter
@@ -187,6 +193,8 @@ class HomeFragment : Fragment() {
     private var newSongs: List<HomeFeeds.Song> = emptyList()
     private var radioReco: List<Track> = emptyList()
     private var radioPopular: List<Track> = emptyList()
+    private var tvReco: List<Track> = emptyList()
+    private var tvPopular: List<Track> = emptyList()
     private var playlistReco: List<HomePlaylists.Item> = emptyList()
     private var playlistPopular: List<HomePlaylists.Item> = emptyList()
 
@@ -195,6 +203,8 @@ class HomeFragment : Fragment() {
     private lateinit var newShelf: Shelf
     private lateinit var radioRecoShelf: Shelf
     private lateinit var radioPopularShelf: Shelf
+    private lateinit var tvRecoShelf: Shelf
+    private lateinit var tvPopularShelf: Shelf
     private lateinit var playlistRecoShelf: Shelf
     private lateinit var playlistPopularShelf: Shelf
 
@@ -240,6 +250,32 @@ class HomeFragment : Fragment() {
             { i -> playStation(radioReco, i) }, { i -> stationActions(radioReco, i) })
         radioPopularShelf = addShelf(R.string.home_radio_popular,
             { i -> playStation(radioPopular, i) }, { i -> stationActions(radioPopular, i) })
+        tvRecoShelf = addShelf(R.string.home_tv_reco, { i -> playTv(tvReco, i) })
+        tvPopularShelf = addShelf(R.string.home_tv_popular, { i -> playTv(tvPopular, i) })
+    }
+
+    /** Live TV opens in the video player; the channels of the shelf are its queue. */
+    private fun playTv(list: List<Track>, i: Int) {
+        val ctx = context ?: return
+        if (i !in list.indices) return
+        MusicService.instance?.let { if (it.isPlaying) it.pause() }
+        startActivity(VideoPlayerActivity.queueIntent(ctx, list, i, 0L))
+    }
+
+    /** After the view was recreated the new, empty shelves are filled from the lists already loaded. */
+    private fun restoreOnlineShelves() {
+        fun fill(shelf: Shelf, cards: List<HomeCard>) {
+            shelf.root.visibility = if (cards.isEmpty()) View.GONE else View.VISIBLE
+            shelf.adapter.submit(cards)
+        }
+        fill(topShelf, songCards("t:", topSongs))
+        fill(newShelf, songCards("n:", newSongs))
+        fill(radioRecoShelf, stationCards("rr:", radioReco))
+        fill(radioPopularShelf, stationCards("rp:", radioPopular))
+        fill(tvRecoShelf, stationCards("tr:", tvReco))
+        fill(tvPopularShelf, stationCards("tp:", tvPopular))
+        fill(playlistRecoShelf, playlistCards("pr:", playlistReco))
+        fill(playlistPopularShelf, playlistCards("pp:", playlistPopular))
     }
 
     private fun songCards(prefix: String, list: List<HomeFeeds.Song>) =
@@ -342,25 +378,28 @@ class HomeFragment : Fragment() {
         if (onlineLoading || System.currentTimeMillis() - onlineLoadedAt < onlineTtlMs) return
         onlineLoading = true
         val app = requireContext().applicationContext
-        var pending = 6
+        var pending = 8
         var anyOk = false
+        var failed = 0
         fun <T> job(fetch: () -> T, apply: (T) -> Unit) {
             Thread {
                 val r = runCatching(fetch)
                 aiMain.post {
                     r.onSuccess { anyOk = true; if (_binding != null) apply(it) }
+                    r.onFailure { failed++ }
                     if (--pending == 0) {
                         onlineLoading = false
-                        if (anyOk) onlineLoadedAt = System.currentTimeMillis()
+                        // All good: next refresh in 30 min. Some shelves failed: try again in ~2 min instead of leaving them empty for 30.
+                        if (anyOk) onlineLoadedAt = System.currentTimeMillis() - if (failed == 0) 0L else onlineTtlMs - 2 * 60_000L
                     }
                 }
             }.start()
         }
-        job({ HomeFeeds.topSongs() }) {
+        job({ HomeFeeds.topSongs(app) }) {
             topSongs = it; topShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
             topShelf.adapter.submit(songCards("t:", it))
         }
-        job({ HomeFeeds.newReleases() }) {
+        job({ HomeFeeds.newReleases(app) }) {
             newSongs = it; newShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
             newShelf.adapter.submit(songCards("n:", it))
         }
@@ -371,6 +410,14 @@ class HomeFragment : Fragment() {
         job({ RadioApi.popularMixed(app) }) {
             radioPopular = it; radioPopularShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
             radioPopularShelf.adapter.submit(stationCards("rp:", it))
+        }
+        job({ TvChannels.recommended(app) }) {
+            tvReco = it; tvRecoShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
+            tvRecoShelf.adapter.submit(stationCards("tr:", it))
+        }
+        job({ TvChannels.popularMixed(app) }) {
+            tvPopular = it; tvPopularShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
+            tvPopularShelf.adapter.submit(stationCards("tp:", it))
         }
         job({ HomePlaylists.recommended(app) }) {
             playlistReco = it; playlistRecoShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
@@ -390,16 +437,6 @@ class HomeFragment : Fragment() {
             else -> R.string.greet_night
         }
         return getString(res)
-    }
-
-    /** Plays [tracks] from the top; an empty list sends the user to the Playlist page instead. */
-    private fun playList(tracks: List<Track>) {
-        val svc = MusicService.instance
-        if (tracks.isEmpty() || svc == null) {
-            (activity as? MainActivity)?.openPage(MainActivity.PAGE_PLAYLIST)
-            return
-        }
-        svc.setQueueAndPlay(tracks, 0)
     }
 
     /** Redraws "Recently played"; the adapter ignores the call when nothing changed. */
@@ -428,6 +465,7 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        _binding?.greetingText?.text = greeting() // the fragment stays alive for hours: keep "Good morning" honest
         loadAiPicks(force = false)
         loadOnlineShelves()
         statsRefresh.run()
@@ -566,7 +604,7 @@ class HomeFragment : Fragment() {
         super.onStart()
         startNetWatch()
         Intent(requireContext(), EffectService::class.java).also { intent ->
-            requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            bindRequested = requireContext().bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
     }
 
@@ -575,17 +613,19 @@ class HomeFragment : Fragment() {
         stopNetWatch()
         effectService?.removePowerListener(powerListener)
         effectService?.removePresetListener(presetListener)
-        if (bound) {
-            requireContext().unbindService(connection)
+        // Unbind even if onServiceConnected has not fired yet, or the connection leaks.
+        if (bindRequested || bound) {
+            try { requireContext().unbindService(connection) } catch (_: IllegalArgumentException) { }
+            bindRequested = false
             bound = false
         }
     }
 
     /** Called once the real (single, persistent) effect engine is bound. */
     private fun onEngineReady() {
+        if (_binding == null) return
         setupEqButton()
         applyPowerVisualState(em().isEnabled)
-        setupSettingsButton()
     }
 
     private fun em() = effectManager!!
@@ -598,9 +638,6 @@ class HomeFragment : Fragment() {
     private fun setupEqButton() {
         val preset = em().prefs.getString("last_preset", "Flat") ?: "Flat"
         binding.eqPresetSummary.text = getString(R.string.eq_preset_summary, preset)
-        binding.eqCard.setOnClickListener {
-            startActivity(Intent(requireContext(), EqualizerActivity::class.java))
-        }
     }
 
     /** The on/off switch now lives in the equalizer screen. Home only dims the card while effects

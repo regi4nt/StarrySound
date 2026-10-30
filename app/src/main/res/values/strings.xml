@@ -245,6 +245,7 @@
     <string name="mini_play_pause">Play / pause</string>
     <string name="mini_next">Next</string>
     <string name="np_close">Close player</string>
+    <string name="np_playing_from">Playing from playlist</string>
     <string name="saver_switch_label">Data saver</string>
     <string name="saver_mode_off">Normal</string>
     <string name="saver_mode_on">Saver</string>
@@ -325,6 +326,11 @@
     <string name="select_pick_one">Pick at least one song</string>
     <string name="select_exit">Exit selection</string>
     <string name="playlist_rename">Rename</string>
+    <string name="playlist_pin">Pin playlist</string>
+    <string name="playlist_unpin">Unpin playlist</string>
+    <string name="playlist_pin_full">You can pin up to 4 playlists. Unpin one first.</string>
+    <string name="playlist_pinned">Pinned to top</string>
+    <string name="playlist_unpinned">Unpinned</string>
     <string name="playlist_menu_edit">Edit</string>
     <string name="playlist_delete">Delete</string>
     <string name="track_delete_device">Delete from device</string>
@@ -666,6 +672,8 @@
     <string name="home_new_releases">New releases</string>
     <string name="home_radio_reco">Recommended radio stations</string>
     <string name="home_radio_popular">Popular radio</string>
+    <string name="home_tv_reco">Recommended TV</string>
+    <string name="home_tv_popular">Popular TV</string>
     <string name="settings_cat_general_sub">Theme, accent color, language</string>
     <string name="settings_cat_player_sub">Player cover, cover shape</string>
     <string name="settings_cat_screensaver_sub">Background, clock, greeting, now playing, charging screensaver</string>
@@ -1032,7 +1040,7 @@
     <string name="video_music_not_ready">The music player is not ready. Try again in a moment.</string>
     <string name="video_timer_set">Video stops in %d min.</string>
     <string name="source_tv">TV</string>
-    <string name="tv_search_hint">Search channels</string>
+    <string name="tv_search_hint">Search channels or paste an M3U link</string>
     <string name="tv_source_label">TV: %1$s</string>
     <string name="tv_source_title">TV channels</string>
     <string name="tv_own_links">%1$d own link(s)</string>
@@ -1047,4 +1055,21 @@
     <string name="tv_reload">Reload channels</string>
     <string name="tv_link_hint">https://…/playlist.m3u</string>
     <string name="tv_link_invalid">The link must start with http:// or https://</string>
+    <string name="radio_pick_country">Pick a country</string>
+    <string name="radio_filter_sort">Filter and sort</string>
+    <string name="radio_worldwide">Worldwide</string>
+    <string name="tv_link_failed">Could not read that link.</string>
+    <string name="tv_link_added">Playlist added to your TV links</string>
+    <string name="np_audio_quality">Audio quality</string>
+    <string name="np_video_quality">Video quality</string>
+    <string name="video_quality_auto">Automatic (YouTube player)</string>
+    <string name="video_quality_loading">Looking for video qualities…</string>
+    <string name="video_quality_none">No other video quality is available for this video.</string>
+    <string name="video_quality_failed">Could not load the video qualities.</string>
+    <string name="np_pip">Picture-in-Picture</string>
+    <string name="pip_not_supported">Picture-in-Picture is not available on this device</string>
+    <string name="pip_play">Play</string>
+    <string name="pip_pause">Pause</string>
+    <string name="pip_prev">Previous video</string>
+    <string name="pip_next">Next video</string>
 </resources>

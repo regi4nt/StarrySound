@@ -116,6 +116,7 @@
         <activity
             android:name=".VideoPlayerActivity"
             android:exported="false"
+            android:supportsPictureInPicture="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
 
         <activity

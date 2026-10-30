@@ -118,6 +118,28 @@ class YouTubeStreamEngine(
             return pick.content
         }
 
+        /** Blocking: the progressive MP4s (picture + sound) of [videoId] as height -> link, smallest first; empty when none. */
+        fun videoChoices(videoId: String): List<Pair<Int, String>> {
+            if (!videoId.matches(ID_RE)) return emptyList()
+            val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=$videoId")
+            return info.videoStreams
+                .filter { !it.isVideoOnly && it.isUrl && !it.content.isNullOrBlank() && it.format?.suffix.equals("mp4", true) && it.height > 0 }
+                .groupBy { it.height }
+                .map { (h, l) -> h to l.first().content }
+                .sortedBy { it.first }
+        }
+
+        /** Blocking: a progressive MP4 (picture + sound) of [videoId], cached; null when it has none. Used by the video player when the embedded player refuses. */
+        fun videoLink(context: Context, videoId: String): String? {
+            if (!videoId.matches(ID_RE)) return null
+            val q = StreamQuality.effective(context)
+            val k = vkey(videoId, q, MusicPrefs.audioLang(context))
+            cached(k)?.let { return it }
+            return fetchVideoUrl(videoId, q)?.also { store(k, it) }
+        }
+
+        const val HTTP_USER_AGENT = USER_AGENT
+
         /** MediaPlayer is happiest with AAC/M4A; take the stream matching the chosen quality of those, else any audio. */
         private fun pickAudio(list: List<AudioStream>, q: StreamQuality.Level, lang: String): AudioStream? {
             val usable = list.filter { it.isUrl && !it.content.isNullOrBlank() }
@@ -174,6 +196,8 @@ class YouTubeStreamEngine(
     /** True while the stream playing now really has a picture (a video was asked for and found). */
     var showsVideo = false
         private set
+    /** Called (main thread) when the picture size of the playing video is known / changes: lets the page crop it to fill. */
+    var onVideoSize: ((Int, Int) -> Unit)? = null
     private var surface: Surface? = null
 
     /** Where the picture goes (null = nowhere, the sound plays on). Can change while playing. */
@@ -237,6 +261,7 @@ class YouTubeStreamEngine(
         val q0 = StreamQuality.effective(appContext)
         val lang0 = MusicPrefs.audioLang(appContext)
         val video = videoMode
+        Log.i(TAG, "load ${track.remoteId} videoMode=$video surface=${surface != null}")
         val hit = cached(if (video) vkey(track.remoteId, q0, lang0) else key(track.remoteId, q0, lang0))
         if (hit != null) { // link already known (e.g. prefetched): no waiting
             startPlayer(hit, my, video)
@@ -287,7 +312,7 @@ class YouTubeStreamEngine(
         handler.post {
             if (released || my != token) return@post
             when {
-                u != null -> startPlayer(u, my, video)
+                u != null -> { if (wantVideo && !video) Log.w(TAG, "video: no muxed mp4 for $videoId, sound only"); startPlayer(u, my, video) }
                 network && recover() -> Unit // try again shortly
                 else -> fail(err)
             }
@@ -324,7 +349,10 @@ class YouTubeStreamEngine(
             pendingStart?.let { handler.removeCallbacks(it) }
             val r = Runnable {
                 pendingStart = null
-                if (!released && my == token) startPlayer(url, my, video, waited = true)
+                if (!released && my == token) {
+                    Log.w(TAG, "video: no picture surface after 2s, playing sound only")
+                    startPlayer(url, my, video, waited = true)
+                }
             }
             pendingStart = r
             handler.postDelayed(r, 2000L)
@@ -336,6 +364,9 @@ class YouTubeStreamEngine(
             prepared = false
             showsVideo = video
             if (video) surface?.let { m.setSurface(it) }
+            m.setOnVideoSizeChangedListener { _, w, h ->
+                if (mp === m && w > 0 && h > 0) onVideoSize?.invoke(w, h)
+            }
             m.setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -348,7 +379,7 @@ class YouTubeStreamEngine(
                 if (released || mp !== it || my != token) return@setOnPreparedListener
                 handler.removeCallbacks(watchdog)
                 prepared = true
-                if (video) try { it.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING) } catch (_: Exception) { }
+                // No scaling mode here: the page's TextureView crops the picture itself (QuickAdapter.cropToFill). A second crop by the player would zoom in twice.
                 if (it.duration > 0) dur = it.duration
                 if (basePos > 0) it.seekTo(basePos)
                 if (playing) {
@@ -465,7 +496,7 @@ class YouTubeStreamEngine(
         pendingStart?.let { handler.removeCallbacks(it) }
         pendingStart = null
         mp?.let {
-            try { it.setOnErrorListener(null); it.setOnPreparedListener(null); it.setOnInfoListener(null); it.setOnCompletionListener(null); it.reset() } catch (_: Exception) { }
+            try { it.setOnVideoSizeChangedListener(null); it.setOnErrorListener(null); it.setOnPreparedListener(null); it.setOnInfoListener(null); it.setOnCompletionListener(null); it.reset() } catch (_: Exception) { }
             try { it.release() } catch (_: Exception) { }
         }
         mp = null

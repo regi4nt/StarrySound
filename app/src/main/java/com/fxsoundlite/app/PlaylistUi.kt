@@ -201,28 +201,47 @@ object PlaylistUi {
     }
 
     /** Export / share choices that every playlist (and "Liked songs") offers. */
-    fun exportActions(c: Context, title: String, onExport: () -> Unit, onShare: () -> Unit) {
-        val labels = arrayOf(c.getString(R.string.playlist_menu_export_m3u), c.getString(R.string.playlist_menu_share_link))
+    fun exportActions(
+        c: Context, title: String, onExport: () -> Unit, onShare: () -> Unit,
+        pinLabel: String? = null, onPin: (() -> Unit)? = null
+    ) {
+        val labels = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+        if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
+        labels += c.getString(R.string.playlist_menu_export_m3u); actions += onExport
+        labels += c.getString(R.string.playlist_menu_share_link); actions += onShare
         AlertDialog.Builder(c)
             .setTitle(title)
-            .setItems(labels) { _, which -> if (which == 0) onExport() else onShare() }
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
+            .show()
+    }
+
+    /** Menu with just the pin / unpin choice (YouTube and Drive playlists, which are read-only here). */
+    fun pinOnly(c: Context, title: String, pinLabel: String, onPin: () -> Unit) {
+        AlertDialog.Builder(c)
+            .setTitle(title)
+            .setItems(arrayOf(pinLabel)) { _, _ -> onPin() }
             .show()
     }
 
     /** Long-press menu of a playlist row: edit / export / share / delete. */
     fun playlistActions(
-        c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit, onChanged: () -> Unit
+        c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit,
+        pinLabel: String? = null, onPin: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
-        val labels = arrayOf(
-            c.getString(R.string.playlist_menu_edit),
-            c.getString(R.string.playlist_menu_export_m3u),
-            c.getString(R.string.playlist_menu_share_link),
-            c.getString(R.string.playlist_delete)
-        )
+        val hasPin = pinLabel != null && onPin != null
+        val labels = mutableListOf<String>()
+        if (hasPin) labels += pinLabel!!
+        labels += c.getString(R.string.playlist_menu_edit)
+        labels += c.getString(R.string.playlist_menu_export_m3u)
+        labels += c.getString(R.string.playlist_menu_share_link)
+        labels += c.getString(R.string.playlist_delete)
         AlertDialog.Builder(c)
             .setTitle(pl.name)
-            .setItems(labels) { _, which ->
+            .setItems(labels.toTypedArray()) { _, picked ->
+                val which = if (hasPin) picked - 1 else picked
                 when (which) {
+                    -1 -> onPin?.invoke()
                     0 -> onEdit(pl)
                     1 -> onExport(pl)
                     2 -> onShare(pl)

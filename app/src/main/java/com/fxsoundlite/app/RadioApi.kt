@@ -66,6 +66,10 @@ object RadioApi {
         return load(context, query.trim(), source)
     }
 
+    /** Most-listened stations of one country (2-letter code; "" = worldwide): the Radio tab's first list. */
+    fun popularCountry(context: Context, country: String): List<Track> =
+        RadioOrigin.tag(context, fetch(context, "", "clickcount", country), SRC_BROWSER)
+
     /** Popular stations from every directory at once (same merge as [searchAll] with no query). */
     fun popularAll(context: Context): List<Track> = searchAll(context, "")
 
@@ -155,7 +159,7 @@ object RadioApi {
      * world (a global ranking without that country's stations). Fills up from either side if one is short.
      */
     fun popularMixed(context: Context): List<Track> {
-        val cc = Locale.getDefault().country.takeIf { it.length == 2 }
+        val cc = DeviceCountry.codeOrNull(context)?.uppercase(Locale.US)
         val local = if (cc != null) RadioOrigin.tag(context, runCatching { fetch(context, "", "clickcount", cc) }.getOrDefault(emptyList()), SRC_BROWSER) else emptyList()
         val global = RadioOrigin.tag(context, runCatching { fetch(context, "", "clickcount", "") }.getOrDefault(emptyList()), SRC_BROWSER)
         if (local.isEmpty() && global.isEmpty()) throw ApiException(RemoteEngine.ERR_NETWORK, "network error")
@@ -179,7 +183,7 @@ object RadioApi {
         if (query.isNotEmpty()) {
             path.append("&name=").append(URLEncoder.encode(query, "UTF-8"))
         } else {
-            (country ?: Locale.getDefault().country).takeIf { it.length == 2 }
+            (country ?: DeviceCountry.codeOrNull(context)).takeIf { it?.length == 2 }
                 ?.let { path.append("&countrycode=").append(it) }
         }
         refreshHosts()

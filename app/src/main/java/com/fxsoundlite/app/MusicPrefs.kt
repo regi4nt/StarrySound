@@ -63,6 +63,10 @@ object MusicPrefs {
     fun videoMode(c: Context): Boolean = p(c).getBoolean("video_mode", false)
     fun setVideoMode(c: Context, v: Boolean) = p(c).edit().putBoolean("video_mode", v).apply()
 
+    /** Id of the playlist the user last started playing from the Playlist page; it is pinned on top of the overview. */
+    fun lastPlayedList(c: Context): String? = p(c).getString("last_played_list", null)
+    fun setLastPlayedList(c: Context, id: String?) = p(c).edit().putString("last_played_list", id).apply()
+
     fun privateMode(c: Context): Boolean = p(c).getBoolean(KEY_PRIVATE_MODE, false)
     fun setPrivateMode(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_PRIVATE_MODE, v).apply()
 
@@ -120,6 +124,11 @@ object MusicPrefs {
             .takeIf { it == Track.SOURCE_LOCAL || it == Track.SOURCE_YOUTUBE || it == Track.SOURCE_RADIO || it == Track.SOURCE_DRIVE }
             ?: Track.SOURCE_LOCAL
     fun setLastSource(c: Context, v: Int) = p(c).edit().putInt(KEY_LAST_SOURCE, v).apply()
+
+    /** Country of the Radio tab's first list: a 2-letter code, "" = worldwide. Default: the device's country. */
+    fun radioCountry(c: Context): String =
+        p(c).getString("radio_country", null) ?: java.util.Locale.getDefault().country.lowercase(java.util.Locale.ROOT).takeIf { it.length == 2 }.orEmpty()
+    fun setRadioCountry(c: Context, code: String) = p(c).edit().putString("radio_country", code).apply()
 
     /** Which radio directory the Radio tab uses (one of RadioApi.SRC_*). */
     fun radioSource(c: Context): Int = p(c).getInt(KEY_RADIO_SOURCE, RadioApi.SRC_BROWSER)

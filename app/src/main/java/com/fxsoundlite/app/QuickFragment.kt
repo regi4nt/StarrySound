@@ -365,6 +365,8 @@ class QuickFragment : Fragment(), QuickActions {
         val waitForSound = !audioTaken && svc0 != null && svc0.isPlaying
         if (!waitForSound) takeAudio()
         val e = engine ?: YouTubeStreamEngine(requireContext(), handler, engineCallback).also { engine = it }
+        e.onVideoSize = { w, h -> holderAt(currentPos)?.b?.quickVideo?.let { QuickAdapter.cropToFill(it, w, h) } }
+        holderAt(pos)?.b?.quickVideo?.let { QuickAdapter.cropToFill(it, 0, 0) } // the new clip has its own size
         e.setVolume(if (waitForSound) 0f else 1f)
         e.videoMode = videoOn()
         // The reel's video view must be on screen for its surface to exist: switch it on before the player starts.
@@ -502,8 +504,10 @@ class QuickFragment : Fragment(), QuickActions {
         val wantVideo = isCurrent && videoOn() && (e == null || e.videoMode)
         vh.b.quickVideo.visibility = if (wantVideo) View.VISIBLE else View.GONE
         val videoShown = wantVideo && previewStarted && e?.showsVideo == true
-        vh.b.quickVideo.alpha = if (videoShown) 1f else 0f
-        vh.b.quickCover.visibility = if (videoShown) View.INVISIBLE else View.VISIBLE // the picture fills the page instead
+        // Never exactly 0: a fully transparent TextureView may not get its surface, and then no picture ever arrives.
+        vh.b.quickVideo.alpha = if (videoShown) 1f else 0.01f
+        // Video mode: never the small cover (the page picture / the video fills the screen instead).
+        vh.b.quickCover.visibility = if (videoOn()) View.INVISIBLE else View.VISIBLE
         if (!isCurrent) vh.b.quickProgress.progress = 0
         feed.getOrNull(pos)?.let { applyLike(vh, it) }
         applyLyrics(vh, pos)
@@ -608,7 +612,7 @@ class QuickFragment : Fragment(), QuickActions {
     private fun updateUi() {
         holderAt(currentPos)?.let { applyState(it, currentPos) }
         // The reels next to the current one show their cover again (the clip now plays on the current one).
-        for (d in intArrayOf(-1, 1)) holderAt(currentPos + d)?.b?.let { it.quickVideo.visibility = View.GONE; it.quickCover.visibility = View.VISIBLE }
+        for (d in intArrayOf(-1, 1)) holderAt(currentPos + d)?.b?.let { it.quickVideo.visibility = View.GONE; it.quickCover.visibility = if (videoOn()) View.INVISIBLE else View.VISIBLE }
     }
 
     override fun onVideoSurface(vh: QuickAdapter.VH, available: Boolean) {

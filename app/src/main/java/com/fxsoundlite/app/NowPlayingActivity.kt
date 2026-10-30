@@ -239,6 +239,9 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         val t = s?.current
         if (s == null || t == null) { finish(); return }
         binding.npTitle.text = t.title
+        val from = s.playingFrom
+        binding.npFromBox.visibility = if (from == null) View.GONE else View.VISIBLE
+        if (from != null) binding.npFromName.text = from
         if (lyricsMode && t.key != lyricsKey) loadLyrics(t)
         val artistLine = t.artist.ifBlank { t.album }
         binding.npArtist.text = if (s.isSmartPick(t)) "\u2726 " + getString(R.string.np_smart_pick) + " \u2022 " + artistLine else artistLine
@@ -720,6 +723,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         if (!isRadio) { // live radio cannot be sped up: no item at all
             popup.menu.add(0, MENU_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(MusicService.instance?.playbackSpeed ?: 1f)))
         }
+        if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 0, R.string.np_audio_quality)
         popup.menu.add(0, MENU_TIMER, 1, R.string.np_sleep_timer)
         if (MusicService.instance?.current?.source != Track.SOURCE_RADIO) {
             popup.menu.add(0, MENU_DOWNLOAD, 2, R.string.np_download)
@@ -735,6 +739,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 MENU_INFO -> showSongInfo()
                 MENU_SPEED -> showSpeedDialog()
                 MENU_AUDIO -> showAudioTrackDialog()
+                MENU_QUALITY -> StreamQuality.showDialog(this) { MusicService.instance?.reloadCurrent() } // applies to the song playing now
             }
             true
         }
@@ -918,6 +923,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         private const val MENU_DOWNLOAD = 4
         private const val MENU_SPEED = 5
         private const val MENU_AUDIO = 6
+        private const val MENU_QUALITY = 7
     }
 
     // ------------------------------------------------------------------ audio -> video

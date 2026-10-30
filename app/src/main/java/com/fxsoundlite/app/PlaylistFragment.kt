@@ -160,6 +160,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private var drvLoading = false
     private var drvLoadedAt = 0L
     private var drvEmail = ""
+    private var drvVideo = false // which kind of files drvFolders holds: audio (music mode) or video (video mode)
     private var drvConsentAsked = false
 
     private val drvConsentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
@@ -174,13 +175,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val app = context?.applicationContext ?: return
         if (drvLoading || !DriveMusic.isSignedIn(app)) return
         val email = DriveSync.email(app)
-        if (email != drvEmail) { drvEmail = email; drvFolders = null }
+        val video = MusicPrefs.videoMode(app)
+        if (email != drvEmail || video != drvVideo) { drvEmail = email; drvVideo = video; drvFolders = null }
         if (drvFolders != null && System.currentTimeMillis() - drvLoadedAt < 5 * 60_000L) return
         drvLoading = true
         ytExecutor.execute {
             var consent: Intent? = null
             val result = try {
-                Result.success(DriveMusic.listFolders(app))
+                Result.success(DriveMusic.listFolders(app, video))
             } catch (e: com.google.android.gms.auth.UserRecoverableAuthException) {
                 consent = e.intent
                 Result.failure(e)
@@ -190,6 +192,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             ytHandler.post {
                 drvLoading = false
                 if (_binding == null) return@post
+                if (video != MusicPrefs.videoMode(app)) { loadDriveFolders(); return@post } // mode changed meanwhile: reload
                 result.onSuccess {
                     drvFolders = it
                     drvLoadedAt = System.currentTimeMillis()
@@ -207,7 +210,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     }
 
     private fun driveFolderPlaylist(id: String): Playlist? {
-        val f = drvFolders?.firstOrNull { DRIVE_PREFIX + it.id == id } ?: return null
+        val f = drvFolders?.takeIf { drvVideo == MusicPrefs.videoMode(requireContext()) }?.firstOrNull { DRIVE_PREFIX + it.id == id } ?: return null
         return Playlist(id, f.name, f.tracks)
     }
 
@@ -595,12 +598,13 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val id = openList ?: return
         val tracks = sortTracks(resolveList(ctx, id)?.tracks.orEmpty()).filter { !it.missing }
         val svc = service ?: MusicService.instance
+        if (tracks.isNotEmpty()) MusicPrefs.setLastPlayedList(ctx, id)
         if (MusicPrefs.videoMode(ctx) && tracks.isNotEmpty()) { playAsVideo(tracks, 0); return }
         if (tracks.isEmpty() || svc == null) {
             Toast.makeText(ctx, R.string.playlist_empty_tracks, Toast.LENGTH_SHORT).show()
             return
         }
-        svc.setQueueAndPlay(tracks, 0)
+        svc.setQueueAndPlay(tracks, 0, fromPlaylist = resolveList(ctx, id)?.name)
     }
 
     /** Orders [list] by the chosen [sortMode]; the stored playlist itself is never reordered. */
@@ -827,7 +831,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             // Drive folders that hold audio files, one playlist per folder (label "Drive").
             if (DriveMusic.isSignedIn(ctx)) {
                 loadDriveFolders()
-                drvFolders.orEmpty().forEach {
+                (if (drvVideo == MusicPrefs.videoMode(ctx)) drvFolders else null).orEmpty().forEach {
                     ytCount++
                     if (want(F_DRIVE) && (q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q))) {
                         rows += Row(
@@ -839,8 +843,16 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 }
             }
             // "Liked songs" stays on top; the order setting applies to the playlists below it.
-            val pinned = rows.filter { it.kind == ROW_LIKED }
-            val rest = rows.filter { it.kind != ROW_LIKED }
+            // "Liked songs" is always on top (no pin needed), then the pinned rows (max 4, in pin order),
+            // then the playlist played last, then the rest.
+            val pinIds = PlaylistPins.ids(ctx)
+            val likedRows = rows.filter { it.kind == ROW_LIKED }
+            val pinnedRows = pinIds.mapNotNull { pid -> rows.firstOrNull { it.id == pid && it.kind != ROW_LIKED } }
+                .onEach { it.pinned = true }
+            val lastId = MusicPrefs.lastPlayedList(ctx)
+            val playing = rows.firstOrNull { it.id == lastId && it.kind != ROW_LIKED && it.id !in pinIds }
+            val pinned = likedRows + pinnedRows + listOfNotNull(playing)
+            val rest = rows.filter { it.kind != ROW_LIKED && it.id !in pinIds && it !== playing }
             val collator = java.text.Collator.getInstance()
             val ordered = when (listSort) {
                 LSORT_NAME_AZ -> rest.sortedWith { a, b -> collator.compare(a.name.trim(), b.name.trim()) }
@@ -862,7 +874,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             loadYtLists()
             if (ytLoading) { showEmpty(R.string.yt_playlist_loading); return }
         }
-        if (id.startsWith(DRIVE_PREFIX) && drvFolders == null) { // opened before the folders arrived
+        if (id.startsWith(DRIVE_PREFIX) && (drvFolders == null || drvVideo != MusicPrefs.videoMode(ctx))) { // opened before the folders arrived
             loadDriveFolders()
             if (drvLoading) { showEmpty(R.string.drive_music_loading); return }
         }
@@ -1103,22 +1115,59 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }.start()
     }
 
+    /** True while the playlist behind a pinned id still exists (lists not loaded yet count as existing). */
+    private fun pinTargetAlive(ctx: Context, own: Set<String>, id: String): Boolean = when {
+        id == PlaylistStore.LIKED_ID -> true
+        YouTubeAccount.isYtId(id) -> ytLists?.any { YouTubeAccount.ID_PREFIX + it.id == id } ?: true
+        id.startsWith(DRIVE_PREFIX) ->
+            if (drvFolders == null || drvVideo != MusicPrefs.videoMode(ctx)) true
+            else drvFolders!!.any { DRIVE_PREFIX + it.id == id }
+        else -> id in own
+    }
+
+    /** Pins / unpins a row of the overview; at most [PlaylistPins.MAX] can be pinned. */
+    private fun togglePin(row: Row) {
+        val ctx = context ?: return
+        val own = PlaylistStore.playlists(ctx).map { it.id }.toSet()
+        PlaylistPins.retain(ctx) { pinTargetAlive(ctx, own, it) } // free slots of deleted playlists
+        if (PlaylistPins.isPinned(ctx, row.id)) {
+            PlaylistPins.unpin(ctx, row.id)
+            toast(ctx, R.string.playlist_unpinned)
+        } else if (PlaylistPins.pin(ctx, row.id)) {
+            toast(ctx, R.string.playlist_pinned)
+        } else {
+            toast(ctx, R.string.playlist_pin_full)
+        }
+        if (_binding != null) refresh()
+    }
+
     private fun onRowLongClicked(row: Row) {
         val ctx = requireContext()
-        if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT || row.kind == ROW_YT || row.kind == ROW_DRIVE) return
+        if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT) return
+        val pinLabel = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
+        if (row.kind == ROW_YT || row.kind == ROW_DRIVE) {
+            PlaylistUi.pinOnly(ctx, row.name, pinLabel) { togglePin(row) }
+            return
+        }
         val pl = PlaylistStore.get(ctx, row.id) ?: return
         if (row.kind == ROW_LIKED) {
             PlaylistUi.exportActions(ctx, getString(R.string.playlist_liked), { exportM3u(pl) }, { shareLink(pl) })
             return
         }
-        PlaylistUi.playlistActions(ctx, pl, { showEditDialog(it.id) }, { exportM3u(it) }, { shareLink(it) }) { if (_binding != null) refresh() }
+        PlaylistUi.playlistActions(
+            ctx, pl, { showEditDialog(it.id) }, { exportM3u(it) }, { shareLink(it) },
+            pinLabel, { togglePin(row) }
+        ) { if (_binding != null) refresh() }
     }
 
     private fun onTrackClicked(position: Int) {
         if (position !in shown.indices) return
         if (selecting) { toggleSelected(shown[position]); return }
+        openList?.let { MusicPrefs.setLastPlayedList(requireContext(), it) } // pinned right below Liked songs
         if (MusicPrefs.videoMode(requireContext())) { playAsVideo(shown, position); return }
-        (service ?: MusicService.instance)?.setQueueAndPlay(shown, position)
+        val ctx = requireContext()
+        val from = openList?.let { resolveList(ctx, it)?.name }
+        (service ?: MusicService.instance)?.setQueueAndPlay(shown, position, fromPlaylist = from)
     }
 
     /**
@@ -1475,7 +1524,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val kind: Int, val id: String, val name: String, val subtitle: String, val artUrl: String = "",
         /** Number of songs, for sorting the overview. */
         val count: Int = 0
-    )
+    ) {
+        /** Set by refresh(): the row is one of the pinned playlists (shows the pin icon). */
+        var pinned: Boolean = false
+    }
 
     private class RowAdapter(
         private val onClick: (Row) -> Unit,
@@ -1552,7 +1604,13 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val ctx = holder.itemView.context
             holder.name.text = row.name
             holder.sub.text = row.subtitle
-            holder.trailing.visibility = View.GONE
+            if (row.pinned) {
+                holder.trailing.setImageResource(R.drawable.ic_pin)
+                holder.trailing.imageTintList = ColorStateList.valueOf(attrColor(ctx, androidx.appcompat.R.attr.colorAccent))
+                holder.trailing.visibility = View.VISIBLE
+            } else {
+                holder.trailing.visibility = View.GONE
+            }
             val pad = (12 * ctx.resources.displayMetrics.density).toInt()
             holder.art.setPadding(pad, pad, pad, pad)
             holder.art.scaleType = ImageView.ScaleType.CENTER_INSIDE

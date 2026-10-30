@@ -78,11 +78,12 @@ object DriveMusic {
     /** A Drive folder that holds audio files; shown as a playlist ([tracks] are its audio files, by name). */
     class Folder(val id: String, val name: String, val tracks: List<Track>)
 
-    /** Drive folders with at least one audio file, as playlists. Blocking: call off the main thread. */
-    fun listFolders(c: Context): List<Folder> {
+    /** Drive folders with at least one audio file (or video file when [video], i.e. video mode), as playlists. Blocking: call off the main thread. */
+    fun listFolders(c: Context, video: Boolean = false): List<Folder> {
         val app = c.applicationContext
         val byParent = LinkedHashMap<String, MutableList<Track>>()
-        for ((t, parent) in fetchAudio(app)) {
+        val files = if (video) fetchFiles(app, "video/", Track.SOURCE_DRIVE_VIDEO) else fetchAudio(app)
+        for ((t, parent) in files) {
             if (parent != null) byParent.getOrPut(parent) { ArrayList() } += t
         }
         if (byParent.isEmpty()) return emptyList()

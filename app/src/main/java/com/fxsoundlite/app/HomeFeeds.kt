@@ -1,5 +1,6 @@
 package com.fxsoundlite.app
 
+import android.content.Context
 import org.json.JSONObject
 import java.io.IOException
 import java.text.SimpleDateFormat
@@ -17,12 +18,21 @@ object HomeFeeds {
     private const val TTL_MS = 30 * 60 * 1000L
     private class Cached(val at: Long, val songs: List<Song>)
     private val cache = HashMap<String, Cached>()
+    /** One request per chart at a time: Top songs and New releases load together and need the same charts. */
+    private val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
 
-    private fun country(): String =
-        Locale.getDefault().country.lowercase(Locale.US).takeIf { it.length == 2 } ?: "us"
+    /** Home chart + a different foreign chart. If the home chart is unavailable it falls back to "us" and the foreign one becomes "gb". */
+    private fun localAndAbroad(ctx: Context?): Pair<List<Song>, List<Song>> {
+        val c = DeviceCountry.code(ctx)
+        val (code, local) = try { c to chart(c) } catch (e: Exception) { "us" to chart("us") }
+        val abroad = runCatching { chart(if (code == "us") "gb" else "us") }.getOrDefault(emptyList())
+        return local to abroad
+    }
 
     /** Most-played songs of a storefront (50 entries). */
     private fun chart(code: String): List<Song> {
+      val lock = locks.getOrPut(code) { Any() }
+      synchronized(lock) {
         synchronized(cache) {
             cache[code]?.let { if (System.currentTimeMillis() - it.at < TTL_MS) return it.songs }
         }
@@ -44,18 +54,14 @@ object HomeFeeds {
         }
         synchronized(cache) { cache[code] = Cached(System.currentTimeMillis(), out) }
         return out
+      }
     }
 
-    private fun chartOrFallback(code: String): List<Song> =
-        try { chart(code) } catch (e: Exception) { if (code == "us") throw e else chart("us") }
-
     /** Top songs: 5 from the device's country chart + 5 international (a foreign chart, not already in the local picks). */
-    fun topSongs(): List<Song> {
-        val c = country()
-        val local = chartOrFallback(c)
+    fun topSongs(ctx: Context? = null): List<Song> {
+        val (local, abroad) = localAndAbroad(ctx)
         val localPick = local.take(5)
         val seen = localPick.map { it.title + "|" + it.artist }.toHashSet()
-        val abroad = runCatching { chart(if (c == "us") "gb" else "us") }.getOrDefault(emptyList())
         val intl = abroad.filter { (it.title + "|" + it.artist) !in local.map { l -> l.title + "|" + l.artist } }
             .filter { seen.add(it.title + "|" + it.artist) }.take(5)
         // If the international chart is unavailable, fill up with more local songs.
@@ -64,10 +70,8 @@ object HomeFeeds {
     }
 
     /** New releases: 5 recent songs of the device's country chart + 5 recent ones of a foreign chart (newest first). */
-    fun newReleases(): List<Song> {
-        val c = country()
-        val local = chartOrFallback(c)
-        val abroad = runCatching { chart(if (c == "us") "gb" else "us") }.getOrDefault(emptyList())
+    fun newReleases(ctx: Context? = null): List<Song> {
+        val (local, abroad) = localAndAbroad(ctx)
         val localKeys = local.map { it.title + "|" + it.artist }.toHashSet()
         val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
         val cutoff = System.currentTimeMillis() - 120L * 24 * 3600 * 1000

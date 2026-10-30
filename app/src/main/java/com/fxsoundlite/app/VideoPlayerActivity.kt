@@ -1,10 +1,16 @@
 package com.fxsoundlite.app
 
+import android.app.PendingIntent
+import android.app.PictureInPictureParams
+import android.app.RemoteAction
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.ColorStateList
+import android.content.IntentFilter
 import android.content.res.Configuration
+import android.graphics.drawable.Icon
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
@@ -12,6 +18,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Rational
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -29,6 +36,7 @@ import android.widget.VideoView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -83,6 +91,15 @@ class VideoPlayerActivity : AppCompatActivity() {
         private const val M_DOWNLOAD = 3
         private const val M_SHARE = 4
         private const val M_INFO = 5
+        private const val M_QUALITY = 6
+        private const val M_PIP = 7
+        private const val PIP_ACTION = "com.fxsoundlite.app.VIDEO_PIP_ACTION"
+        private const val PIP_EXTRA = "pip_cmd"
+        private const val PIP_PLAY_PAUSE = 1
+        private const val PIP_PREV = 2
+        private const val PIP_NEXT = 3
+        private const val VQ_PREFS = "video_quality"
+        private const val VQ_KEY = "height" // 0 = automatic (the YouTube player)
 
         /** [fromPlayer] = opened from the music player (NowPlayingActivity), which takes the result and resumes its audio. */
         fun intent(c: Context, t: Track, startMs: Long = 0L, fromPlayer: Boolean = false): Intent =
@@ -324,12 +341,18 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpLandTitle.text = t.title
         binding.vpArtist.text = t.artist
         binding.vpArtist.visibility = if (t.artist.isBlank()) View.GONE else View.VISIBLE
+        showQuality(null)
         val id = t.remoteId
         when (t.source) {
             Track.SOURCE_YOUTUBE -> {
-                dropFile()
-                val p = yt
-                if (p != null) p.loadVideo(id, startMs / 1000f) else setupYoutube(id, startMs)
+                val wantH = videoQualityPref()
+                if (wantH > 0 && ytFallbackFor != t.key) {
+                    playYoutubeAsFile(t, startMs, wantH) // the quality the user picked; falls back to the YouTube player if it is gone
+                } else {
+                    dropFile()
+                    val p = yt
+                    if (p != null) p.loadVideo(id, startMs / 1000f) else setupYoutube(id, startMs)
+                }
             }
             Track.SOURCE_VIDEO -> { dropYoutube(); setupFile(Uri.parse(id), null, startMs) }
             Track.SOURCE_TV -> { dropYoutube(); setupFile(Uri.parse(id), null, 0L) } // live stream: no start position
@@ -410,6 +433,7 @@ class VideoPlayerActivity : AppCompatActivity() {
      * the controls lie over it (tap to show / hide).
      */
     private fun applyOrientation() {
+        if (inPip) { applyPipLayout(); return }
         val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val immersive = land || full
         val controller = WindowInsetsControllerCompat(window, window.decorView)
@@ -437,7 +461,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun isOverlay(): Boolean =
-        full || resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        !inPip && (full || resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
 
     private val hideControls = Runnable {
         if (isOverlay() && playing) setOverlayShown(false)
@@ -543,7 +567,8 @@ class VideoPlayerActivity : AppCompatActivity() {
             if (on) androidx.appcompat.content.res.AppCompatResources.getDrawable(this, R.drawable.seek_thin_overlay)
             else seekDefaultTrack
         for (t in listOf(binding.vpElapsed, binding.vpTotal)) {
-            t.layoutParams = t.layoutParams.apply { height = dp(if (on) 24 else 40) }
+            // Portrait: as tall as the text, exactly like the music player's time row (so the title sits at the same place).
+            t.layoutParams = t.layoutParams.apply { height = if (on) dp(24) else ViewGroup.LayoutParams.WRAP_CONTENT }
             t.setTextColor(if (on) android.graphics.Color.WHITE else color(R.attr.colorTextSecondary))
         }
         binding.vpControls.requestLayout()
@@ -566,6 +591,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     /** Full screen width at 16:9, like before; if the free space is shorter than that, the video shrinks to fit it. */
     private fun applyVideoSize() {
+        if (inPip) return
         val sh = binding.vpStage.height
         if (sh <= 0) return
         var w = resources.displayMetrics.widthPixels
@@ -635,22 +661,88 @@ class VideoPlayerActivity : AppCompatActivity() {
                 updateUi()
             }
 
+            override fun onPlaybackQualityChange(youTubePlayer: YouTubePlayer, playbackQuality: PlayerConstants.PlaybackQuality) {
+                if (youTubePlayer !== yt) return
+                showQuality(when (playbackQuality) {
+                    PlayerConstants.PlaybackQuality.SMALL -> "240p"
+                    PlayerConstants.PlaybackQuality.MEDIUM -> "360p"
+                    PlayerConstants.PlaybackQuality.LARGE -> "480p"
+                    PlayerConstants.PlaybackQuality.HD720 -> "720p"
+                    PlayerConstants.PlaybackQuality.HD1080 -> "1080p"
+                    PlayerConstants.PlaybackQuality.HIGH_RES -> "HD+"
+                    else -> return // unknown / default: keep what is shown
+                })
+            }
+
             override fun onVideoDuration(youTubePlayer: YouTubePlayer, duration: Float) {
                 durMs = (duration * 1000).toLong()
                 updateUi()
             }
 
             override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
-                // The owner may forbid embedding: hand over to the YouTube app / browser at the same second.
-                Toast.makeText(this@VideoPlayerActivity, R.string.video_error, Toast.LENGTH_LONG).show()
-                if (queue.size > 1) { step(1); return }
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id&t=${posMs / 1000}s")))
-                } catch (_: Exception) { }
-                finish()
+                // The owner may forbid embedding (or the embedded player refuses): first try the video's own stream link
+                // in the plain video view; only when that fails too, skip / hand over to the YouTube app / browser.
+                val t = queue.getOrNull(index)
+                if (t != null && t.source == Track.SOURCE_YOUTUBE && ytFallbackFor != t.key) {
+                    ytFallbackFor = t.key
+                    playYoutubeAsFile(t, posMs)
+                    return
+                }
+                youtubeFailed(id)
             }
         }, false, options)
         ytView = v
+    }
+
+    /** Key of the video that already got its stream-link fallback (one try per video). */
+    private var ytFallbackFor: String? = null
+
+    /** Embedded player failed: resolve the video's MP4 stream and play it in the plain video view instead. */
+    private fun playYoutubeAsFile(t: Track, startMs: Long, height: Int = 0) {
+        val token = loadToken
+        val app = applicationContext
+        Thread {
+            val url = try {
+                (if (height > 0) YouTubeStreamEngine.videoChoices(t.remoteId).let { l -> (l.firstOrNull { it.first == height } ?: l.lastOrNull { it.first < height })?.second } else null)
+                    ?: YouTubeStreamEngine.videoLink(app, t.remoteId)
+            } catch (e: Exception) { null }
+            runOnUiThread {
+                if (isDestroyed || token != loadToken) return@runOnUiThread
+                if (url == null) {
+                    if (height > 0) { ytFallbackFor = t.key; playIndex(index, startMs); return@runOnUiThread } // chosen height unavailable: YouTube player
+                    youtubeFailed(t.remoteId); return@runOnUiThread
+                }
+                dropYoutube()
+                setupFile(Uri.parse(url), mapOf("User-Agent" to YouTubeStreamEngine.HTTP_USER_AGENT), startMs)
+                updateUi()
+            }
+        }.start()
+    }
+
+    private fun youtubeFailed(id: String) {
+        Toast.makeText(this, R.string.video_error, Toast.LENGTH_LONG).show()
+        if (queue.size > 1) { step(1); return }
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v=$id&t=${posMs / 1000}s")))
+        } catch (_: Exception) { }
+        finish()
+    }
+
+    /** Shows the video quality (e.g. 1080p) to the right of the artist; null / empty hides it. */
+    private fun showQuality(text: String?) {
+        val tv = binding.vpQuality
+        if (text.isNullOrEmpty()) { tv.visibility = View.GONE; return }
+        tv.text = text
+        tv.visibility = View.VISIBLE
+    }
+
+    /** Standard resolution name of a video of [w] x [h] pixels (1920x804 and 1080x1920 both count as 1080p). */
+    private fun qualityLabel(w: Int, h: Int): String? {
+        if (w <= 0 || h <= 0) return null
+        val ref = maxOf(maxOf(w, h) * 9 / 16, minOf(w, h))
+        val std = intArrayOf(144, 240, 360, 480, 720, 1080, 1440, 2160, 4320)
+        val side = std.lastOrNull { it <= ref * 105 / 100 } ?: std[0]
+        return if (side >= 2160) "${side}p  \u2022 4K" else "${side}p"
     }
 
     private fun setupFile(uri: Uri, headers: Map<String, String>?, startMs: Long) {
@@ -659,6 +751,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpVideoFrame.addView(vv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER))
         vv.setOnPreparedListener { mp ->
             filePlayer = mp
+            showQuality(qualityLabel(mp.videoWidth, mp.videoHeight))
+            mp.setOnVideoSizeChangedListener { m, w, h -> if (m === filePlayer) showQuality(qualityLabel(w, h)) }
             durMs = mp.duration.toLong().coerceAtLeast(0L)
             if (startMs > 0) mp.seekTo(startMs.toInt())
             vv.start()
@@ -744,6 +838,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpShuffle.imageTintList = ColorStateList.valueOf(if (shuffle) accent else inactive)
         binding.vpRepeat.setImageResource(if (repeat == REPEAT_ONE) R.drawable.ic_repeat_one else R.drawable.ic_repeat)
         binding.vpRepeat.imageTintList = ColorStateList.valueOf(if (repeat == REPEAT_OFF) inactive else accent)
+        refreshPipActions()
     }
 
     // ------------------------------------------------------------------ music mode
@@ -863,21 +958,77 @@ class VideoPlayerActivity : AppCompatActivity() {
         val t = current
         val popup = PopupMenu(this, anchor, Gravity.END)
         popup.menu.add(0, M_SPEED, 0, getString(R.string.np_speed_fmt, speedLabel(speed)))
+        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_QUALITY, 0, R.string.np_video_quality)
         popup.menu.add(0, M_TIMER, 1, R.string.np_sleep_timer)
         if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 2, R.string.np_download)
+        if (pipSupported()) popup.menu.add(0, M_PIP, 3, R.string.np_pip)
         popup.menu.add(0, M_SHARE, 3, R.string.np_share)
         popup.menu.add(0, M_INFO, 5, R.string.np_info)
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
                 M_SPEED -> showSpeedDialog()
+                M_QUALITY -> showVideoQualityDialog()
                 M_TIMER -> showSleepTimerDialog()
                 M_DOWNLOAD -> SongDownloader.download(this, t)
+                M_PIP -> enterPip()
                 M_SHARE -> SongShareCard.share(this, t, null, trackLink(t), getString(R.string.np_share_via))
                 M_INFO -> showInfo(t)
             }
             true
         }
         popup.show()
+    }
+
+    private fun videoQualityPref(): Int = getSharedPreferences(VQ_PREFS, Context.MODE_PRIVATE).getInt(VQ_KEY, 0)
+
+    /**
+     * Video quality of a YouTube video: "Automatic" = the YouTube player (it picks the quality itself), or one of the
+     * progressive MP4 heights YouTube offers for this video (picture + sound in one stream), played in the plain video view.
+     */
+    private fun showVideoQualityDialog() {
+        val t = queue.getOrNull(index) ?: return
+        if (t.source != Track.SOURCE_YOUTUBE) return
+        Toast.makeText(this, R.string.video_quality_loading, Toast.LENGTH_SHORT).show()
+        val token = loadToken
+        Thread {
+            val choices = try { YouTubeStreamEngine.videoChoices(t.remoteId) } catch (e: Exception) { null }
+            runOnUiThread {
+                if (isDestroyed || token != loadToken) return@runOnUiThread
+                if (choices == null) { Toast.makeText(this, R.string.video_quality_failed, Toast.LENGTH_SHORT).show(); return@runOnUiThread }
+                if (choices.isEmpty()) { Toast.makeText(this, R.string.video_quality_none, Toast.LENGTH_LONG).show() }
+                val heights = listOf(0) + choices.map { it.first }
+                val labels = heights.map { if (it == 0) getString(R.string.video_quality_auto) else "${it}p" }.toTypedArray()
+                val cur = videoQualityPref()
+                val checked = heights.indexOf(cur).let { if (it < 0) 0 else it }
+                AlertDialog.Builder(this)
+                    .setTitle(R.string.np_video_quality)
+                    .setSingleChoiceItems(labels, checked) { d, which ->
+                        d.dismiss()
+                        val h = heights[which]
+                        getSharedPreferences(VQ_PREFS, Context.MODE_PRIVATE).edit().putInt(VQ_KEY, h).apply()
+                        if (h == cur) return@setSingleChoiceItems
+                        applyVideoQuality(t, h, choices)
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            }
+        }.start()
+    }
+
+    /** Switches the playing YouTube video to [height] (0 = back to the YouTube player), continuing from the current second. */
+    private fun applyVideoQuality(t: Track, height: Int, choices: List<Pair<Int, String>>) {
+        val start = posMs
+        showQuality(null)
+        if (height == 0) {
+            ytFallbackFor = null
+            dropFile()
+            if (yt != null) yt?.loadVideo(t.remoteId, start / 1000f) else setupYoutube(t.remoteId, start)
+        } else {
+            val url = choices.firstOrNull { it.first == height }?.second ?: return
+            dropYoutube()
+            setupFile(Uri.parse(url), mapOf("User-Agent" to YouTubeStreamEngine.HTTP_USER_AGENT), start)
+        }
+        updateUi()
     }
 
     private fun speedLabel(s: Float): String =
@@ -997,7 +1148,130 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        fileView?.pause()
+        if (!isInPictureInPictureMode) fileView?.pause() // the PiP window keeps playing
+    }
+
+    // ------------------------------------------------------------------ picture-in-picture
+
+    /** True while the video is shown in the small PiP window (only the video, no controls of this page). */
+    private var inPip = false
+    private var pipReceiver: BroadcastReceiver? = null
+    private var pipShownPlaying: Boolean? = null
+
+    private fun pipSupported(): Boolean =
+        Build.VERSION.SDK_INT >= 26 && packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    /** Window shape of the PiP: the video's own ratio (kept inside what Android accepts), 16:9 until it is known. */
+    private fun pipRatio(): Rational {
+        val mp = filePlayer
+        var w = mp?.videoWidth ?: 0
+        var h = mp?.videoHeight ?: 0
+        if (w <= 0 || h <= 0) { w = 16; h = 9 }
+        val r = w.toFloat() / h
+        return when {
+            r > 2.39f -> Rational(239, 100)
+            r < 0.42f -> Rational(42, 100)
+            else -> Rational(w, h)
+        }
+    }
+
+    private fun pipAction(icon: Int, title: String, cmd: Int): RemoteAction {
+        val pi = PendingIntent.getBroadcast(
+            this, cmd, Intent(PIP_ACTION).setPackage(packageName).putExtra(PIP_EXTRA, cmd),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        return RemoteAction(Icon.createWithResource(this, icon), title, title, pi)
+    }
+
+    private fun pipParams(): PictureInPictureParams {
+        val actions = ArrayList<RemoteAction>()
+        val multi = queue.size > 1
+        if (multi) actions.add(pipAction(R.drawable.ic_prev, getString(R.string.pip_prev), PIP_PREV))
+        actions.add(
+            if (playing) pipAction(R.drawable.ic_pause, getString(R.string.pip_pause), PIP_PLAY_PAUSE)
+            else pipAction(R.drawable.ic_play, getString(R.string.pip_play), PIP_PLAY_PAUSE))
+        if (multi) actions.add(pipAction(R.drawable.ic_next, getString(R.string.pip_next), PIP_NEXT))
+        return PictureInPictureParams.Builder().setAspectRatio(pipRatio()).setActions(actions).build()
+    }
+
+    /** Menu "Picture-in-Picture": the video goes on in a small floating window over the other apps. */
+    private fun enterPip() {
+        if (!pipSupported()) { Toast.makeText(this, R.string.pip_not_supported, Toast.LENGTH_SHORT).show(); return }
+        try {
+            if (enterPictureInPictureMode(pipParams())) pipShownPlaying = playing
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.pip_not_supported, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Refreshes the play / pause button of the PiP window when the state changed. */
+    private fun refreshPipActions() {
+        if (!inPip || pipShownPlaying == playing) return
+        pipShownPlaying = playing
+        try { setPictureInPictureParams(pipParams()) } catch (_: Exception) { }
+    }
+
+    /** PiP window: header, title, controls and second row are hidden, the video fills the whole window. */
+    private fun applyPipLayout() {
+        handler.removeCallbacks(hideControls)
+        binding.vpHeader.visibility = View.GONE
+        binding.vpInfo.visibility = View.GONE
+        binding.vpRow2.visibility = View.GONE
+        binding.vpControls.visibility = View.GONE
+        binding.vpLandTop.visibility = View.GONE
+        binding.vpCenter.visibility = View.GONE
+        binding.vpContent.setPadding(0, 0, 0, 0)
+        (binding.vpStage.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin = 0
+        binding.vpStage.requestLayout()
+        for (v in listOf<View>(binding.vpVideoFrame, binding.vpTouch)) {
+            v.layoutParams = (v.layoutParams as FrameLayout.LayoutParams).apply {
+                width = ViewGroup.LayoutParams.MATCH_PARENT
+                height = ViewGroup.LayoutParams.MATCH_PARENT
+                gravity = Gravity.CENTER
+            }
+        }
+    }
+
+    private fun registerPipReceiver() {
+        if (pipReceiver != null) return
+        pipReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, i: Intent?) {
+                when (i?.getIntExtra(PIP_EXTRA, 0)) {
+                    PIP_PLAY_PAUSE -> togglePlay()
+                    PIP_PREV -> step(-1)
+                    PIP_NEXT -> step(1)
+                }
+                pipShownPlaying = null // the state may change a moment later: let the next update redraw the button
+                handler.postDelayed({ refreshPipActions() }, 400L)
+            }
+        }
+        ContextCompat.registerReceiver(this, pipReceiver, IntentFilter(PIP_ACTION), ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    private fun unregisterPipReceiver() {
+        pipReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) { } }
+        pipReceiver = null
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        inPip = isInPictureInPictureMode
+        if (isInPictureInPictureMode) {
+            registerPipReceiver()
+            applyPipLayout()
+        } else {
+            unregisterPipReceiver()
+            pipShownPlaying = null
+            // The X of the PiP window closes it while this page is no longer visible: stop the video and close.
+            if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) {
+                pausePlayback()
+                finish()
+                return
+            }
+            // Back to the full page (tap on the PiP window): bring the normal layout back.
+            (binding.vpStage.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin = dp(12)
+            applyOrientation()
+            binding.vpStage.post { applyVideoSize() }
+        }
     }
 
     override fun finish() {
@@ -1011,6 +1285,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        unregisterPipReceiver()
         handler.removeCallbacks(poll)
         handler.removeCallbacks(sleepRun)
         try { ytView?.release() } catch (_: Exception) { }

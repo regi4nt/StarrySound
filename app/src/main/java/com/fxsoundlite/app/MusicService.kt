@@ -817,7 +817,11 @@ class MusicService : MediaBrowserService() {
 
     /** Replaces the queue and starts playing [startIndex].
      *  [fromYoutubeSearch] = the song was chosen on the YouTube search tab, so it is also kept in the YouTube history. */
-    fun setQueueAndPlay(allTracks: List<Track>, startIndex: Int, fromYoutubeSearch: Boolean = false) {
+    /** Name of the playlist the queue was started from ("Playing from playlist"); null for any other queue. */
+    var playingFrom: String? = null
+        private set
+
+    fun setQueueAndPlay(allTracks: List<Track>, startIndex: Int, fromYoutubeSearch: Boolean = false, fromPlaylist: String? = null) {
         if (allTracks.isEmpty() || startIndex !in allTracks.indices) return
         // Songs of a synced playlist that are not on this device cannot play: leave them out.
         val tracks = if (allTracks.any { it.missing }) allTracks.filter { !it.missing } else allTracks
@@ -828,6 +832,7 @@ class MusicService : MediaBrowserService() {
             (if (first != null) tracks.indexOf(first) else 0).coerceAtLeast(0)
         }
         queue = tracks
+        playingFrom = fromPlaylist?.takeIf { it.isNotBlank() }
         historyPickKey = if (fromYoutubeSearch) tracks.getOrNull(start)?.key else null
         history.clear()
         resetSmart()
