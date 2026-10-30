@@ -171,7 +171,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
                 // Last used in video mode: the bar reopens the video at the second the audio reached.
                 val pos = svc.position.toLong()
                 if (svc.isPlaying) svc.pause()
-                startActivity(VideoPlayerActivity.intent(this, PlayerMode.videoTrack(cur), pos))
+                startActivity(PlayerMode.videoIntent(this, svc, cur, pos, false))
                 return@setOnClickListener
             }
             startActivity(Intent(this, NowPlayingActivity::class.java))

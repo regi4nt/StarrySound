@@ -45,6 +45,19 @@ object PlayerMode {
     /** True when the mini bar should open the video of [t]: a YouTube song, or a TV channel playing as audio. */
     fun isVideo(t: Track?): Boolean = video && t != null && (t.source == Track.SOURCE_YOUTUBE || isTvAudio(t))
 
+    /**
+     * Intent for the video player of the playing song [cur]. A TV channel playing as audio takes the other channels of the
+     * audio queue along, so next / previous work in the video like in the music player (a YouTube song stays single).
+     */
+    fun videoIntent(c: Context, svc: MusicService, cur: Track, startMs: Long, fromPlayer: Boolean): android.content.Intent {
+        if (isTvAudio(cur)) {
+            val tv = svc.queueTracks.filter { isTvAudio(it) }
+            val i = tv.indexOfFirst { it.key == cur.key }
+            if (tv.size > 1 && i >= 0) return VideoPlayerActivity.queueIntent(c, tv, i, 0L, fromPlayer)
+        }
+        return VideoPlayerActivity.intent(c, videoTrack(cur), startMs, fromPlayer)
+    }
+
     /** The track to hand to the video player: the TV channel for its audio twin, else [t] itself. */
     fun videoTrack(t: Track): Track = if (isTvAudio(t)) t.copy(source = Track.SOURCE_TV, album = "") else t
 }

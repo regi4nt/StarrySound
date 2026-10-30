@@ -765,6 +765,12 @@ class MusicService : MediaBrowserService() {
         return START_NOT_STICKY
     }
 
+    /** The app was swiped away from the recent apps: stop the music and remove the notification, don't keep playing in the background. */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        stopPlayback()
+    }
+
     override fun onDestroy() {
         handler.removeCallbacks(statsTick)
         handler.removeCallbacks(prefetchTick)

@@ -975,6 +975,6 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         resumeAudioAfterVideo = svc.isPlaying
         val pos = if (tvAudio) 0L else svc.position.toLong() // live: no position
         if (svc.isPlaying) svc.pause()
-        videoLauncher.launch(VideoPlayerActivity.intent(this, PlayerMode.videoTrack(t), pos, fromPlayer = true))
+        videoLauncher.launch(PlayerMode.videoIntent(this, svc, t, pos, true))
     }
 }

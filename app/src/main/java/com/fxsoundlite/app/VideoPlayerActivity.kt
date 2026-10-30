@@ -165,6 +165,15 @@ class VideoPlayerActivity : AppCompatActivity() {
     /** Videos / channels in a row that could not be played (reset when one starts): stops an endless skip loop through a dead list. */
     private var failStreak = 0
 
+    /** Switching to the music player: no slide animation on the way out (or in). */
+    private var quietSwitch = false
+
+    private fun openMusicPlayer() {
+        quietSwitch = true
+        startActivity(Intent(this, NowPlayingActivity::class.java))
+        overridePendingTransition(0, 0)
+    }
+
     private var posMs = 0L
     private var durMs = 0L
     private var playing = false
@@ -199,7 +208,9 @@ class VideoPlayerActivity : AppCompatActivity() {
         ThemeHelper.applyMode(this) // same light / dark mode and accent colour as the music player
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
-        overridePendingTransition(R.anim.slide_up, R.anim.stay) // opens with the same slide as the music player
+        // Opens with the same slide as the music player, except when it comes from the music player itself (no animation between the two).
+        if (intent.getBooleanExtra(EXTRA_FROM_PLAYER, false)) overridePendingTransition(0, 0)
+        else overridePendingTransition(R.anim.slide_up, R.anim.stay)
         supportActionBar?.hide()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         volumeControlStream = AudioManager.STREAM_MUSIC // the hardware volume keys control the media volume
@@ -290,6 +301,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
         applyOrientation()
         playIndex(index, startMs)
+        handler.postDelayed(cacheTrim, 120_000L)
     }
 
     // The music service is only bound (not started) while nothing plays, and the page under this player unbinds when
@@ -691,6 +703,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val v = LayoutInflater.from(this).inflate(R.layout.view_youtube_player, binding.vpVideoFrame, false) as YouTubePlayerView
         v.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER)
         binding.vpVideoFrame.addView(v)
+        noWebCache(v)
         lifecycle.addObserver(v)
         val options = IFramePlayerOptions.Builder(this)
             .controls(0) // own controls below the video
@@ -749,6 +762,20 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
         }, false, options)
         ytView = v
+    }
+
+    /** The embedded player's WebView keeps every streamed segment in the cache folder: switch its HTTP cache off. */
+    private fun noWebCache(v: View) {
+        if (v is android.webkit.WebView) { v.settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE; return }
+        if (v is ViewGroup) for (i in 0 until v.childCount) noWebCache(v.getChildAt(i))
+    }
+
+    /** While a video plays, the cache folder is checked now and then and emptied when it has grown too big. */
+    private val cacheTrim = object : Runnable {
+        override fun run() {
+            CacheCleaner.trimLive(this@VideoPlayerActivity)
+            handler.postDelayed(this, 120_000L)
+        }
     }
 
     /** Key of the video that already got its stream-link fallback (one try per video). */
@@ -925,7 +952,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 // Another channel than the one the music player holds (stepped with next / previous): load this one.
                 playTvAsAudio(svc, t)
                 resultPos = -1L // live: nothing for the caller to seek
-                if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
+                if (!fromPlayer) openMusicPlayer()
             }
             finish()
             return
@@ -959,7 +986,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             resultPos = -1L // nothing for the caller to seek
         }
         // Opened from a list / search page: the music player opens (closing it returns to that page).
-        if (!fromPlayer) startActivity(Intent(this, NowPlayingActivity::class.java))
+        if (!fromPlayer) openMusicPlayer()
         finish()
     }
 
@@ -1434,16 +1461,20 @@ class VideoPlayerActivity : AppCompatActivity() {
             .putExtra(EXTRA_TO_MUSIC, toMusic)
             .putExtra(EXTRA_CLOSE_ALL, closeAll))
         super.finish()
-        overridePendingTransition(R.anim.stay, R.anim.slide_down) // same slide as the music player
+        // Same slide as the music player, but none when switching between the two players.
+        if (quietSwitch || fromPlayer) overridePendingTransition(0, 0)
+        else overridePendingTransition(R.anim.stay, R.anim.slide_down)
     }
 
     override fun onDestroy() {
         unregisterPipReceiver()
         handler.removeCallbacks(poll)
         handler.removeCallbacks(sleepRun)
+        handler.removeCallbacks(cacheTrim)
         try { ytView?.release() } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
         fileView?.stopPlayback()
         loadToken++
+        CacheCleaner.trimLive(this) // the embedded YouTube player leaves cache files behind
         super.onDestroy()
     }
 }

@@ -14,7 +14,9 @@ import java.io.File
  */
 object CacheCleaner {
 
-    private const val AUTO_TRIM_BYTES = 50L * 1024 * 1024
+    private const val AUTO_TRIM_BYTES = 30L * 1024 * 1024
+    /** The hidden YouTube WebView's own data (outside the cache folder, so Android's "Clear cache" never sees it). */
+    private const val WEB_TRIM_BYTES = 60L * 1024 * 1024
 
     private fun dirSize(f: File?): Long =
         if (f == null || !f.exists()) 0L else if (f.isFile) f.length() else f.listFiles()?.sumOf { dirSize(it) } ?: 0L
@@ -46,8 +48,26 @@ object CacheCleaner {
             val driveDir = File(c.cacheDir, "drive_music")
             val others = (c.cacheDir.listFiles() ?: emptyArray()).filter { it != driveDir }
             if (others.sumOf { dirSize(it) } > AUTO_TRIM_BYTES) others.forEach { it.deleteRecursively() }
+            // Nothing is open yet, so the WebView's media / service-worker storage can go too when it has grown big.
+            val web = webDataDirs(c)
+            if (web.sumOf { dirSize(it) } > WEB_TRIM_BYTES) web.forEach { it.deleteRecursively() }
             DriveMusic.trimToLimit(c)
         } catch (e: Exception) { android.util.Log.d("CacheCleaner", "ignored: " + e) }
+    }
+
+    /**
+     * While the app runs (e.g. when a video player closes): drops an oversized cache folder, except the Drive songs
+     * (own limit) and the files being shared / installed. Never touches the WebView's data (it may be in use).
+     */
+    fun trimLive(c: Context) {
+        val app = c.applicationContext
+        Thread {
+            try {
+                val keep = setOf("drive_music", "share", "updates")
+                val others = (app.cacheDir.listFiles() ?: emptyArray()).filter { it.name !in keep }
+                if (others.sumOf { dirSize(it) } > AUTO_TRIM_BYTES) others.forEach { it.deleteRecursively() }
+            } catch (e: Exception) { android.util.Log.d("CacheCleaner", "ignored: " + e) }
+        }.start()
     }
 
     /** Clears everything listed above on a background thread; [onDone] runs on the main thread with the freed bytes. */
