@@ -878,8 +878,6 @@
     <string name="video_quality_loading">Mencari kualitas video…</string>
     <string name="video_quality_none">Tidak ada kualitas video lain untuk video ini.</string>
     <string name="video_quality_failed">Gagal memuat kualitas video.</string>
-    <string name="video_quality_unavailable">Tidak tersedia untuk video ini</string>
-    <string name="video_quality_unavailable_item">%1$dp · Tidak tersedia untuk video ini</string>
     <string name="np_pip">Picture-in-Picture (jendela mini)</string>
     <string name="np_captions_fmt">Teks / caption: %1$s</string>
     <string name="np_captions_on">Hidup</string>
