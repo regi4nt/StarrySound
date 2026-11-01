@@ -1164,4 +1164,9 @@
     <string name="screensaver_fx_scatter">Hamburan (hujan / bintang)</string>
     <string name="screensaver_fx_section">Efek sentuhan</string>
     <string name="screensaver_fx_subtitle">Cara halaman Screensaver bereaksi saat disentuh. Tidak dipakai oleh screensaver otomatis saat mengisi daya.</string>
+    <string name="spotify_link_title">Impor dari tautan playlist</string>
+    <string name="spotify_link_msg">Tanpa login Spotify. Di Spotify ketuk Bagikan &gt; Salin tautan pada playlist PUBLIK, lalu tempel di sini. Hanya ~100 lagu pertama yang terbaca.</string>
+    <string name="spotify_link_hint">https://open.spotify.com/playlist/...</string>
+    <string name="spotify_link_error">Playlist tidak bisa dibaca: %1$s</string>
+    <string name="spotify_import_menu">Impor dari Spotify</string>
 </resources>

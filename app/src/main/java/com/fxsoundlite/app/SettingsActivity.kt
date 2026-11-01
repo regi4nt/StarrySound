@@ -824,7 +824,6 @@ class SettingsActivity : AppCompatActivity() {
                 }
             }
         }
-        binding.spotifyImportButton.setOnClickListener { startSpotifyImport() }
         refreshSpotifyStatus()
     }
 
@@ -843,54 +842,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun spotifyToast(msg: String) =
         android.widget.Toast.makeText(applicationContext, msg, android.widget.Toast.LENGTH_LONG).show()
-
-    /** Lists the Spotify playlists, lets the user tick which to copy, then imports them in the background. */
-    private fun startSpotifyImport() {
-        if (!SpotifyAuth.isConnected(this)) { spotifyToast(getString(R.string.spotify_need_connect)); return }
-        if (SpotifyImport.running) { spotifyToast(getString(R.string.spotify_import_busy)); return }
-        val app = applicationContext
-        Thread {
-            val lists = try { SpotifyApi.playlists(app) } catch (e: Exception) {
-                runOnUiThread { spotifyToast(getString(R.string.spotify_error, e.message ?: "")) }
-                return@Thread
-            }
-            runOnUiThread {
-                if (isFinishing) return@runOnUiThread
-                // Row 0 is "Liked songs", then the playlists.
-                val names = arrayOf(getString(R.string.spotify_liked_pick)) + lists.map { it.name }.toTypedArray()
-                val checked = BooleanArray(names.size) { true }
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle(R.string.spotify_import_pick)
-                    .setMultiChoiceItems(names, checked) { _, i, on -> checked[i] = on }
-                    .setPositiveButton(R.string.spotify_import_start) { _, _ ->
-                        val picks = lists.filterIndexed { i, _ -> checked[i + 1] }
-                        runSpotifyImport(picks, checked[0])
-                    }
-                    .setNegativeButton(android.R.string.cancel, null)
-                    .show()
-            }
-        }.start()
-    }
-
-    private fun runSpotifyImport(picks: List<SpotifyApi.Pl>, liked: Boolean) {
-        if (picks.isEmpty() && !liked) return
-        val app = applicationContext
-        val likedName = getString(R.string.spotify_liked)
-        Thread {
-            val result = try {
-                SpotifyImport.run(app, picks, liked, likedName) { done, total, name ->
-                    runOnUiThread { if (!isFinishing) binding.spotifyStatus.text = getString(R.string.spotify_import_progress, done, total, name) }
-                }
-            } catch (e: Exception) {
-                runOnUiThread { spotifyToast(getString(R.string.spotify_error, e.message ?: "")); refreshSpotifyStatus() }
-                return@Thread
-            }
-            runOnUiThread {
-                spotifyToast(getString(R.string.spotify_import_done, result.playlists, result.songs, result.missed))
-                if (!isFinishing) refreshSpotifyStatus()
-            }
-        }.start()
-    }
 
     private fun setupAiSection() {
         refreshAiFields() // before the watchers exist, so restoring the text saves nothing

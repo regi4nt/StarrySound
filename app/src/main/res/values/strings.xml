@@ -1171,4 +1171,9 @@
     <string name="screensaver_fx_scatter">Scatter (rain / stars)</string>
     <string name="screensaver_fx_section">Touch effect</string>
     <string name="screensaver_fx_subtitle">How the Screensaver page reacts when you touch it. Not used by the automatic charging screensaver.</string>
+    <string name="spotify_link_title">Import from playlist link</string>
+    <string name="spotify_link_msg">No Spotify login needed. In Spotify tap Share > Copy link on a PUBLIC playlist and paste it here. Only the first ~100 songs are read.</string>
+    <string name="spotify_link_hint">https://open.spotify.com/playlist/...</string>
+    <string name="spotify_link_error">Could not read the playlist: %1$s</string>
+    <string name="spotify_import_menu">Import from Spotify</string>
 </resources>

@@ -162,6 +162,9 @@ class ScreensaverFragment : Fragment() {
             binding.screensaverVideo.pause()
         }
         binding.screensaverTouchFx.reset()
+        warpTouching = false
+        binding.screensaverWarp.setBitmap(null)
+        binding.screensaverWarp.visibility = View.GONE
         binding.screensaverAnimatedBg.setPush(0f, 0f, false)
         binding.screensaverAnimatedBg.stop() // cheap to restart in onResume; no reason to keep ticking off-screen
     }
@@ -196,12 +199,85 @@ class ScreensaverFragment : Fragment() {
         binding.root.setOnTouchListener { _, ev ->
             val mode = ScreensaverPrefs.touchFx(requireContext())
             if (mode == ScreensaverTouchFx.Mode.OFF) return@setOnTouchListener false
+            decideSwipe(ev)
             binding.screensaverTouchFx.onTouch(ev)
             if (mode == ScreensaverTouchFx.Mode.SCATTER && binding.screensaverAnimatedBg.visibility == View.VISIBLE) {
                 val up = ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
                 binding.screensaverAnimatedBg.setPush(ev.x, ev.y, !up)
+            } else if (mode == ScreensaverTouchFx.Mode.SCATTER) {
+                scatterMedia(ev)
             }
             true
+        }
+    }
+
+    // Same direction rule as Quick (NestedVerticalHost): the page pager is held back until the finger has moved past
+    // the touch slop; only a clearly sideways drag lets it take over (and leave the page), anything else stays with
+    // the touch effect, so a slightly diagonal drag never changes page.
+    private var swipeDownX = 0f
+    private var swipeDownY = 0f
+
+    private fun decideSwipe(ev: android.view.MotionEvent) {
+        val parent = binding.root.parent ?: return
+        when (ev.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                swipeDownX = ev.x; swipeDownY = ev.y
+                parent.requestDisallowInterceptTouchEvent(true)
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                val slop = android.view.ViewConfiguration.get(requireContext()).scaledTouchSlop
+                val dx = kotlin.math.abs(ev.x - swipeDownX)
+                val dy = kotlin.math.abs(ev.y - swipeDownY)
+                if (dx > slop || dy > slop) parent.requestDisallowInterceptTouchEvent(!(dx > dy * 1.6f))
+            }
+        }
+    }
+
+    // Scatter on a photo / video background: the texture itself is warped (ScatterWarpView).
+    private var warpTouching = false
+    private var warpX = 0f
+    private var warpY = 0f
+
+    private fun scatterMedia(ev: android.view.MotionEvent) {
+        val warp = binding.screensaverWarp
+        warpX = ev.x; warpY = ev.y
+        when (ev.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> { warpTouching = true; startMediaWarp() }
+            android.view.MotionEvent.ACTION_MOVE -> if (warp.hasBitmap()) warp.setPush(ev.x, ev.y, true)
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                warpTouching = false
+                if (warp.hasBitmap()) warp.setPush(ev.x, ev.y, false)
+            }
+        }
+    }
+
+    private fun startMediaWarp() {
+        val warp = binding.screensaverWarp
+        if (binding.screensaverImage.visibility == View.VISIBLE) {
+            val bmp = (binding.screensaverImage.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return
+            warp.setBitmap(bmp)
+            warp.visibility = View.VISIBLE
+            warp.setPush(warpX, warpY, true)
+        } else if (binding.screensaverVideo.visibility == View.VISIBLE) {
+            // A video cannot be bent while it plays: grab the frame on screen, warp that, and let go on release.
+            val uri = ScreensaverPrefs.videoUri(requireContext()) ?: return
+            val posUs = binding.screensaverVideo.currentPosition * 1000L
+            val app = requireContext().applicationContext
+            Thread {
+                val frame = try {
+                    val mmr = android.media.MediaMetadataRetriever()
+                    try {
+                        mmr.setDataSource(app, Uri.parse(uri))
+                        mmr.getFrameAtTime(posUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST)
+                    } finally { try { mmr.release() } catch (e: Exception) { android.util.Log.d("ScreensaverFragment", "ignored: $e") } }
+                } catch (e: Exception) { null }
+                tickHandler.post {
+                    if (_binding == null || frame == null || !warpTouching) return@post // finger already lifted / page gone
+                    warp.setBitmap(frame)
+                    warp.visibility = View.VISIBLE
+                    warp.setPush(warpX, warpY, true)
+                }
+            }.start()
         }
     }
 
@@ -368,6 +444,9 @@ class ScreensaverFragment : Fragment() {
         binding.screensaverVideo.stopPlayback()
         binding.screensaverImage.setImageDrawable(null)
         binding.screensaverAnimatedBg.stop()
+        warpTouching = false
+        binding.screensaverWarp.setBitmap(null) // drop any scatter copy of the old background
+        binding.screensaverWarp.visibility = View.GONE
 
         // Reset EVERY layer first. The animated view sits above the
         // VideoView/ImageView in the layout, so if it were left visible

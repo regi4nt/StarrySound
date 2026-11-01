@@ -2169,20 +2169,6 @@
                     android:textColor="?attr/colorAccent"
                     android:textSize="13sp"
                     android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/spotifyImportButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="40dp"
-                    android:text="@string/spotify_import"
-                    android:textAllCaps="false"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout

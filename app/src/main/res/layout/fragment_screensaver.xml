@@ -31,6 +31,13 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
+    <!-- "Scatter" touch effect on a photo / video background: warps a copy of it under the finger. Hidden when idle. -->
+    <com.fxsoundlite.app.ScatterWarpView
+        android:id="@+id/screensaverWarp"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <!-- Shown instead of the VideoView/ImageView/animated background when no
          background has been picked yet. -->
     <View

@@ -24,11 +24,23 @@ object SpotifyRemote {
         return true
     }
 
+    /**
+     * Free-account route: the Web API refuses "play" without Premium (403), so the playlist is opened in the Spotify app
+     * itself through its deep link; from there it plays (shuffled on a free account). False when Spotify is not installed.
+     */
+    fun openPlaylist(c: Context, playlistId: String): Boolean = try {
+        c.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("spotify:playlist:$playlistId"))
+            .setPackage(SpotifyAuth.PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) { android.util.Log.d("SpotifyRemote", "ignored: $e"); false }
+
     private fun controller(c: Context): MediaController? = try {
         c.getSystemService(MediaSessionManager::class.java)
             ?.getActiveSessions(ComponentName(c, NowPlayingListenerService::class.java))
             ?.firstOrNull { it.packageName == SpotifyAuth.PKG }
     } catch (_: SecurityException) { null } // notification access not granted
+
+    fun hasSession(c: Context): Boolean = controller(c) != null
 
     fun playPause(c: Context) {
         val ctl = controller(c)

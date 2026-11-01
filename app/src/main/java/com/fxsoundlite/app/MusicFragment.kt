@@ -826,23 +826,48 @@ class MusicFragment : Fragment(), MusicService.Listener {
     fun isSpotifyTabActive(): Boolean = _binding != null && source == Track.SOURCE_SPOTIFY
 
     /**
-     * Play button of the empty Spotify mini player: starts the last song played from the Spotify tab;
-     * with no history (or no account connected yet) it puts the cursor in the search box instead.
+     * Play button / tap of the empty Spotify mini player (no search result picked). Order: the song Spotify itself is
+     * on right now (read from its player), else the last song played from the Spotify tab, else the Spotify app is
+     * controlled directly (play through its media session). [onStarted] gets true when a song is queued and the
+     * full player can open.
      */
-    fun playFromMini(openPlayer: Boolean = false): Boolean {
-        val b = _binding ?: return false
-        val ctx = context ?: return false
-        val svc = service ?: MusicService.instance
-        val history = if (SpotifyAuth.isConnected(ctx)) MusicPrefs.spotifyHistory(ctx) else emptyList()
-        if (svc != null && history.isNotEmpty()) {
-            svc.setQueueAndPlay(history, 0, fromYoutubeSearch = true)
-            return openPlayer && svc.current != null
-        } else {
-            b.searchInput.requestFocus()
-            (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
-                ?.showSoftInput(b.searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+    fun playFromMini(openPlayer: Boolean = false, onStarted: (Boolean) -> Unit = {}) {
+        val b = _binding ?: return
+        val ctx = context ?: return
+        val app = ctx.applicationContext
+        if (!SpotifyAuth.isConnected(ctx)) {
+            toast(R.string.sp_connect_first)
+            focusSearch(b, ctx)
+            onStarted(false)
+            return
         }
-        return false
+        Thread {
+            val live: Track? = try {
+                SpotifyApi.hit(SpotifyApi.player(app)?.optJSONObject("item"))?.let { SpotifyApi.toTrack(it) }
+            } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: $e"); null }
+            activity?.runOnUiThread {
+                val bb = _binding ?: return@runOnUiThread
+                val svc = service ?: MusicService.instance
+                val history = MusicPrefs.spotifyHistory(app)
+                if (svc != null && (live != null || history.isNotEmpty())) {
+                    if (live != null) svc.setQueueAndPlay(listOf(live), 0)
+                    else svc.setQueueAndPlay(history, 0, fromYoutubeSearch = true)
+                    onStarted(openPlayer && svc.current != null)
+                } else {
+                    // Nothing to adopt: drive the Spotify app itself (open it if it has no media session yet).
+                    if (!SpotifyRemote.hasSession(app)) SpotifyRemote.open(app)
+                    SpotifyRemote.playPause(app)
+                    focusSearch(bb, ctx)
+                    onStarted(false)
+                }
+            }
+        }.start()
+    }
+
+    private fun focusSearch(b: com.fxsoundlite.app.databinding.FragmentMusicBinding, ctx: Context) {
+        b.searchInput.requestFocus()
+        (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+            ?.showSoftInput(b.searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
     private fun updateTabs() {

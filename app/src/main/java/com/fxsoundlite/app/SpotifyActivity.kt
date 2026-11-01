@@ -388,7 +388,9 @@ class SpotifyActivity : AppCompatActivity() {
 
     private fun playPlaylist(id: String) {
         val app = applicationContext
-        control({ SpotifyRemote.playPlaylist(app, id).let { Http.Response(it, "") } }, null)
+        control({ SpotifyRemote.playPlaylist(app, id).let { Http.Response(it, "") } }) {
+            SpotifyRemote.openPlaylist(app, id) // no Premium (or no active device): open it in the Spotify app instead
+        }
     }
 
     private fun playUri(uri: String) {

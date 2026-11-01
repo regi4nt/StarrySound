@@ -32,6 +32,24 @@ object SpotifyImport {
                 try { jobs += pl.name to SpotifyApi.playlistSongs(app, pl.id) }
                 catch (e: SpotifyApi.ApiException) { if (e.code != 403 && e.code != 404) throw e } // not the user's own playlist
             }
+            return convert(app, jobs, progress)
+        } finally {
+            running = false
+        }
+    }
+
+    /** Blocking. Copies songs that are already known (read from a public link, no account needed) into one playlist. */
+    fun runSongs(c: Context, name: String, songs: List<SpotifyApi.Song>, progress: (Int, Int, String) -> Unit): Result {
+        if (running) return Result(0, 0, 0)
+        running = true
+        try {
+            return convert(c.applicationContext, listOf(name to songs), progress)
+        } finally {
+            running = false
+        }
+    }
+
+    private fun convert(app: Context, jobs: List<Pair<String, List<SpotifyApi.Song>>>, progress: (Int, Int, String) -> Unit): Result {
             val allSongs = jobs.sumOf { it.second.size }
             var done = 0; var made = 0; var added = 0; var missed = 0
             val cache = HashMap<String, Track?>()
@@ -47,9 +65,6 @@ object SpotifyImport {
                 if (tracks.isNotEmpty()) { PlaylistStore.createWith(app, name, tracks); made++; added += tracks.size }
             }
             return Result(made, added, missed)
-        } finally {
-            running = false
-        }
     }
 
     private fun match(s: SpotifyApi.Song): Track? {

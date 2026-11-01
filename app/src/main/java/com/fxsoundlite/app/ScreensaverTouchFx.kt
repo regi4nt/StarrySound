@@ -76,8 +76,8 @@ class TouchFxView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 down = true
                 fingerX = ev.x; fingerY = ev.y
-                // Scatter has no overlay of its own on a photo / video: a ripple shows where it was touched.
-                if (mode == ScreensaverTouchFx.Mode.RIPPLE || mode == ScreensaverTouchFx.Mode.SCATTER) {
+                // Scatter draws nothing here (no ring): it only pushes the background particles away from the finger.
+                if (mode == ScreensaverTouchFx.Mode.RIPPLE) {
                     ripples += Ripple(ev.x, ev.y, now)
                 }
             }

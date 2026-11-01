@@ -1462,6 +1462,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             getString(R.string.convert_title),
             getString(R.string.playlist_menu_import_link),
             getString(R.string.playlist_menu_import_file),
+            getString(R.string.spotify_import_menu),
             getString(R.string.playlist_menu_backup)
         )
         AlertDialog.Builder(ctx)
@@ -1470,6 +1471,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     0 -> showConvertDialog()
                     1 -> promptImportLink()
                     2 -> openFile.launch(arrayOf("*/*"))
+                    3 -> activity?.let { act -> SpotifyImportUi.start(act) { if (_binding != null) refresh() } }
                     else -> createBackup.launch(PlaylistIo.backupFileName())
                 }
             }
