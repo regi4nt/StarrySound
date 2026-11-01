@@ -69,6 +69,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private var tvToken = 0 // a result that belongs to an older source choice is dropped
     private var tvForce = false
     private var loading = false
+    private var reloadPending = false // a reload was asked for while a scan was running
     private var loadedOnce = false
     private var permissionDeniedOnce = false
     private var dragging = false
@@ -100,6 +101,19 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private val folderLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             if (uri == null || _binding == null) return@registerForActivityResult
+            if (FolderLibrary.addTree(requireContext(), uri)) {
+                Toast.makeText(requireContext(), R.string.storage_added, Toast.LENGTH_SHORT).show()
+                loadLibrary()
+            } else {
+                toast(R.string.storage_add_failed)
+            }
+        }
+
+    /** One-tap access to a whole OTG drive / SD card (StorageVolume intent); result is the tree uri of the drive root. */
+    private val volumeLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            val uri = res.data?.data
+            if (res.resultCode != android.app.Activity.RESULT_OK || uri == null || _binding == null) return@registerForActivityResult
             if (FolderLibrary.addTree(requireContext(), uri)) {
                 Toast.makeText(requireContext(), R.string.storage_added, Toast.LENGTH_SHORT).show()
                 loadLibrary()
@@ -175,7 +189,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private fun applyVideoFilter() {
         val ctx = requireContext()
-        val hasPerm = MusicLibrary.hasVideoPermission(ctx)
+        val hasPerm = MusicLibrary.canReadVideo(ctx)
         if (!hasPerm) {
             shown = emptyList()
             adapter.submit(shown)
@@ -297,11 +311,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
             }
         }
         binding.tabLocal.setOnClickListener { selectSource(Track.SOURCE_LOCAL) }
+        binding.sourceTabs.addOnLayoutChangeListener { _, left, _, right, _, oldLeft, _, oldRight, _ -> if (right - left != oldRight - oldLeft) applyTabIcons() }
         binding.tabDrive.setOnClickListener { selectSource(Track.SOURCE_DRIVE) }
         binding.tabYoutube.setOnClickListener { selectSource(Track.SOURCE_YOUTUBE) }
         binding.tabOnline.setOnClickListener { selectSource(Track.SOURCE_ONLINE) }
         binding.tabRadio.setOnClickListener { selectSource(Track.SOURCE_RADIO) }
-        binding.tabSpotify.setOnClickListener { startActivity(android.content.Intent(requireContext(), SpotifyActivity::class.java)) }
+        binding.tabSpotify.setOnClickListener { selectSource(Track.SOURCE_SPOTIFY) } // searches Spotify like the YouTube tab; songs play in the StarrySound player
         binding.tabTv.setOnClickListener { selectSource(Track.SOURCE_TV) }
         binding.tabWeb.setOnClickListener { startActivity(WebVideoActivity.intent(requireContext())) } // opens the browser, like the Spotify tab
         binding.radioSourceButton.setOnClickListener { showRadioSourceDialog() }
@@ -407,8 +422,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
             refreshList()
             return
         }
-        if (loading) return
+        if (loading) { reloadPending = true; return } // a drive was added / plugged while a scan runs: scan again right after it
         loading = true
+        reloadPending = false
         loadedVersion = MusicLibrary.version
         val appContext = requireContext().applicationContext
         try {
@@ -420,6 +436,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                     if (_binding == null) return@post
                     allTracks = tracks
                     refreshList()
+                    if (reloadPending) { reloadPending = false; loadLibrary() }
                 }
             }
         } catch (e: Exception) {
@@ -535,7 +552,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             FilterUi.showSongFilter(
                 ctx, deviceBase, deviceFilter, sort,
                 manageStorage = {
-                    StorageUi.show(ctx, allTracks, { folderLauncher.launch(null) }) {
+                    StorageUi.show(ctx, allTracks, { folderLauncher.launch(null) }, { volumeLauncher.launch(it) }) {
                         if (_binding != null) loadLibrary()
                     }
                 }
@@ -724,6 +741,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         Track.SOURCE_TV -> MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.TV) // live TV needs the video player
         Track.SOURCE_ONLINE -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.WEB)
         Track.SOURCE_RADIO -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.RADIO)
+        Track.SOURCE_SPOTIFY -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.SPOTIFY) // Spotify has no video
         else -> true
     }
 
@@ -733,7 +751,69 @@ class MusicFragment : Fragment(), MusicService.Listener {
         Track.SOURCE_RADIO -> getString(R.string.source_radio)
         Track.SOURCE_TV -> getString(R.string.source_tv)
         Track.SOURCE_DRIVE -> getString(R.string.source_drive)
+        Track.SOURCE_SPOTIFY -> getString(R.string.source_spotify)
         else -> getString(R.string.source_local)
+    }
+
+    /** Each source tab with its full text label and the icon that replaces it when the text does not fit on one line. */
+    private fun tabIconMap(): List<Pair<TextView, Int>> = listOf(
+        binding.tabLocal to R.drawable.ic_tab_device,
+        binding.tabDrive to R.drawable.ic_tab_drive,
+        binding.tabYoutube to R.drawable.ic_tab_youtube,
+        binding.tabTv to R.drawable.ic_tab_tv,
+        binding.tabWeb to R.drawable.ic_tab_web,
+        binding.tabRadio to R.drawable.ic_tab_radio,
+        binding.tabSpotify to R.drawable.ic_tab_spotify,
+        binding.tabOnline to R.drawable.ic_tab_web
+    )
+
+    /**
+     * If the text of any visible tab cannot fit on a single line (narrow screen, long translation,
+     * many tabs on), ALL tabs switch to icons together so the bar stays consistent.
+     * When every label fits again, all tabs go back to text.
+     */
+    private fun applyTabIcons() {
+        val b = _binding ?: return
+        b.sourceTabs.post {
+            val bb = _binding ?: return@post
+            val visibleTabs = tabIconMap().filter { it.first.visibility == View.VISIBLE }
+            if (visibleTabs.isEmpty() || visibleTabs.any { it.first.width <= 0 }) return@post
+            val density = resources.displayMetrics.density
+            val iconSize = (22 * density).toInt()
+
+            fun fullLabel(tv: TextView): CharSequence =
+                (tv.getTag(R.id.tabFullLabel) as? CharSequence) ?: tv.text.also {
+                    if (it.isNotEmpty()) tv.setTag(R.id.tabFullLabel, it)
+                }
+
+            val allFit = visibleTabs.all { (tv, _) ->
+                val full = fullLabel(tv)
+                val avail = tv.width - tv.paddingLeft - tv.paddingRight
+                full.isEmpty() || tv.paint.measureText(full.toString()) <= avail
+            }
+
+            for ((tv, iconRes) in tabIconMap()) {
+                val full = fullLabel(tv)
+                if (full.isEmpty()) continue
+                val showingIcon = tv.text.isEmpty()
+                if (allFit && showingIcon) {
+                    tv.text = full
+                    tv.setCompoundDrawablesRelative(null, null, null, null)
+                    tv.contentDescription = null
+                } else if (!allFit && !showingIcon) {
+                    val d = androidx.core.content.ContextCompat.getDrawable(requireContext(), iconRes)?.mutate()
+                    if (d != null) {
+                        d.setBounds(0, 0, iconSize, iconSize)
+                        tv.compoundDrawableTintList = tv.textColors // follows selected / unselected state
+                        tv.setCompoundDrawablesRelative(d, null, null, null)
+                        tv.compoundDrawablePadding = 0
+                        tv.text = ""
+                        tv.contentDescription = full
+                    }
+                }
+            }
+            bb.sourceTabs.requestLayout()
+        }
     }
 
     private fun updateTabs() {
@@ -743,16 +823,18 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabRadio.isSelected = source == Track.SOURCE_RADIO
         binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
         binding.tabTv.isSelected = source == Track.SOURCE_TV
+        binding.tabSpotify.isSelected = source == Track.SOURCE_SPOTIFY
         val ctx = requireContext()
         binding.tabDrive.visibility = if (tabAllowed(Track.SOURCE_DRIVE)) View.VISIBLE else View.GONE
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
         binding.tabOnline.visibility = if (tabAllowed(Track.SOURCE_ONLINE)) View.VISIBLE else View.GONE
         binding.tabRadio.visibility = if (tabAllowed(Track.SOURCE_RADIO)) View.VISIBLE else View.GONE
         // Spotify has no video either: hidden in video mode, like Online and Radio.
-        binding.tabSpotify.visibility = if (!MusicPrefs.videoMode(ctx) && SearchTabs.isShown(ctx, SearchTabs.Tab.SPOTIFY)) View.VISIBLE else View.GONE
+        binding.tabSpotify.visibility = if (tabAllowed(Track.SOURCE_SPOTIFY)) View.VISIBLE else View.GONE
         binding.tabTv.visibility = if (tabAllowed(Track.SOURCE_TV)) View.VISIBLE else View.GONE
         binding.tabWeb.visibility = if (MusicPrefs.videoMode(ctx) && SearchTabs.isShown(ctx, SearchTabs.Tab.WEB)) View.VISIBLE else View.GONE
-                updateFilterButton()
+        applyTabIcons()
+        updateFilterButton()
         binding.radioSourceButton.visibility = View.GONE // radio searches every directory at once
         binding.radioSourceButton.text =
             getString(R.string.radio_source_label, radioSourceName(MusicPrefs.radioSource(requireContext())))
@@ -762,6 +844,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 Track.SOURCE_RADIO -> R.string.radio_search_hint
                 Track.SOURCE_TV -> R.string.tv_search_hint
                 Track.SOURCE_ONLINE -> R.string.online_archive_hint
+                Track.SOURCE_SPOTIFY -> R.string.sp_search_hint
                 else -> R.string.online_search_hint
             }
         )
@@ -878,6 +961,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val ctx = requireContext()
         val src = source
         val blocker: Blocker? = when {
+            // Spotify can only search / play once the account is connected (Settings > Online music).
+            src == Track.SOURCE_SPOTIFY && !SpotifyAuth.isConnected(ctx) ->
+                Blocker(R.string.sp_connect_first, R.string.sp_settings) { openSettings() }
             else -> null
         }
         if (blocker != null) {
@@ -900,6 +986,18 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 adapter.submit(history)
                 binding.musicCount.text = getString(R.string.online_history_title, history.size)
                 if (history.isEmpty()) showEmpty(R.string.music_no_results) else showList()
+                adapter.setCurrentKey(service?.current?.key.orEmpty())
+                return
+            }
+        }
+        if (src == Track.SOURCE_SPOTIFY && inputBlank) {
+            // Nothing typed yet: show the last songs played from Spotify.
+            val history = MusicPrefs.spotifyHistory(ctx)
+            if (history.isNotEmpty()) {
+                shown = history
+                adapter.submit(history)
+                binding.musicCount.text = getString(R.string.online_history_title, history.size)
+                showList()
                 adapter.setCurrentKey(service?.current?.key.orEmpty())
                 return
             }
@@ -1383,6 +1481,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val q = binding.searchInput.text?.toString()?.trim().orEmpty()
         if (q.isEmpty()) return
         val src = source
+        if (src == Track.SOURCE_SPOTIFY && !SpotifyAuth.isConnected(requireContext())) { showOnline(); return }
         onlineQuery[src] = q
         val token = ++searchToken
         binding.searchProgress.visibility = View.VISIBLE
@@ -1399,6 +1498,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
                                 if (source == src) showOnline()
                             }
                         }
+                    } else if (src == Track.SOURCE_SPOTIFY) {
+                        SpotifyApi.search(app, q).map { SpotifyApi.toTrack(it) }
                     } else YouTubeApi.userSearch(app, q)
                 }
                 handler.post {
@@ -1487,6 +1588,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
                     Toast.LENGTH_LONG
                 ).show()
             }
+            RemoteEngine.ERR_SP_NO_DEVICE -> toast(R.string.sp_no_device)
+            RemoteEngine.ERR_SP_FORBIDDEN -> toast(R.string.sp_forbidden)
+            RemoteEngine.ERR_SP_NOT_CONNECTED -> toast(R.string.sp_connect_first)
             RemoteEngine.ERR_YT_UNPLAYABLE -> toast(R.string.youtube_unplayable)
             RemoteEngine.ERR_YT_CONFIG -> toast(R.string.youtube_config_error)
             RemoteEngine.ERR_YT_TIMEOUT -> toast(R.string.youtube_timeout)
@@ -1512,6 +1616,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
             Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
             Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()
+            Track.SOURCE_SPOTIFY -> MusicPrefs.spotifyHistory(requireContext()).isNotEmpty()
             else -> false
         }
         val track = shown[position]
@@ -1627,7 +1732,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         if (YouTubeApi.isListRow(shown[position])) { playYoutubeList(shown[position]); return }
         // Playlist / mix rows are no songs: the queue is the videos around the tapped one.
         val songs = shown.filter { !YouTubeApi.isListRow(it) }
-        svc.setQueueAndPlay(songs, songs.indexOf(shown[position]).coerceAtLeast(0), fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE)
+        svc.setQueueAndPlay(songs, songs.indexOf(shown[position]).coerceAtLeast(0), fromYoutubeSearch = source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_ONLINE || source == Track.SOURCE_SPOTIFY)
     }
 
     /** A YouTube playlist or mix row was tapped: fetch its videos, then play them as a queue. */
@@ -1686,6 +1791,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             val tag = when (tr.source) {
                 Track.SOURCE_YOUTUBE -> getString(R.string.source_youtube)
                 Track.SOURCE_RADIO -> getString(R.string.source_radio)
+                Track.SOURCE_SPOTIFY -> getString(R.string.source_spotify)
                 else -> ""
             }
             listOf(tr.artist.ifBlank { tr.album }, tag).filter { it.isNotBlank() }.joinToString(" \u00B7 ")

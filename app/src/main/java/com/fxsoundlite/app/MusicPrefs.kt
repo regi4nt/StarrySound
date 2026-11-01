@@ -29,6 +29,7 @@ object MusicPrefs {
     private const val KEY_SHOUTCAST = "shoutcast_api_key"
     private const val KEY_YT_HISTORY = "youtube_history"
     private const val KEY_ONLINE_HISTORY = "online_history"
+    private const val KEY_SP_HISTORY = "spotify_history"
     const val HISTORY_MAX = 10
     private const val KEY_PLAYER_BG = "player_bg_screensaver"
     private const val KEY_COVER_ANIM = "player_cover_anim"
@@ -140,7 +141,7 @@ object MusicPrefs {
 
     fun lastSource(c: Context): Int =
         p(c).getInt(KEY_LAST_SOURCE, Track.SOURCE_LOCAL)
-            .takeIf { it == Track.SOURCE_LOCAL || it == Track.SOURCE_YOUTUBE || it == Track.SOURCE_RADIO || it == Track.SOURCE_DRIVE }
+            .takeIf { it == Track.SOURCE_LOCAL || it == Track.SOURCE_YOUTUBE || it == Track.SOURCE_RADIO || it == Track.SOURCE_DRIVE || it == Track.SOURCE_SPOTIFY }
             ?: Track.SOURCE_LOCAL
     fun setLastSource(c: Context, v: Int) = p(c).edit().putInt(KEY_LAST_SOURCE, v).apply()
 
@@ -304,6 +305,38 @@ object MusicPrefs {
     fun clearOnlineHistory(c: Context) {
         p(c).edit().remove(KEY_ONLINE_HISTORY).apply()
         DriveSync.markDirty(c)
+    }
+
+    // Spotify-tab history: the last songs played from the Spotify search, newest first. remoteId = Spotify uri. Stays on this device.
+    fun spotifyHistory(c: Context): List<Track> {
+        val raw = p(c).getString(KEY_SP_HISTORY, null) ?: return emptyList()
+        return try { parseHistory(org.json.JSONArray(raw)).map { it.copy(source = Track.SOURCE_SPOTIFY) } } catch (e: Exception) { emptyList() }
+    }
+
+    private fun saveSpotifyHistory(c: Context, list: List<Track>) {
+        val arr = org.json.JSONArray()
+        list.forEach {
+            arr.put(
+                org.json.JSONObject()
+                    .put("id", it.remoteId).put("title", it.title).put("artist", it.artist)
+                    .put("album", it.album).put("dur", it.durationMs).put("art", it.artUrl)
+            )
+        }
+        p(c).edit().putString(KEY_SP_HISTORY, arr.toString()).apply()
+    }
+
+    fun addSpotifyHistory(c: Context, t: Track) {
+        if (privateMode(c)) return
+        if (t.source != Track.SOURCE_SPOTIFY || t.remoteId.isBlank()) return
+        saveSpotifyHistory(c, (listOf(t) + spotifyHistory(c).filter { it.remoteId != t.remoteId }).take(HISTORY_MAX))
+    }
+
+    fun removeSpotifyHistory(c: Context, remoteId: String) {
+        saveSpotifyHistory(c, spotifyHistory(c).filter { it.remoteId != remoteId })
+    }
+
+    fun clearSpotifyHistory(c: Context) {
+        p(c).edit().remove(KEY_SP_HISTORY).apply()
     }
 
     /** Removes one song from the YouTube history. */

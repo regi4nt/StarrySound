@@ -16,7 +16,7 @@ object SearchTabs {
         TV("tv", R.string.source_tv), // live TV, only in video mode, right of YouTube
         WEB("web", R.string.source_web, false), // one switch for both Web tabs: video mode = browser for videos on websites (right of TV); music mode = Internet Archive / Audius / Jamendo / ccMixter (right of Radio); hidden until switched on here
         RADIO("radio", R.string.source_radio),
-        SPOTIFY("spotify", R.string.source_spotify, false) // opens the Spotify player screen, right of Radio; not shown in video mode
+        SPOTIFY("spotify", R.string.source_spotify, false) // searches Spotify like YouTube; songs play in the StarrySound player; right of Radio, not shown in video mode
     }
 
     private const val PREFS = "search_tabs"

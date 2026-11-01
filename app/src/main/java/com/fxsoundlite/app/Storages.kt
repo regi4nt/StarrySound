@@ -3,6 +3,8 @@ package com.fxsoundlite.app
 import android.content.Context
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbManager
+import android.content.Intent
+import android.os.Build
 import android.os.Environment
 import android.os.storage.StorageManager
 import java.util.Locale
@@ -73,6 +75,23 @@ object Storages {
         }
     } catch (e: Exception) {
         false
+    }
+
+
+    /**
+     * Intent that asks the user for access to the WHOLE volume [key] (one "Allow" tap, no folder browsing).
+     * Result is a tree uri of the volume root, which [FolderLibrary] then scans recursively.
+     */
+    fun volumeAccessIntent(ctx: Context, key: String): Intent? = try {
+        val sm = ctx.getSystemService(Context.STORAGE_SERVICE) as StorageManager
+        val v = sm.storageVolumes.firstOrNull { !it.isPrimary && it.uuid?.lowercase(Locale.ROOT) == key }
+        when {
+            v == null -> null
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> v.createOpenDocumentTreeIntent()
+            else -> @Suppress("DEPRECATION") v.createAccessIntent(null)
+        }
+    } catch (e: Exception) {
+        null
     }
 
     /** Kind of the volume called [key] (the internal storage when it is not known any more). */

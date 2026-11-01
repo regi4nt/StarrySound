@@ -8,3 +8,6 @@ package com.fxsoundlite.app
  * The number only has to differ from the other SOURCE_* values.
  */
 val Track.Companion.SOURCE_ONLINE: Int get() = 100
+
+/** Songs found with the Spotify tab: [Track.remoteId] is the Spotify uri (spotify:track:...). They play in the Spotify app, controlled from the StarrySound player (see SpotifyEngine). */
+val Track.Companion.SOURCE_SPOTIFY: Int get() = 104

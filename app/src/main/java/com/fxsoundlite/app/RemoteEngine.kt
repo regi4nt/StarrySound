@@ -3,7 +3,7 @@ package com.fxsoundlite.app
 import android.os.SystemClock
 
 /**
- * A playback backend other than the framework MediaPlayer: the YouTube player (hidden WebView).
+ * A playback backend other than the framework MediaPlayer: the YouTube player (hidden WebView), or the Spotify app driven through its Web API (SpotifyEngine).
  * MusicService owns one at a time.
  * Every method and every callback runs on the main thread.
  */
@@ -45,6 +45,12 @@ interface RemoteEngine {
         const val ERR_RADIO_RETRY = 31
         /** A Google Drive song could not be downloaded / played. */
         const val ERR_DRIVE = 32
+        /** Spotify has no active device (open the Spotify app and play something once). */
+        const val ERR_SP_NO_DEVICE = 40
+        /** Spotify refused the request (needs Premium, or the account is not added under User Management). */
+        const val ERR_SP_FORBIDDEN = 41
+        /** The Spotify account is not connected (Settings > Online music). */
+        const val ERR_SP_NOT_CONNECTED = 42
         const val ERR_YT_UNPLAYABLE = 20
         const val ERR_YT_CONFIG = 21 // legacy (embedded-player error 153), no longer produced
         const val ERR_YT_TIMEOUT = 22 // the embedded player never started (no error, no playback)

@@ -2,6 +2,7 @@ package com.fxsoundlite.app
 
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.util.TypedValue
 import android.view.Gravity
 import android.widget.LinearLayout
@@ -21,7 +22,8 @@ object StorageUi {
         return tv.data
     }
 
-    fun show(ctx: Context, tracks: List<Track>, pickFolder: () -> Unit, onChanged: () -> Unit) {
+    fun show(ctx: Context, tracks: List<Track>, pickFolder: () -> Unit, pickVolume: (Intent) -> Unit, onChanged: () -> Unit) {
+        var dlg: AlertDialog? = null
         val dp = ctx.resources.displayMetrics.density
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -51,6 +53,20 @@ object StorageUi {
             }
             val state = ctx.getString(if (v.mounted) R.string.storage_mounted else R.string.storage_not_mounted)
             line("$name \u00B7 $state \u00B7 " + ctx.resources.getQuantityString(R.plurals.music_song_count, n, n))
+            // Removable drive that is plugged in but not yet granted as a whole: one tap to scan all of it.
+            val granted = FolderLibrary.trees(ctx).any { FolderLibrary.volumeKey(it) == v.key && FolderLibrary.label(it).substringAfter(" / ", "").isEmpty() }
+            if (v.kind != StorageKind.DEVICE && v.mounted && !granted) {
+                Storages.volumeAccessIntent(ctx, v.key)?.let { intent ->
+                    root.addView(TextView(ctx).apply {
+                        text = ctx.getString(R.string.storage_scan_all, name)
+                        textSize = 15f
+                        setTypeface(typeface, android.graphics.Typeface.BOLD)
+                        setTextColor(themeColor(ctx, R.attr.colorTextPrimary))
+                        setPadding(0, (8 * dp).toInt(), 0, (8 * dp).toInt())
+                        setOnClickListener { dlg?.dismiss(); pickVolume(intent) }
+                    })
+                }
+            }
         }
         if (vols.none { it.kind != StorageKind.DEVICE }) line(ctx.getString(R.string.storage_none), secondary = true)
 
@@ -86,7 +102,7 @@ object StorageUi {
         }
         line(ctx.getString(R.string.storage_hint), secondary = true)
 
-        AlertDialog.Builder(ctx)
+        dlg = AlertDialog.Builder(ctx)
             .setTitle(R.string.storage_title)
             .setView(ScrollView(ctx).apply { addView(root) })
             .setPositiveButton(R.string.storage_add_folder) { _, _ -> pickFolder() }

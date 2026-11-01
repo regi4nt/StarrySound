@@ -211,13 +211,61 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    // ---- Folders of the device / SD card / OTG drive that hold songs, shown as playlists (label "Device" / "SD card" / "OTG")
+    private var devFolders: List<MusicLibrary.DeviceFolder>? = null
+    private var devLoading = false
+    private val devExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    private var devVideo = false // which kind of files devFolders holds: songs (music mode) or videos (video mode)
+
+    private fun deviceFoldersAvailable(ctx: Context) =
+        if (MusicPrefs.videoMode(ctx)) MusicLibrary.canReadVideo(ctx) else MusicLibrary.canRead(ctx)
+
+    /** Takes the folders of the last library scan; scans in the background when there is none yet or the library changed. */
+    private fun loadDeviceFolders() {
+        val app = context?.applicationContext ?: return
+        if (!deviceFoldersAvailable(app)) { devFolders = null; return }
+        val video = MusicPrefs.videoMode(app)
+        if (video != devVideo) { devVideo = video; devFolders = null }
+        if (video) {
+            val known = MusicLibrary.videoFolders
+            if (known != null) devFolders = known
+            if (known != null && System.currentTimeMillis() - MusicLibrary.videoFoldersAt < 60_000L) return
+        } else {
+            val known = MusicLibrary.folders
+            if (known != null) devFolders = known
+            if (known != null && MusicLibrary.foldersVersion == MusicLibrary.version) return
+        }
+        if (devLoading) return
+        devLoading = true
+        devExecutor.execute {
+            try {
+                if (video) MusicLibrary.loadVideos(app) else MusicLibrary.load(app)
+            } catch (e: Exception) {
+                android.util.Log.w("PlaylistFragment", "device folders not loaded", e)
+            }
+            ytHandler.post {
+                devLoading = false
+                if (_binding == null) return@post
+                if (video != MusicPrefs.videoMode(app)) { loadDeviceFolders(); return@post } // mode changed meanwhile
+                devFolders = if (video) MusicLibrary.videoFolders else MusicLibrary.folders
+                refresh()
+            }
+        }
+    }
+
+    private fun deviceFolderPlaylist(id: String): Playlist? {
+        val f = devFolders?.takeIf { devVideo == MusicPrefs.videoMode(requireContext()) }?.firstOrNull { DEVICE_PREFIX + it.id == id } ?: return null
+        return Playlist(id, f.name, f.tracks)
+    }
+
     private fun driveFolderPlaylist(id: String): Playlist? {
         val f = drvFolders?.takeIf { drvVideo == MusicPrefs.videoMode(requireContext()) }?.firstOrNull { DRIVE_PREFIX + it.id == id } ?: return null
         return Playlist(id, f.name, f.tracks)
     }
 
     /** True for playlists that live in an account (YouTube / Drive) and are read-only here. */
-    private fun isRemoteList(id: String?): Boolean = YouTubeAccount.isYtId(id) || (id != null && id.startsWith(DRIVE_PREFIX))
+    private fun isRemoteList(id: String?): Boolean = YouTubeAccount.isYtId(id) || (id != null && (id.startsWith(DRIVE_PREFIX) || id.startsWith(DEVICE_PREFIX)))
 
     // ---- Convert: local playlist -> YouTube account playlist, or YouTube account playlist -> local playlist
 
@@ -378,6 +426,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         when {
             YouTubeAccount.isYtId(id) -> ytPlaylist(id)
             id.startsWith(DRIVE_PREFIX) -> driveFolderPlaylist(id)
+            id.startsWith(DEVICE_PREFIX) -> deviceFolderPlaylist(id)
             else -> PlaylistStore.get(ctx, id)
         }
 
@@ -674,6 +723,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
         val kinds = ArrayList<Int>().apply {
             add(0); add(F_LIKED); add(F_MINE)
+            if (deviceFoldersAvailable(ctx)) add(F_DEVICE)
             if (YouTubeAccount.isSignedIn(ctx)) add(F_YT)
             if (DriveMusic.isSignedIn(ctx)) add(F_DRIVE)
         }
@@ -696,6 +746,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 when (it) {
                     F_LIKED -> R.string.playlist_liked
                     F_MINE -> R.string.filter_pl_mine
+                    F_DEVICE -> R.string.source_local
                     F_YT -> R.string.source_youtube
                     F_DRIVE -> R.string.source_drive
                     else -> R.string.filter_all
@@ -874,6 +925,20 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     }
                 }
             }
+            // Device / SD card / OTG folders that hold songs, one playlist per folder.
+            if (openFolder == null && deviceFoldersAvailable(ctx)) {
+                loadDeviceFolders()
+                devFolders.orEmpty().forEach {
+                    ytCount++
+                    if (want(F_DEVICE) && (q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q))) {
+                        rows += Row(
+                            ROW_DEVICE, DEVICE_PREFIX + it.id, it.name,
+                            "\uD83D\uDCC1 " + getString(StorageKind.labelRes(it.kind)) + " \u00B7 " + songCount(it.tracks.size),
+                            count = it.tracks.size
+                        )
+                    }
+                }
+            }
             // "Liked songs" stays on top; the order setting applies to the playlists below it.
             // "Liked songs" is always on top (no pin needed), then the pinned rows (max 4, in pin order),
             // then the playlist played last, then the rest.
@@ -918,6 +983,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (id.startsWith(DRIVE_PREFIX) && (drvFolders == null || drvVideo != MusicPrefs.videoMode(ctx))) { // opened before the folders arrived
             loadDriveFolders()
             if (drvLoading) { showEmpty(R.string.drive_music_loading); return }
+        }
+        if (id.startsWith(DEVICE_PREFIX) && (devFolders == null || devVideo != MusicPrefs.videoMode(ctx))) { // opened before the folders were read
+            loadDeviceFolders()
+            if (devLoading) { showEmpty(R.string.device_folders_loading); return }
         }
         val pl = resolveList(ctx, id)
         if (pl == null) { // deleted meanwhile
@@ -1168,6 +1237,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         id.startsWith(DRIVE_PREFIX) ->
             if (drvFolders == null || drvVideo != MusicPrefs.videoMode(ctx)) true
             else drvFolders!!.any { DRIVE_PREFIX + it.id == id }
+        id.startsWith(DEVICE_PREFIX) ->
+            if (devFolders == null || devVideo != MusicPrefs.videoMode(ctx)) true
+            else devFolders!!.any { DEVICE_PREFIX + it.id == id }
         PlaylistFolders.get(ctx, id) != null -> true
         else -> id in own
     }
@@ -1200,7 +1272,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             return
         }
         val pinLabel = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
-        if (row.kind == ROW_YT || row.kind == ROW_DRIVE) {
+        if (row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_DEVICE) {
             PlaylistUi.pinOnly(ctx, row.name, pinLabel) { togglePin(row) }
             return
         }
@@ -1733,14 +1805,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     ROW_LIKED -> R.drawable.ic_heart
                     ROW_GENERATE -> R.drawable.ic_sparkle
                     ROW_CONVERT -> R.drawable.ic_playlist
-                    ROW_FOLDER -> R.drawable.ic_folder
+                    ROW_FOLDER, ROW_DEVICE -> R.drawable.ic_folder
                     else -> R.drawable.ic_playlist
                 }
             )
             holder.art.imageTintList = ColorStateList.valueOf(
                 attrColor(
                     ctx,
-                    if (row.kind == ROW_LIST || row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_FOLDER) R.attr.colorTextSecondary else androidx.appcompat.R.attr.colorAccent
+                    if (row.kind == ROW_LIST || row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_DEVICE || row.kind == ROW_FOLDER) R.attr.colorTextSecondary else androidx.appcompat.R.attr.colorAccent
                 )
             )
             holder.art.tag = null
@@ -1781,6 +1853,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         private const val F_MINE = 2
         private const val F_YT = 3
         private const val F_DRIVE = 4
+        private const val F_DEVICE = 5
         private const val SORT_NEWEST = 1
         private const val SORT_OLDEST = 2
         private const val SORT_TITLE_AZ = 3
@@ -1797,6 +1870,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         private const val CONVERT_ID = "__convert__"
         private const val MAX_CONVERT_SONGS = 150
         private const val ROW_DRIVE = 5
+        private const val ROW_DEVICE = 8
+        private const val DEVICE_PREFIX = "dev:"
         private const val DRIVE_PREFIX = "drv:"
         private const val GENERATE_ID = "__generate__"
     }

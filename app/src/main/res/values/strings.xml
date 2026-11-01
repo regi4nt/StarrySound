@@ -1093,6 +1093,8 @@
     <string name="storage_add_folder">Add folder</string>
     <string name="storage_remove_confirm">Stop reading songs from %1$s?</string>
     <string name="storage_hint">Songs on a memory card are found automatically. If songs on an OTG (USB) drive do not appear, tap Add folder and choose the drive or a folder on it.</string>
+    <string name="device_folders_loading">Loading songs…</string>
+    <string name="storage_scan_all">Scan entire %1$s</string>
     <string name="storage_added">Folder added. Reading songs…</string>
     <string name="storage_add_failed">Could not get access to this folder</string>
     <string name="external_open_failed">Couldn’t open this file.</string>

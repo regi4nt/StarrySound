@@ -891,7 +891,7 @@ class MusicService : MediaBrowserService() {
             fadeToken++ // a ramp still running from an earlier resume must not fight this one
             r.setVolume(startVol)
             r.setSpeed(playbackSpeed)
-            routeEffectsToMusic(viaRemote = true)
+            if (remoteKind != Track.SOURCE_SPOTIFY) routeEffectsToMusic(viaRemote = true)
             r.play()
             if (fadeInMs > 0) rampVolume(fadeInMs)
             acquireWake()
@@ -1107,6 +1107,16 @@ class MusicService : MediaBrowserService() {
         if (track.source == Track.SOURCE_ONLINE && historyPickKey != null && track.key == historyPickKey) {
             historyPickKey = null
             MusicPrefs.addOnlineHistory(this, track) // picked from the Online search list
+        }
+        if (track.source == Track.SOURCE_SPOTIFY) {
+            // A Spotify song plays in the Spotify app; SpotifyEngine remote-controls it so the StarrySound player stays in charge.
+            if (historyPickKey != null && track.key == historyPickKey) {
+                historyPickKey = null
+                MusicPrefs.addSpotifyHistory(this, track)
+            }
+            playRemote(track)
+            loadArtwork(track, token)
+            return
         }
         if (track.source == Track.SOURCE_YOUTUBE) {
             loadSegments(track, token)
@@ -1486,11 +1496,20 @@ class MusicService : MediaBrowserService() {
     private fun playRemote(track: Track) {
         if (remote == null || remoteKind != track.source) {
             releaseRemote()
-            remote = YouTubeEngine(applicationContext, handler, engineCallback, musicSessionId)
+            remote = if (track.source == Track.SOURCE_SPOTIFY) SpotifyEngine(applicationContext, handler, engineCallback)
+            else YouTubeEngine(applicationContext, handler, engineCallback, musicSessionId)
             remoteKind = track.source
         }
         val r = remote ?: return
-        routeEffectsToMusic(viaRemote = true)
+        if (track.source == Track.SOURCE_SPOTIFY) {
+            // Spotify plays in its own app: give audio focus back (else its start would pause us and we would pause it)
+            // and leave the EQ on the global mix, where SpotifyEffects reaches Spotify's audio.
+            abandonFocus()
+            resumeOnFocusGain = false
+            routeEffectsToGlobal()
+        } else {
+            routeEffectsToMusic(viaRemote = true)
+        }
         r.load(track)
         r.setSpeed(playbackSpeed)
         if (r.needsAudioFocus && !requestFocus()) {
@@ -1559,7 +1578,7 @@ class MusicService : MediaBrowserService() {
     /** Called by EffectService once it is running: attach the EQ chain to the song that is playing right now. */
     fun onEffectServiceReady() {
         handler.post {
-            if (remote != null && isPlaying) routeEffectsToMusic(viaRemote = true)
+            if (remote != null && isPlaying) { if (remoteKind != Track.SOURCE_SPOTIFY) routeEffectsToMusic(viaRemote = true) }
             else if (player != null && prepared && isPlaying) routeEffectsToMusic()
         }
     }

@@ -1086,6 +1086,8 @@
     <string name="storage_add_folder">Tambah folder</string>
     <string name="storage_remove_confirm">Berhenti membaca lagu dari %1$s?</string>
     <string name="storage_hint">Lagu di kartu memori ditemukan otomatis. Jika lagu di drive OTG (USB) tidak muncul, ketuk Tambah folder lalu pilih drive atau folder di dalamnya.</string>
+    <string name="device_folders_loading">Memuat lagu…</string>
+    <string name="storage_scan_all">Pindai seluruh %1$s</string>
     <string name="storage_added">Folder ditambahkan. Membaca lagu…</string>
     <string name="storage_add_failed">Tidak bisa mengakses folder ini</string>
     <string name="external_open_failed">Tidak bisa membuka file ini.</string>

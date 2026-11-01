@@ -98,6 +98,26 @@ object SpotifyApi {
         return JSONObject(r.body)
     }
 
+    /** Id of the Spotify device to play on: the active one, else the first usable one; null when Spotify lists none. */
+    fun firstDeviceId(c: Context): String? {
+        val arr = get(c, "$BASE/me/player/devices").optJSONArray("devices") ?: return null
+        var first: String? = null
+        for (i in 0 until arr.length()) {
+            val d = arr.optJSONObject(i) ?: continue
+            val id = d.optString("id")
+            if (id.isBlank() || d.optBoolean("is_restricted")) continue
+            if (d.optBoolean("is_active")) return id
+            if (first == null) first = id
+        }
+        return first
+    }
+
+    /** A search hit as a StarrySound song (played through SpotifyEngine). */
+    fun toTrack(h: Hit): Track = Track(
+        id = 0L, title = h.title, artist = h.artist, album = "", durationMs = h.durationMs,
+        source = Track.SOURCE_SPOTIFY, remoteId = h.uri, artUrl = h.artUrl
+    )
+
     /** Song search. Development-mode apps get at most 10 results per request since February 2026. */
     fun search(c: Context, query: String): List<Hit> {
         val q = java.net.URLEncoder.encode(query, "UTF-8")

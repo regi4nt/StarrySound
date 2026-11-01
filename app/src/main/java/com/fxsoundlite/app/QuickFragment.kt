@@ -819,6 +819,7 @@ class QuickFragment : Fragment(), QuickActions {
                 Track.SOURCE_YOUTUBE -> R.string.source_youtube
                 Track.SOURCE_RADIO -> R.string.source_radio
                 Track.SOURCE_DRIVE -> R.string.source_drive
+                Track.SOURCE_SPOTIFY -> R.string.source_spotify
                 else -> R.string.source_local
             }
         )

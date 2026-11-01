@@ -719,12 +719,12 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         if (MusicService.instance?.current?.source == Track.SOURCE_YOUTUBE) {
             popup.menu.add(0, MENU_AUDIO, 2, R.string.np_audio_track)
         }
-        if (!isRadio) { // live radio cannot be sped up: no item at all
+        if (!isRadio && src != Track.SOURCE_SPOTIFY) { // live radio and the Spotify app cannot be sped up: no item at all
             popup.menu.add(0, MENU_SPEED, 3, getString(R.string.np_speed_fmt, speedLabel(MusicService.instance?.playbackSpeed ?: 1f)))
         }
         if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 1, R.string.np_audio_quality)
         popup.menu.add(0, MENU_TIMER, 6, R.string.np_sleep_timer)
-        if (MusicService.instance?.current?.source != Track.SOURCE_RADIO) {
+        if (MusicService.instance?.current?.source != Track.SOURCE_RADIO && src != Track.SOURCE_SPOTIFY) { // Spotify songs cannot be saved
             popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
         }
         popup.menu.add(0, MENU_SHARE, 8, R.string.np_share)
@@ -821,6 +821,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         when {
             t.source == Track.SOURCE_YOUTUBE && t.remoteId.isNotBlank() -> "https://youtu.be/${t.remoteId}"
             t.source == Track.SOURCE_RADIO -> t.remoteId
+            t.source == Track.SOURCE_SPOTIFY && t.remoteId.isNotBlank() -> "https://open.spotify.com/track/" + t.remoteId.substringAfterLast(':')
             else -> ""
         }
 
@@ -844,6 +845,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 Track.SOURCE_YOUTUBE -> R.string.source_youtube
                 Track.SOURCE_RADIO -> R.string.source_radio
                 Track.SOURCE_DRIVE -> R.string.source_drive
+                Track.SOURCE_SPOTIFY -> R.string.source_spotify
                 else -> R.string.source_local
             }
         ) + (RadioOrigin.label(this, t)?.let { " \u00B7 $it" } ?: ""))

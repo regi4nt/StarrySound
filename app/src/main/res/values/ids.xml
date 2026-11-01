@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <item name="tabFullLabel" type="id" />
     <item name="queueRowMore" type="id" />
     <item name="sp_art" type="id" />
     <item name="sp_title_text" type="id" />

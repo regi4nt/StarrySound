@@ -36,6 +36,9 @@ object FolderLibrary {
     private val AUDIO_EXT = setOf(
         "mp3", "m4a", "aac", "flac", "ogg", "oga", "opus", "wav", "wma", "amr", "mka", "m4b", "3gp"
     )
+    private val VIDEO_EXT = setOf(
+        "mp4", "mkv", "webm", "avi", "mov", "m4v", "3gp", "3g2", "mpg", "mpeg", "flv", "wmv", "ogv"
+    )
     private val SKIP_DIRS = setOf("android", "lost.dir", "\$recycle.bin", "system volume information")
 
     private class Doc(val docId: String, val name: String, val size: Long, val modified: Long)
@@ -119,11 +122,12 @@ object FolderLibrary {
     // ------------------------------------------------------------------ scan
 
     /**
-     * Songs in every picked folder, minus those whose path is in [skip] (MediaStore already lists them).
+     * Songs (or, with [video], video files: [Track.SOURCE_VIDEO] tracks) in every picked folder, minus those whose
+     * path is in [skip] (MediaStore already lists them).
      * Blocking: call from a background thread. A song seen for the first time shows its file name until its
      * tags are read (in the background; the library is refreshed when that is done).
      */
-    fun load(ctx: Context, skip: Set<String>): List<Track> {
+    fun load(ctx: Context, skip: Set<String>, video: Boolean = false): List<Track> {
         val trees = trees(ctx)
         if (trees.isEmpty()) return emptyList()
         val app = ctx.applicationContext
@@ -136,7 +140,7 @@ object FolderLibrary {
         for (tree in trees) {
             val docs = ArrayList<Doc>()
             try {
-                walk(app, tree, deadline, docs, MAX_FILES - count)
+                walk(app, tree, deadline, docs, MAX_FILES - count, video)
             } catch (e: Exception) {
                 android.util.Log.w("FolderLibrary", "scan failed for $tree", e) // drive unplugged / permission lost
             }
@@ -149,7 +153,7 @@ object FolderLibrary {
                 val m = meta[key]?.takeIf { it.size == d.size && it.modified == d.modified }
                 if (m == null) toRead.add(d to uri)
                 val dur = m?.durationMs ?: 0L
-                if (dur in 1 until MIN_SONG_MS) continue
+                if (!video && dur in 1 until MIN_SONG_MS) continue
                 out.add(
                     Track(
                         id = idOf(key),
@@ -157,6 +161,7 @@ object FolderLibrary {
                         artist = m?.artist.orEmpty(),
                         album = m?.album.orEmpty(),
                         durationMs = dur,
+                        source = if (video) Track.SOURCE_VIDEO else Track.SOURCE_LOCAL,
                         remoteId = key
                     )
                 )
@@ -167,7 +172,7 @@ object FolderLibrary {
     }
 
     /** Directory walk with plain ContentResolver queries (much faster than DocumentFile). */
-    private fun walk(ctx: Context, tree: Uri, deadline: Long, out: MutableList<Doc>, room: Int) {
+    private fun walk(ctx: Context, tree: Uri, deadline: Long, out: MutableList<Doc>, room: Int, video: Boolean) {
         val cols = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
@@ -189,7 +194,7 @@ object FolderLibrary {
                     if (name.startsWith(".")) continue // hidden: trash, macOS "._" copies of songs, ...
                     if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
                         if (depth < MAX_DEPTH && name.lowercase(Locale.ROOT) !in SKIP_DIRS) stack.addLast(id to depth + 1)
-                    } else if (isAudio(name, mime)) {
+                    } else if (if (video) isVideo(name, mime) else isAudio(name, mime)) {
                         out.add(Doc(id, name, if (c.isNull(3)) 0L else c.getLong(3), if (c.isNull(4)) 0L else c.getLong(4)))
                         if (out.size >= room) return
                     }
@@ -197,6 +202,9 @@ object FolderLibrary {
             }
         }
     }
+
+    private fun isVideo(name: String, mime: String): Boolean =
+        mime.startsWith("video/") || name.substringAfterLast('.', "").lowercase(Locale.ROOT) in VIDEO_EXT
 
     private fun isAudio(name: String, mime: String): Boolean =
         mime.startsWith("audio/") || name.substringAfterLast('.', "").lowercase(Locale.ROOT) in AUDIO_EXT
