@@ -167,6 +167,12 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             PlayerMode.init(this)
             val svc = MusicService.instance
             val cur = svc?.current
+            if (cur == null && !SpotifyAuth.isConnected(this)) {
+                // Spotify not connected: no search box, just open the (empty) full player like a normal music player.
+                startActivity(Intent(this, NowPlayingActivity::class.java).putExtra(NowPlayingActivity.EXTRA_EMPTY_SPOTIFY, true))
+                overridePendingTransition(R.anim.slide_up, R.anim.stay)
+                return@setOnClickListener
+            }
             if (cur == null) { // empty Spotify mini player: start the last song and open the player on it
                 spotifyTabFragment()?.playFromMini(openPlayer = true) { open ->
                     if (open) {

@@ -33,7 +33,7 @@ class SongFilter {
 
     fun matches(t: Track): Boolean {
         if (source != ANY && t.source != source) return false
-        if (storage != StorageKind.ANY && (t.source != Track.SOURCE_LOCAL || MusicLibrary.storageKind(t) != storage)) return false
+        if (storage != StorageKind.ANY && ((t.source != Track.SOURCE_LOCAL && t.source != Track.SOURCE_VIDEO) || MusicLibrary.storageKind(t) != storage)) return false
         if (length != LEN_ANY) {
             val min = t.durationMs / 60_000.0
             if (t.durationMs <= 0L) return false // unknown length (radio, ...)
@@ -252,7 +252,7 @@ object FilterUi {
         // Storage (Device tab): phone / SD card / OTG. The chips appear once songs come from more than one place;
         // the "manage" chip is always there so an OTG drive the system did not index can be added.
         if (songSections && manageStorage != null) {
-            val kindsHere = tracks.filter { it.source == Track.SOURCE_LOCAL }.map { MusicLibrary.storageKind(it) }.distinct().sorted()
+            val kindsHere = tracks.filter { it.source == Track.SOURCE_LOCAL || it.source == Track.SOURCE_VIDEO }.map { MusicLibrary.storageKind(it) }.distinct().sorted()
             title(R.string.filter_storage)
             if (kindsHere.size >= 2) {
                 chips(

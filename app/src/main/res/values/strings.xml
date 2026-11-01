@@ -150,6 +150,7 @@
         <item quantity="other">%d songs</item>
     </plurals>
     <string name="music_search_hint">Search songs, artists, albums</string>
+    <string name="video_search_hint">Search videos</string>
     <string name="music_need_permission">Allow access to audio files so StarrySound can show and play the music on this device.</string>
     <string name="music_allow_access">Allow access</string>
     <string name="music_empty">No music found on this device.</string>
@@ -231,6 +232,7 @@
     <string name="bedtime_no_match">No matches.</string>
     <string name="bedtime_search_yt">Search YouTube or paste a link</string>
     <string name="bedtime_search_device">Filter your music</string>
+    <string name="bedtime_search_drive">Filter your Drive music</string>
     <string name="sleep_timer_channel">Sleep timer</string>
     <string name="sleep_timer_notif_title">Sleep timer running</string>
     <string name="sleep_timer_notif_text">Music will fade out and stop.</string>
@@ -443,9 +445,9 @@
     <string name="cover_save_failed">Couldn\'t use that photo</string>
 
     <!-- Screensaver lock -->
-    <string name="screensaver_lock_desc">Lock swipe and touch</string>
+    <string name="screensaver_lock_desc">Lock swipe</string>
     <string name="screensaver_player_desc">Open player</string>
-    <string name="screensaver_locked_toast">Locked: swipe and touch are off. Long-press the lock icon to unlock.</string>
+    <string name="screensaver_locked_toast">Locked: swipe is off, the touch effect still works. Long-press the lock icon to unlock.</string>
     <string name="screensaver_unlocked_toast">Unlocked</string>
     <string name="screensaver_locked_hint">Locked. Long-press the lock icon to unlock.</string>
     <!-- Music-search widget -->

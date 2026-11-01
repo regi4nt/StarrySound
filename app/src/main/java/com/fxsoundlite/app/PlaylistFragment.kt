@@ -230,7 +230,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (video) {
             val known = MusicLibrary.videoFolders
             if (known != null) devFolders = known
-            if (known != null && System.currentTimeMillis() - MusicLibrary.videoFoldersAt < 60_000L) return
+            if (known != null && MusicLibrary.videoFoldersVersion == MusicLibrary.version) return
         } else {
             val known = MusicLibrary.folders
             if (known != null) devFolders = known
@@ -648,7 +648,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val tracks = sortTracks(resolveList(ctx, id)?.tracks.orEmpty()).filter { !it.missing }
         val svc = service ?: MusicService.instance
         if (tracks.isNotEmpty()) MusicPrefs.setLastPlayedList(ctx, id)
-        if (MusicPrefs.videoMode(ctx) && tracks.isNotEmpty()) { playAsVideo(tracks, 0); return }
+        if ((MusicPrefs.videoMode(ctx) || tracks.all { it.isVideoFile }) && tracks.isNotEmpty()) { playAsVideo(tracks, 0); return }
         if (tracks.isEmpty() || svc == null) {
             Toast.makeText(ctx, R.string.playlist_empty_tracks, Toast.LENGTH_SHORT).show()
             return
@@ -665,7 +665,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (shuffle) tracks = tracks.shuffled()
         val svc = service ?: MusicService.instance
         if (tracks.isEmpty() || svc == null) { toast(ctx, R.string.folder_no_songs); return }
-        if (MusicPrefs.videoMode(ctx)) { playAsVideo(tracks, 0); return }
+        if (MusicPrefs.videoMode(ctx) || tracks.all { it.isVideoFile }) { playAsVideo(tracks, 0); return }
         svc.setQueueAndPlay(tracks, 0, fromPlaylist = PlaylistFolders.get(ctx, folderId)?.name)
     }
 
@@ -1293,6 +1293,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         openList?.let { MusicPrefs.setLastPlayedList(requireContext(), it) } // pinned right below Liked songs
         if (MusicPrefs.videoMode(requireContext())) { playAsVideo(shown, position); return }
         val ctx = requireContext()
+        if (shown[position].isVideoFile) { playAsVideo(shown, position); return } // a video of the list opens in the video player
         val from = openList?.let { resolveList(ctx, it)?.name }
         (service ?: MusicService.instance)?.setQueueAndPlay(shown, position, fromPlaylist = from)
     }

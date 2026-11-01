@@ -473,6 +473,7 @@ class MusicService : MediaBrowserService() {
      *  Returns false when it is the current song or already in the "queued next" block. With nothing playing
      *  the song just sits in the queue until [next] is called. */
     fun addToQueue(t: Track): Boolean {
+        if (t.isVideoFile) return false // plays in the video player only
         if (index !in queue.indices) {
             if (queue.any { it.key == t.key }) return false
             queue = queue + t
@@ -838,11 +839,12 @@ class MusicService : MediaBrowserService() {
     fun setQueueAndPlay(allTracks: List<Track>, startIndex: Int, fromYoutubeSearch: Boolean = false, fromPlaylist: String? = null) {
         if (allTracks.isEmpty() || startIndex !in allTracks.indices) return
         // Songs of a synced playlist that are not on this device cannot play: leave them out.
-        val tracks = if (allTracks.any { it.missing }) allTracks.filter { !it.missing } else allTracks
+        // Video files (device / Drive) belong to the video player: they never enter the audio queue.
+        val tracks = if (allTracks.any { it.missing || it.isVideoFile }) allTracks.filter { !it.missing && !it.isVideoFile } else allTracks
         if (tracks.isEmpty()) return
         PlayerMode.setMusic() // a song picked from a list is music mode (the video player sets video mode again after its hand-off)
         val start = if (tracks === allTracks) startIndex else {
-            val first = allTracks.drop(startIndex).firstOrNull { !it.missing }
+            val first = allTracks.drop(startIndex).firstOrNull { !it.missing && !it.isVideoFile }
             (if (first != null) tracks.indexOf(first) else 0).coerceAtLeast(0)
         }
         queue = tracks

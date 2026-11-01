@@ -35,6 +35,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     private lateinit var binding: ActivityNowPlayingBinding
     private val handler = Handler(Looper.getMainLooper())
     private var dragging = false
+    private val emptySpotify by lazy { intent.getBooleanExtra(EXTRA_EMPTY_SPOTIFY, false) }
 
     // Lyrics mode (replaces the cover): which track the lyrics belong to and what to show.
     private var lyricsMode = false
@@ -92,9 +93,17 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) { } }
         }
         binding.npVideo.setOnClickListener { openVideo() }
-        binding.npPlay.setOnClickListener { MusicService.instance?.togglePlayPause() }
-        binding.npNext.setOnClickListener { MusicService.instance?.next() }
-        binding.npPrev.setOnClickListener { MusicService.instance?.previous() }
+        // Empty Spotify player (nothing queued here): the buttons drive the Spotify app itself.
+        fun emptySpotifyNow() = emptySpotify && MusicService.instance?.current == null
+        binding.npPlay.setOnClickListener {
+            if (emptySpotifyNow()) SpotifyRemote.playPause(this) else MusicService.instance?.togglePlayPause()
+        }
+        binding.npNext.setOnClickListener {
+            if (emptySpotifyNow()) SpotifyRemote.next(this) else MusicService.instance?.next()
+        }
+        binding.npPrev.setOnClickListener {
+            if (emptySpotifyNow()) SpotifyRemote.previous(this) else MusicService.instance?.previous()
+        }
         binding.npShuffle.setOnClickListener { MusicService.instance?.toggleShuffle() }
         binding.npRepeat.setOnClickListener { MusicService.instance?.cycleRepeat() }
         binding.npSeek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -238,7 +247,13 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     override fun onMusicStateChanged() {
         val s = MusicService.instance
         val t = s?.current
-        if (s == null || t == null) { finish(); return }
+        if (s == null || t == null) {
+            if (emptySpotify) { showEmptySpotify(); return }
+            finish(); return
+        }
+        // Real track: undo the empty Spotify player's icon styling on the cover.
+        binding.npArt.setPadding(0, 0, 0, 0)
+        binding.npArt.imageTintList = null
         binding.npTitle.text = t.title
         binding.npFromBox.visibility = View.GONE // the playlist name is no longer shown in the player
         if (lyricsMode && t.key != lyricsKey) loadLyrics(t)
@@ -270,6 +285,25 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             ColorStateList.valueOf(if (s.repeatMode == MusicService.REPEAT_OFF) inactive else accent)
         updateProgress()
         updateQualityBadge(t)
+    }
+
+    /** Full player with no song queued (Spotify not connected): a "Spotify" placeholder with idle controls. */
+    private fun showEmptySpotify() {
+        binding.npTitle.text = getString(R.string.source_spotify)
+        binding.npArtist.text = getString(R.string.sp_connect_first)
+        binding.npFromBox.visibility = View.GONE
+        binding.npQuality.visibility = View.GONE
+        binding.npSeek.max = 0
+        binding.npSeek.progress = 0
+        binding.npSeek.isEnabled = false
+        binding.npElapsed.text = formatDuration(0L)
+        binding.npTotal.text = formatDuration(0L)
+        binding.npPlay.setImageResource(R.drawable.ic_play)
+        val pad = (48 * resources.displayMetrics.density).toInt()
+        binding.npArt.setPadding(pad, pad, pad, pad)
+        binding.npArt.setImageResource(R.drawable.ic_tab_spotify)
+        binding.npArt.imageTintList = ColorStateList.valueOf(themeAccent())
+        updateCoverFx()
     }
 
     private var qualityKey: String? = null
@@ -939,6 +973,9 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     companion object {
         /** Set by the charging screensaver so the player shows above the lock screen. */
         const val EXTRA_OVER_LOCK = "over_lock"
+        /** Opened from the empty Spotify mini player while Spotify is not connected: shows an empty Spotify player
+         *  instead of closing itself because nothing is queued. */
+        const val EXTRA_EMPTY_SPOTIFY = "empty_spotify"
         private const val MENU_TIMER = 1
         private const val MENU_SHARE = 2
         private const val MENU_LISTEN = 9

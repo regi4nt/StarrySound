@@ -200,14 +200,21 @@ class ScreensaverFragment : Fragment() {
             val mode = ScreensaverPrefs.touchFx(requireContext())
             if (mode == ScreensaverTouchFx.Mode.OFF) return@setOnTouchListener false
             decideSwipe(ev)
-            binding.screensaverTouchFx.onTouch(ev)
-            if (mode == ScreensaverTouchFx.Mode.SCATTER && binding.screensaverAnimatedBg.visibility == View.VISIBLE) {
-                val up = ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
-                binding.screensaverAnimatedBg.setPush(ev.x, ev.y, !up)
-            } else if (mode == ScreensaverTouchFx.Mode.SCATTER) {
-                scatterMedia(ev)
-            }
+            feedTouchFx(ev, mode)
             true
+        }
+    }
+
+    /** Sends one touch event to the touch effect (ripple / sparkle / glow / scatter). Shared by the normal page
+     *  and by the lock shield, so the effect keeps working while swipe is locked. */
+    private fun feedTouchFx(ev: android.view.MotionEvent, mode: ScreensaverTouchFx.Mode) {
+        if (_binding == null || mode == ScreensaverTouchFx.Mode.OFF) return
+        binding.screensaverTouchFx.onTouch(ev)
+        if (mode == ScreensaverTouchFx.Mode.SCATTER && binding.screensaverAnimatedBg.visibility == View.VISIBLE) {
+            val up = ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
+            binding.screensaverAnimatedBg.setPush(ev.x, ev.y, !up)
+        } else if (mode == ScreensaverTouchFx.Mode.SCATTER) {
+            scatterMedia(ev)
         }
     }
 
@@ -284,9 +291,12 @@ class ScreensaverFragment : Fragment() {
     // ------------------------------------------------------------------ swipe / touch lock
 
     private var lastLockHintAt = 0L
+    private var shieldDownX = 0f
+    private var shieldDownY = 0f
 
-    /** Tap the lock icon = lock swipe + touch; long-press it = unlock. Only offered on the main
+    /** Tap the lock icon = lock swipe (touch effect keeps working); long-press it = unlock. Only offered on the main
      *  screen: the charging screensaver (over the lock screen) closes on any touch by design. */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
     private fun setupLockButton() {
         val host = activity as? MainActivity
         if (host == null) {
@@ -310,11 +320,20 @@ class ScreensaverFragment : Fragment() {
                 true
             } else false
         }
-        // While locked, any touch outside the lock icon is swallowed (with a throttled hint).
+        // While locked, touches outside the lock icon never reach the buttons or the pager (swipe stays off), but they
+        // still drive the touch effect. The "locked" hint is only shown for a tap, not for a drag.
         binding.screensaverTouchShield.setOnTouchListener { _, ev ->
+            // The shield consumes the gesture, so the parent (pager) must never take it over either.
+            if (ev.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+                binding.root.parent?.requestDisallowInterceptTouchEvent(true)
+                shieldDownX = ev.x; shieldDownY = ev.y
+            }
+            feedTouchFx(ev, ScreensaverPrefs.touchFx(requireContext()))
             if (ev.actionMasked == android.view.MotionEvent.ACTION_UP) {
+                val slop = android.view.ViewConfiguration.get(requireContext()).scaledTouchSlop
+                val moved = kotlin.math.abs(ev.x - shieldDownX) > slop || kotlin.math.abs(ev.y - shieldDownY) > slop
                 val now = System.currentTimeMillis()
-                if (now - lastLockHintAt > 2500) {
+                if (!moved && now - lastLockHintAt > 2500) {
                     lastLockHintAt = now
                     Toast.makeText(requireContext(), R.string.screensaver_locked_hint, Toast.LENGTH_SHORT).show()
                 }

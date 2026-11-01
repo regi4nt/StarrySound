@@ -176,12 +176,17 @@ class SongDetectActivity : AppCompatActivity() {
 
     private fun buildLangChips() {
         langChips.removeAllViews()
+        val gap = (8 * resources.displayMetrics.density).toInt()
         for ((index, pair) in LANGS.withIndex()) {
             val (code, label) = pair
             val chip = LayoutInflater.from(this).inflate(R.layout.item_preset_chip, langChips, false) as TextView
-            // No trailing margin on the last chip, otherwise the row sits 8dp left of the middle.
-            (chip.layoutParams as LinearLayout.LayoutParams).marginEnd = if (index == LANGS.lastIndex) 0 else (8 * resources.displayMetrics.density).toInt()
+            // Same sizing as the mode chips above (Sing / Hum / Playing nearby): equal-width chips that together span
+            // the full row, no trailing margin on the last one.
+            chip.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = if (index == LANGS.lastIndex) 0 else gap
+            }
             chip.gravity = android.view.Gravity.CENTER
+            chip.setPadding(gap, chip.paddingTop, gap, chip.paddingBottom)
             chip.setText(label)
             chip.setOnClickListener {
                 lang = code

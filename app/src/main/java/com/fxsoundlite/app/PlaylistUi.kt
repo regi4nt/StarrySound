@@ -146,11 +146,13 @@ object PlaylistUi {
         actions += { toggleLike(c, t, onChanged) }
         labels += c.getString(R.string.np_add_playlist)
         actions += { addToPlaylist(c, t, onChanged) }
-        labels += c.getString(R.string.np_add_queue)
-        actions += {
-            val svc = MusicService.instance
-            val added = svc?.addToQueue(t) ?: false
-            toast(c, c.getString(if (added) R.string.quick_queue_added else R.string.quick_queue_already))
+        if (!t.isVideoFile) { // a video file plays in the video player, not in the audio queue
+            labels += c.getString(R.string.np_add_queue)
+            actions += {
+                val svc = MusicService.instance
+                val added = svc?.addToQueue(t) ?: false
+                toast(c, c.getString(if (added) R.string.quick_queue_added else R.string.quick_queue_already))
+            }
         }
         if (SongDownloader.canDownload(t)) {
             labels += c.getString(R.string.np_download)

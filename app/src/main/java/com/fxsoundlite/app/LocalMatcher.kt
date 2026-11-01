@@ -37,6 +37,40 @@ object LocalMatcher {
     /** Device-independent identity of a local song. */
     fun localKey(title: String, artist: String) = "M:${norm(title)}|${norm(artist)}"
 
+    /** Device-independent identity of a device video: title + length in whole seconds. */
+    fun videoKey(title: String, durationMs: Long) = "V:${norm(title)}|${durationMs / 1000}"
+
+    private class VideoIndex(val byUri: Map<String, Track>, val byTitle: Map<String, List<Track>>, val at: Long)
+    @Volatile private var videoIndex: VideoIndex? = null
+
+    @Synchronized
+    private fun videoIndex(c: Context): VideoIndex? {
+        val cur = videoIndex
+        val src = MusicLibrary.lastVideos
+        // Reuse while the video scan it was built from is still the latest one.
+        if (cur != null && src != null && MusicLibrary.videoFoldersAt <= cur.at) return cur
+        if (!MusicLibrary.canReadVideo(c)) return cur
+        val list = src ?: MusicLibrary.loadVideos(c)
+        if (list.isEmpty()) return null // not scanned / unreadable: do not conclude that videos are missing
+        val idx = VideoIndex(
+            byUri = list.associateBy { it.remoteId },
+            byTitle = list.groupBy { norm(it.title) },
+            at = System.currentTimeMillis()
+        )
+        videoIndex = idx
+        return idx
+    }
+
+    private fun resolveVideo(c: Context, t: Track): Track {
+        val idx = videoIndex(c) ?: return t
+        idx.byUri[t.remoteId]?.let { return it.copy(addedAt = t.addedAt) }
+        idx.byTitle[norm(t.title)]
+            ?.filter { t.durationMs <= 0L || it.durationMs <= 0L || abs(it.durationMs - t.durationMs) <= TITLE_ONLY_TOLERANCE_MS }
+            ?.minByOrNull { abs(it.durationMs - t.durationMs) }
+            ?.let { return it.copy(addedAt = t.addedAt) }
+        return t.copy(missing = true)
+    }
+
     /** Rebuilds the index now. Blocking: call from a background thread. */
     fun refresh(c: Context) { build(c, force = true) }
 
@@ -73,6 +107,7 @@ object LocalMatcher {
      * cannot be read, come back unchanged.
      */
     fun resolve(c: Context, t: Track): Track {
+        if (t.source == Track.SOURCE_VIDEO) return resolveVideo(c, t)
         if (t.source != Track.SOURCE_LOCAL) return t
         val idx = index(c) ?: return t
         val title = norm(t.title)

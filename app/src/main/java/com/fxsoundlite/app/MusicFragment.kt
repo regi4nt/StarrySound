@@ -125,6 +125,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
     // ---- video mode: the Device tab lists the device's videos
     private var allVideos: List<Track>? = null
     private var videosLoading = false
+    private var videosPending = false // a change came in while a scan ran: scan again right after it
+    private var videosVersion = -1 // MusicLibrary.version the list above was scanned at
 
     private val videoPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -132,17 +134,27 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
 
     private fun loadVideos() {
-        if (_binding == null || videosLoading) return
+        if (_binding == null) return
+        if (videosLoading) { videosPending = true; return }
         videosLoading = true
+        videosPending = false
+        videosVersion = MusicLibrary.version
         val app = requireContext().applicationContext
         try {
             loader.execute {
-                val vids = MusicLibrary.loadVideos(app)
+                // A failing scan must not leave the page on "Loading videos…" forever (videosLoading would stay true).
+                val vids = try {
+                    MusicLibrary.loadVideos(app)
+                } catch (e: Throwable) {
+                    android.util.Log.w("MusicFragment", "video scan failed", e)
+                    emptyList()
+                }
                 handler.post {
                     videosLoading = false
                     if (_binding == null) return@post
                     allVideos = vids
                     if (source == Track.SOURCE_LOCAL && MusicPrefs.videoMode(requireContext())) refreshList()
+                    if (videosPending) loadVideos()
                 }
             }
         } catch (e: Exception) {
@@ -207,6 +219,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             return
         }
         val all = vids // Google Drive videos are in the Drive tab
+        deviceBase = all // the filter dialog must offer the videos, not the songs of the audio list
         val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         shown = if (q.isEmpty()) all else all.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
         adapter.submit(shown)
@@ -383,9 +396,18 @@ class MusicFragment : Fragment(), MusicService.Listener {
         ) {
             loadLibrary()
         }
+        // Video mode: a drive plugged / pulled or tags read meanwhile.
+        if (MusicPrefs.videoMode(requireContext()) && allVideos != null && videosVersion != MusicLibrary.version) loadVideos()
         // A download finished while this page is open: reload the Device list (shortly after, so the
         // system has finished reading the new file's details).
-        MusicLibrary.onChanged = { handler.postDelayed({ if (_binding != null) loadLibrary() }, 1500) }
+        MusicLibrary.onChanged = {
+            handler.postDelayed({
+                if (_binding != null) {
+                    loadLibrary()
+                    if (MusicPrefs.videoMode(requireContext())) loadVideos()
+                }
+            }, 1500)
+        }
         handler.post(tick)
         // Back from Settings (key typed): update the prompts. Not after a video: the list stays as it was.
         if (!keepList) refreshList()
@@ -826,18 +848,17 @@ class MusicFragment : Fragment(), MusicService.Listener {
     fun isSpotifyTabActive(): Boolean = _binding != null && source == Track.SOURCE_SPOTIFY
 
     /**
-     * Play button / tap of the empty Spotify mini player (no search result picked). Order: the song Spotify itself is
+     * Play button / tap of the empty Spotify mini player (no search result picked); it never opens the search box. Order: the song Spotify itself is
      * on right now (read from its player), else the last song played from the Spotify tab, else the Spotify app is
      * controlled directly (play through its media session). [onStarted] gets true when a song is queued and the
      * full player can open.
      */
     fun playFromMini(openPlayer: Boolean = false, onStarted: (Boolean) -> Unit = {}) {
-        val b = _binding ?: return
+        if (_binding == null) return
         val ctx = context ?: return
         val app = ctx.applicationContext
         if (!SpotifyAuth.isConnected(ctx)) {
             toast(R.string.sp_connect_first)
-            focusSearch(b, ctx)
             onStarted(false)
             return
         }
@@ -846,7 +867,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 SpotifyApi.hit(SpotifyApi.player(app)?.optJSONObject("item"))?.let { SpotifyApi.toTrack(it) }
             } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: $e"); null }
             activity?.runOnUiThread {
-                val bb = _binding ?: return@runOnUiThread
+                if (_binding == null) return@runOnUiThread
                 val svc = service ?: MusicService.instance
                 val history = MusicPrefs.spotifyHistory(app)
                 if (svc != null && (live != null || history.isNotEmpty())) {
@@ -857,17 +878,10 @@ class MusicFragment : Fragment(), MusicService.Listener {
                     // Nothing to adopt: drive the Spotify app itself (open it if it has no media session yet).
                     if (!SpotifyRemote.hasSession(app)) SpotifyRemote.open(app)
                     SpotifyRemote.playPause(app)
-                    focusSearch(bb, ctx)
                     onStarted(false)
                 }
             }
         }.start()
-    }
-
-    private fun focusSearch(b: com.fxsoundlite.app.databinding.FragmentMusicBinding, ctx: Context) {
-        b.searchInput.requestFocus()
-        (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
-            ?.showSoftInput(b.searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
     private fun updateTabs() {
@@ -895,7 +909,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
             getString(R.string.radio_source_label, radioSourceName(MusicPrefs.radioSource(requireContext())))
         binding.searchInput.setHint(
             when (source) {
-                Track.SOURCE_LOCAL, Track.SOURCE_DRIVE -> R.string.music_search_hint
+                Track.SOURCE_LOCAL, Track.SOURCE_DRIVE ->
+                    if (MusicPrefs.videoMode(ctx)) R.string.video_search_hint else R.string.music_search_hint
                 Track.SOURCE_RADIO -> R.string.radio_search_hint
                 Track.SOURCE_TV -> R.string.tv_search_hint
                 Track.SOURCE_ONLINE -> R.string.online_archive_hint
@@ -1667,7 +1682,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun onTrackLongClicked(position: Int) {
         if (position !in shown.indices) return
         if (isArchiveAlbum(shown[position]) || YouTubeApi.isListRow(shown[position])) return // not a song: nothing to add to a playlist
-        if (shown[position].source == Track.SOURCE_VIDEO || shown[position].source == Track.SOURCE_DRIVE_VIDEO || shown[position].source == Track.SOURCE_TV) return // a video file is not an audio track
+        if (shown[position].source == Track.SOURCE_TV) return // a live channel: nothing to add to a playlist (video files can be liked / listed)
         val inHistory = binding.searchInput.text.isNullOrBlank() && when (source) {
             Track.SOURCE_YOUTUBE -> MusicPrefs.youtubeHistory(requireContext()).isNotEmpty()
             Track.SOURCE_ONLINE -> MusicPrefs.onlineHistory(requireContext()).isNotEmpty()

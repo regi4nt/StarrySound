@@ -41,6 +41,29 @@ object ImageLoader {
         run("local:" + track.id, onLoaded) { localCover(app, track) }
     }
 
+    /** Preview picture of a device video: MediaStore / provider thumbnail, else a frame of the file. Cached like covers. */
+    fun loadVideoThumb(ctx: Context, track: Track, onLoaded: (Bitmap?) -> Unit) {
+        val app = ctx.applicationContext
+        run("video:" + track.remoteId, onLoaded) { videoThumb(app, track) }
+    }
+
+    private fun videoThumb(ctx: Context, track: Track): Bitmap? {
+        val uri = android.net.Uri.parse(track.remoteId)
+        if (Build.VERSION.SDK_INT >= 29) {
+            try { return ctx.contentResolver.loadThumbnail(uri, Size(256, 256), null) } catch (e: Exception) { android.util.Log.d("ImageLoader", "ignored: " + e) }
+        }
+        val r = MediaMetadataRetriever()
+        return try {
+            r.setDataSource(ctx, uri)
+            val f = r.getFrameAtTime(1_000_000L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: r.getFrameAtTime(0L)
+            f?.let { b -> if (b.width > 320) Bitmap.createScaledBitmap(b, 320, (b.height * 320f / b.width).toInt().coerceAtLeast(1), true) else b }
+        } catch (_: Exception) {
+            null
+        } finally {
+            try { r.release() } catch (e: Exception) { android.util.Log.d("ImageLoader", "ignored: " + e) }
+        }
+    }
+
     private fun localCover(ctx: Context, track: Track): Bitmap? {
         if (Build.VERSION.SDK_INT >= 29) {
             try { return ctx.contentResolver.loadThumbnail(track.uri, Size(256, 256), null) } catch (e: Exception) { android.util.Log.d("ImageLoader", "ignored: " + e) }

@@ -15,3 +15,7 @@ val Track.isVideoPlayable: Boolean
         source == Track.SOURCE_VIDEO || source == Track.SOURCE_DRIVE_VIDEO ||
         (source == Track.SOURCE_TV && remoteId.isNotBlank()) ||
         (PlayerMode.isTvAudio(this) && remoteId.isNotBlank()) // a TV channel saved as audio (playlist, mini bar): its video is the live channel
+
+/** A video FILE (device or Drive): can be liked / put in playlists, but never goes into the audio queue. */
+val Track.isVideoFile: Boolean
+    get() = source == Track.SOURCE_VIDEO || source == Track.SOURCE_DRIVE_VIDEO

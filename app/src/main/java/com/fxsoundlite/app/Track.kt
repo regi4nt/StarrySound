@@ -34,7 +34,12 @@ data class Track(
     val key: String get() = if (source == SOURCE_LOCAL) "L$id" else "$source:$remoteId"
 
     /** Identity that is the same on every device: title + artist for local songs (MediaStore ids differ per phone). */
-    val syncKey: String get() = if (source == SOURCE_LOCAL) LocalMatcher.localKey(title, artist) else key
+    val syncKey: String get() = when (source) {
+        Track.SOURCE_LOCAL -> LocalMatcher.localKey(title, artist)
+        // A device video: its content uri means nothing on another phone, so title + length identify it (see LocalMatcher.resolve).
+        Track.SOURCE_VIDEO -> LocalMatcher.videoKey(title, durationMs)
+        else -> key
+    }
 
     companion object {
         const val SOURCE_LOCAL = 0

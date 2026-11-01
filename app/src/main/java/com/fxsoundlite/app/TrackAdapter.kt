@@ -149,6 +149,7 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
                 }
             }
             if (t.source == Track.SOURCE_LOCAL) { if (!t.missing) ImageLoader.loadLocal(ctx, t, show) }
+            else if (t.source == Track.SOURCE_VIDEO) ImageLoader.loadVideoThumb(ctx, t, show)
             else if (t.artUrl.isNotBlank()) ImageLoader.load(t.artUrl, show)
         }
     }

@@ -27,7 +27,7 @@ import java.util.concurrent.Executors
 
 /**
  * "Sleep sounds" screen opened from the Home page's Sleep card (a full screen like the equalizer):
- * pick a timer, pick music on the device, in Google Drive (when signed in), on YouTube or on the radio, tap something to play. When the time is up
+ * pick a timer, pick music on the device, in Google Drive (Drive tab, when signed in) or on YouTube, tap something to play. When the time is up
  * [SleepTimerService] fades the volume out and pauses whatever is playing. Playback runs in [MusicService].
  */
 class BedtimeActivity : AppCompatActivity() {
@@ -57,7 +57,7 @@ class BedtimeActivity : AppCompatActivity() {
         private const val KEY_SOURCE = "source"
         private const val SOURCE_DEVICE = 0
         private const val SOURCE_YOUTUBE = 1
-        private const val SOURCE_RADIO = 2
+        private const val SOURCE_DRIVE = 3 // 2 was Radio (removed); an old saved value falls back to Device
         /** Drive list is reused for this long before it is fetched again. */
         private const val DRIVE_TTL_MS = 2 * 60_000L
         private val TIMER_CHOICES = intArrayOf(15, 30, 45, 60, 90, 0) // 0 = no timer
@@ -99,10 +99,8 @@ class BedtimeActivity : AppCompatActivity() {
     private var driveChipShown = false
     private var source = SOURCE_DEVICE
     private var lastYtQuery: String? = null
-    private var lastRadioQuery: String? = null
     /** Popular stations of the device's country, loaded once per screen visit. */
-    private var radioPopular: List<Track>? = null
-    private val ytSearch = Runnable { if (!dismissed && (source == SOURCE_YOUTUBE || source == SOURCE_RADIO)) loadOnline() }
+    private val ytSearch = Runnable { if (!dismissed && source == SOURCE_YOUTUBE) loadYoutube() }
 
     // Device audio is played by MusicService, so this screen binds to it while it is open.
     private var service: MusicService? = null
@@ -136,8 +134,9 @@ class BedtimeActivity : AppCompatActivity() {
         bound = applicationContext.bindService(
             Intent(applicationContext, MusicService::class.java), connection, Context.BIND_AUTO_CREATE
         )
-        source = prefs.getInt(KEY_SOURCE, SOURCE_DEVICE).takeIf { it == SOURCE_DEVICE || it == SOURCE_YOUTUBE || it == SOURCE_RADIO } ?: SOURCE_DEVICE
+        source = prefs.getInt(KEY_SOURCE, SOURCE_DEVICE).takeIf { it == SOURCE_DEVICE || it == SOURCE_DRIVE || it == SOURCE_YOUTUBE } ?: SOURCE_DEVICE
         driveChipShown = DriveMusic.isSignedIn(this)
+        MusicLibrary.addChangeListener(libraryChanged)
         buildSourceChips()
         buildChips()
         setupSearch()
@@ -155,11 +154,20 @@ class BedtimeActivity : AppCompatActivity() {
         val signedIn = DriveMusic.isSignedIn(this)
         if (signedIn != driveChipShown) {
             driveChipShown = signedIn
-            if (source == SOURCE_DEVICE) load() // Drive songs are part of the Device list
+            if (source == SOURCE_DRIVE) load() // the Drive tab depends on being signed in
+        }
+    }
+
+    /** An SD card / OTG drive was plugged in or pulled out (or a download finished): read the device list again. */
+    private val libraryChanged: () -> Unit = {
+        if (!dismissed) {
+            deviceTracks = null
+            if (source == SOURCE_DEVICE) load()
         }
     }
 
     override fun onDestroy() {
+        MusicLibrary.removeChangeListener(libraryChanged)
         dismissed = true
         loadToken++
         handler.removeCallbacksAndMessages(null)
@@ -211,10 +219,10 @@ class BedtimeActivity : AppCompatActivity() {
         sourceChips.removeAllViews()
         sourceChips.visibility = View.VISIBLE
         val labels = buildList {
-            // Same order as the Music tab: Device (with Drive songs, labelled), YouTube, Radio.
+            // Device, Drive (in the middle), YouTube.
             add(SOURCE_DEVICE to R.string.source_local)
+            add(SOURCE_DRIVE to R.string.source_drive)
             add(SOURCE_YOUTUBE to R.string.source_youtube)
-            add(SOURCE_RADIO to R.string.source_radio)
         }
         val gap = (8 * context.resources.displayMetrics.density).toInt()
         for ((index, pair) in labels.withIndex()) {
@@ -236,7 +244,6 @@ class BedtimeActivity : AppCompatActivity() {
                 search.setText("")
                 suppressSearch = false
                 lastYtQuery = null
-                lastRadioQuery = null
                 updateSearchBox()
                 load()
             }
@@ -269,6 +276,7 @@ class BedtimeActivity : AppCompatActivity() {
             override fun afterTextChanged(s: Editable?) {
                 if (suppressSearch) return
                 if (source == SOURCE_DEVICE) { renderDevice(); return }
+                if (source == SOURCE_DRIVE) { renderDrive(); return }
                 handler.removeCallbacks(ytSearch)
                 handler.postDelayed(ytSearch, 650)
             }
@@ -276,7 +284,7 @@ class BedtimeActivity : AppCompatActivity() {
         search.setOnEditorActionListener { _, actionId, event ->
             val enter = event?.keyCode == KeyEvent.KEYCODE_ENTER && event.action == KeyEvent.ACTION_DOWN
             if (actionId == EditorInfo.IME_ACTION_SEARCH || enter) {
-                if (source == SOURCE_YOUTUBE || source == SOURCE_RADIO) { handler.removeCallbacks(ytSearch); loadOnline() }
+                if (source == SOURCE_YOUTUBE) { handler.removeCallbacks(ytSearch); loadYoutube() }
                 hideKeyboard()
                 true
             } else false
@@ -287,7 +295,7 @@ class BedtimeActivity : AppCompatActivity() {
         search.setHint(
             when (source) {
                 SOURCE_YOUTUBE -> R.string.bedtime_search_yt
-                SOURCE_RADIO -> R.string.bedtime_search_radio
+                SOURCE_DRIVE -> R.string.bedtime_search_drive
                 else -> R.string.bedtime_search_device
             }
         )
@@ -319,55 +327,9 @@ class BedtimeActivity : AppCompatActivity() {
         messageBox.visibility = View.GONE
         when (source) {
             SOURCE_YOUTUBE -> loadYoutube()
-            SOURCE_RADIO -> loadRadio()
+            SOURCE_DRIVE -> loadDriveTab()
             else -> loadDevice()
         }
-    }
-
-    private fun loadOnline() = if (source == SOURCE_RADIO) loadRadio() else loadYoutube()
-
-    // ---- Radio (radio-browser.info, no key): popular stations, or a search by name
-
-    private fun loadRadio() {
-        val q = search.text.toString().trim()
-        val token = ++loadToken
-        messageBox.visibility = View.GONE
-        if (q.length == 1) return // wait for a second letter
-        if (q.isEmpty()) {
-            radioPopular?.let { renderRadio(it, R.string.bedtime_section_radio_popular); return }
-        } else if (q == lastRadioQuery && list.childCount > 0) return
-        progress.visibility = View.VISIBLE
-        val app = context.applicationContext
-        try {
-            io.execute {
-                val result = runCatching { if (q.isEmpty()) RadioApi.popular(app) else RadioApi.search(app, q) }
-                handler.post {
-                    if (dismissed || token != loadToken) return@post
-                    progress.visibility = View.INVISIBLE
-                    result.onSuccess {
-                        if (q.isEmpty()) radioPopular = it else lastRadioQuery = q
-                        renderRadio(it, if (q.isEmpty()) R.string.bedtime_section_radio_popular else R.string.bedtime_section_results)
-                    }.onFailure { e ->
-                        list.removeAllViews()
-                        showMessage(context.getString(R.string.bedtime_failed, e.message.orEmpty()), null, null)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            progress.visibility = View.INVISIBLE
-        }
-    }
-
-    private fun renderRadio(stations: List<Track>, titleRes: Int) {
-        list.removeAllViews()
-        messageBox.visibility = View.GONE
-        if (stations.isEmpty()) {
-            showMessage(context.getString(R.string.bedtime_empty), null, null)
-            return
-        }
-        addSection(titleRes, stations.mapIndexed { i, t ->
-            Row(t.title, t.artist, t.artUrl) { playTracks(stations, i) }
-        })
     }
 
     // ---- YouTube (results, no API key needed)
@@ -425,20 +387,13 @@ class BedtimeActivity : AppCompatActivity() {
     // ---- Device
 
     private fun loadDevice() {
-        val driveOn = DriveMusic.isSignedIn(context)
-        if (!MusicLibrary.canRead(context) && !driveOn) {
+        if (!MusicLibrary.canRead(context)) {
             showMessage(
                 context.getString(R.string.music_need_permission), context.getString(R.string.music_allow_access)
             ) { devicePermissionLauncher.launch(MusicLibrary.requiredPermission) }
             return
         }
-        if (driveOn) {
-            val email = DriveSync.email(context)
-            if (email != driveEmail) { driveEmail = email; driveAll = null; driveError = null } // another account
-            if (driveAll == null || System.currentTimeMillis() - driveLoadedAt > DRIVE_TTL_MS) loadDrive(force = false)
-        }
-        if (deviceTracks != null || !MusicLibrary.canRead(context)) {
-            if (deviceTracks == null) deviceTracks = emptyList()
+        if (deviceTracks != null) {
             renderDevice()
             return
         }
@@ -468,19 +423,16 @@ class BedtimeActivity : AppCompatActivity() {
         val device = deviceTracks ?: return
         list.removeAllViews()
         messageBox.visibility = View.GONE
-        // Songs from the user's Google Drive sit in the same list, each marked with a "Drive" label.
-        val all = device + (if (DriveMusic.isSignedIn(context)) driveAll.orEmpty() else emptyList())
+        val all = device
         val q = search.text.toString().trim().lowercase()
         val matches = if (q.isEmpty()) all else all.filter {
             it.title.lowercase().contains(q) || it.artist.lowercase().contains(q) || it.album.lowercase().contains(q)
         }
         if (matches.isEmpty()) {
-            if (all.isEmpty() && !MusicLibrary.canRead(context) && !driveLoading) {
+            if (all.isEmpty() && !MusicLibrary.canRead(context)) {
                 showMessage(
                     context.getString(R.string.music_need_permission), context.getString(R.string.music_allow_access)
                 ) { devicePermissionLauncher.launch(MusicLibrary.requiredPermission) }
-            } else if (all.isEmpty() && driveLoading) {
-                showMessage(context.getString(R.string.drive_music_loading), null, null)
             } else {
                 showMessage(
                     context.getString(if (all.isEmpty()) R.string.bedtime_empty_device else R.string.bedtime_no_match), null, null
@@ -494,7 +446,47 @@ class BedtimeActivity : AppCompatActivity() {
         addSection(R.string.bedtime_section_device, rows)
     }
 
-    // ---- Google Drive songs (loaded in the background, merged into the Device list)
+    // ---- Drive tab: the user's Google Drive songs
+
+    private fun loadDriveTab() {
+        if (!DriveMusic.isSignedIn(context)) {
+            showMessage(context.getString(R.string.drive_music_need_signin), null, null)
+            return
+        }
+        val email = DriveSync.email(context)
+        if (email != driveEmail) { driveEmail = email; driveAll = null; driveError = null } // another account
+        if (driveAll == null || System.currentTimeMillis() - driveLoadedAt > DRIVE_TTL_MS) loadDrive(force = false)
+        renderDrive()
+    }
+
+    private fun renderDrive() {
+        list.removeAllViews()
+        messageBox.visibility = View.GONE
+        if (!DriveMusic.isSignedIn(context)) {
+            showMessage(context.getString(R.string.drive_music_need_signin), null, null)
+            return
+        }
+        val all = driveAll
+        if (all == null) {
+            if (driveLoading) showMessage(context.getString(R.string.drive_music_loading), null, null)
+            else driveError?.let { showMessage(it.ifBlank { context.getString(R.string.drive_music_error) }, null, null) }
+            return
+        }
+        val q = search.text.toString().trim().lowercase()
+        val matches = if (q.isEmpty()) all else all.filter {
+            it.title.lowercase().contains(q) || it.artist.lowercase().contains(q) || it.album.lowercase().contains(q)
+        }
+        if (matches.isEmpty()) {
+            showMessage(context.getString(if (all.isEmpty()) R.string.drive_music_empty else R.string.bedtime_no_match), null, null)
+            return
+        }
+        val rows = matches.take(MAX_DEVICE_ROWS).mapIndexed { i, t ->
+            Row(t.title, t.labeledSubtitle(context, t.artist.ifBlank { t.album }), "") { playTracks(matches, i) }
+        }
+        addSection(R.string.bedtime_section_drive, rows)
+    }
+
+    // ---- Google Drive songs (loaded in the background for the Drive tab)
 
     private fun loadDrive(force: Boolean) {
         if (driveLoading) return
@@ -536,7 +528,7 @@ class BedtimeActivity : AppCompatActivity() {
                             else -> e.message.orEmpty()
                         }
                     }
-                    if (source == SOURCE_DEVICE && deviceTracks != null) renderDevice()
+                    if (source == SOURCE_DRIVE) renderDrive()
                 }
             }
         } catch (e: Exception) {

@@ -143,6 +143,7 @@
         <item quantity="other">%d lagu</item>
     </plurals>
     <string name="music_search_hint">Cari lagu, artis, album</string>
+    <string name="video_search_hint">Cari video</string>
     <string name="music_need_permission">Izinkan akses ke file audio agar StarrySound bisa menampilkan dan memutar musik di perangkat ini.</string>
     <string name="music_allow_access">Izinkan akses</string>
     <string name="music_empty">Tidak ada musik di perangkat ini.</string>
@@ -223,6 +224,7 @@
     <string name="bedtime_no_match">Tidak ada hasil.</string>
     <string name="bedtime_search_yt">Cari di YouTube atau tempel link</string>
     <string name="bedtime_search_device">Cari di musik kamu</string>
+    <string name="bedtime_search_drive">Cari di musik Drive kamu</string>
     <string name="sleep_timer_channel">Timer tidur</string>
     <string name="sleep_timer_notif_title">Timer tidur berjalan</string>
     <string name="sleep_timer_notif_text">Musik akan memudar lalu berhenti.</string>
@@ -430,9 +432,9 @@
     <string name="cover_save_failed">Foto tidak bisa digunakan</string>
 
     <!-- Screensaver lock -->
-    <string name="screensaver_lock_desc">Kunci geser dan sentuh</string>
+    <string name="screensaver_lock_desc">Kunci geser</string>
     <string name="screensaver_player_desc">Buka pemutar</string>
-    <string name="screensaver_locked_toast">Terkunci: geser dan sentuh dinonaktifkan. Tahan lama ikon kunci untuk membuka.</string>
+    <string name="screensaver_locked_toast">Terkunci: geser dinonaktifkan, efek sentuh tetap berfungsi. Tahan lama ikon kunci untuk membuka.</string>
     <string name="screensaver_unlocked_toast">Kunci dibuka</string>
     <string name="screensaver_locked_hint">Terkunci. Tahan lama ikon kunci untuk membuka.</string>
     <!-- Widget pencarian musik -->

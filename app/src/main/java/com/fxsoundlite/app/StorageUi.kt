@@ -43,7 +43,7 @@ object StorageUi {
             setPadding(0, (4 * dp).toInt(), 0, (4 * dp).toInt())
         })
 
-        val local = tracks.filter { it.source == Track.SOURCE_LOCAL }
+        val local = tracks.filter { it.source == Track.SOURCE_LOCAL || it.source == Track.SOURCE_VIDEO }
         title(R.string.storage_detected)
         val vols = Storages.volumes(ctx)
         for (v in vols) {

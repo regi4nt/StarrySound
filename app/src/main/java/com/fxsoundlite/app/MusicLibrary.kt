@@ -52,8 +52,14 @@ object MusicLibrary {
     @Volatile private var storageById: Map<Long, Int> = emptyMap()
 
     /** [StorageKind] of a local song. Songs that are not local files (YouTube, Drive, ...) count as the device. */
-    fun storageKind(t: Track): Int =
-        if (t.source != Track.SOURCE_LOCAL) StorageKind.DEVICE else storageById[t.id] ?: StorageKind.DEVICE
+    fun storageKind(t: Track): Int = when (t.source) {
+        Track.SOURCE_LOCAL -> storageById[t.id] ?: StorageKind.DEVICE
+        Track.SOURCE_VIDEO -> videoStorageById[t.id] ?: StorageKind.DEVICE
+        else -> StorageKind.DEVICE
+    }
+
+    /** Where each device video lives (device / SD card / OTG), by track id; rebuilt on every [loadVideos]. */
+    @Volatile private var videoStorageById: Map<Long, Int> = emptyMap()
 
     /** Bumped whenever the app adds a file to the library itself (a finished download). */
     @Volatile var version = 0
@@ -62,10 +68,20 @@ object MusicLibrary {
     /** Set by the Music page while it is on screen: called on the main thread after [notifyChanged]. */
     @Volatile var onChanged: (() -> Unit)? = null
 
+    /** Extra listeners (e.g. the Sleep sounds screen) that must not replace [onChanged]; called on the main thread. */
+    private val changeListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
+    fun addChangeListener(l: () -> Unit) { changeListeners.addIfAbsent(l) }
+    fun removeChangeListener(l: () -> Unit) { changeListeners.remove(l) }
+
     fun notifyChanged() {
         version++
-        val cb = onChanged ?: return
-        android.os.Handler(android.os.Looper.getMainLooper()).post { cb() }
+        val cb = onChanged
+        val extra = changeListeners.toList()
+        if (cb == null && extra.isEmpty()) return
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            cb?.invoke()
+            extra.forEach { it() }
+        }
     }
 
     /**
@@ -267,10 +283,18 @@ object MusicLibrary {
         private set
     @Volatile var videoFoldersAt = 0L
         private set
+    /** The [version] the last [loadVideos] started at (same role as [foldersVersion] for songs). */
+    @Volatile var videoFoldersVersion = -1
+        private set
+    /** Videos of the last [loadVideos] (null until one finished); LocalMatcher finds playlist videos in it. */
+    @Volatile var lastVideos: List<Track>? = null
+        private set
 
     /** The device's video files (video mode, Device tab). Blocking query: call from a background thread. */
     fun loadVideos(context: Context): List<Track> {
         val result = ArrayList<Track>()
+        val startVersion = version
+        val kinds = HashMap<Long, Int>()
         val modern = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         val projection = ArrayList<String>().apply {
             add(MediaStore.Video.Media._ID)
@@ -325,6 +349,8 @@ object MusicLibrary {
                     folderOf[id] = k
                     folderPath.putIfAbsent(k, d)
                     folderVol.putIfAbsent(k, volKey)
+                    val kind = volumeKinds.getOrPut(volKey) { Storages.kindOf(context, volKey) }
+                    if (kind != StorageKind.DEVICE) kinds[id] = kind
                     result.add(
                         Track(
                             id = id,
@@ -343,8 +369,12 @@ object MusicLibrary {
         }
         // Video files of picked OTG / SD folders (the system did not index them).
         try {
+            val trees = FolderLibrary.trees(context)
             for (t in FolderLibrary.load(context, seenPaths, video = true)) {
                 result.add(t)
+                val tvol = trees.firstOrNull { t.remoteId.startsWith(it.toString()) }?.let { FolderLibrary.volumeKey(it) }
+                val tkind = if (tvol == null) StorageKind.OTG else volumeKinds.getOrPut(tvol) { Storages.kindOf(context, tvol) }
+                if (tkind != StorageKind.DEVICE) kinds[t.id] = tkind
                 try {
                     val docId = android.provider.DocumentsContract.getDocumentId(android.net.Uri.parse(t.remoteId))
                     val vol = docId.substringBefore(':').lowercase(java.util.Locale.ROOT)
@@ -360,11 +390,14 @@ object MusicLibrary {
         } catch (e: Exception) {
             android.util.Log.w("MusicLibrary", "folder videos skipped", e)
         }
+        videoStorageById = kinds
         result.sortBy { it.title.lowercase() }
         videoFolders = groupFolders(context, result, folderOf, folderPath, folderVol) { key ->
             volumeKinds.getOrPut(key) { Storages.kindOf(context, key) }
         }
         videoFoldersAt = System.currentTimeMillis()
+        videoFoldersVersion = startVersion
+        lastVideos = result
         return result
     }
 }
