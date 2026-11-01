@@ -12,8 +12,11 @@ class App : Application() {
         super.onCreate()
         ThemeHelper.applyMode(this)
         CrashLog.install(this)
+        AutoFullscreen.install(this)
+        AppLock.install(this)
         MusicPrefs.purgeLegacySpotify(this)
         DiscordPresence.start(this)
+        MusicLibrary.watchStorage(this)
         Thread { CacheCleaner.autoTrim(this) }.start()
         try {
             org.schabi.newpipe.extractor.NewPipe.init(NewPipeDownloader)

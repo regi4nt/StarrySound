@@ -85,7 +85,7 @@ object PlaylistGenerator {
 
         // ---- 2) songs on the device by taste artists
         val local: List<Track> =
-            if (MusicLibrary.hasPermission(context)) MusicLibrary.load(context) else emptyList()
+            if (MusicLibrary.canRead(context)) MusicLibrary.load(context) else emptyList()
         val tasteLocal = local.filter { normArtist(it.artist) in weight }
             .sortedByDescending { weight[normArtist(it.artist)] ?: 0 }
             .groupBy { normArtist(it.artist) }

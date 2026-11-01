@@ -1,7 +1,10 @@
 package com.fxsoundlite.app
 
 import android.Manifest
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.MediaStore
@@ -27,6 +30,19 @@ object MusicLibrary {
     fun hasVideoPermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, requiredVideoPermission) == PackageManager.PERMISSION_GRANTED
 
+    /**
+     * True when there is anything to read: the media permission, or at least one folder the user picked for an
+     * OTG / SD card (that one needs no permission, it uses the system file picker).
+     */
+    fun canRead(context: Context): Boolean = hasPermission(context) || FolderLibrary.hasTrees(context)
+
+    /** Where each local song lives (device / SD card / OTG), by track id; rebuilt on every [load]. */
+    @Volatile private var storageById: Map<Long, Int> = emptyMap()
+
+    /** [StorageKind] of a local song. Songs that are not local files (YouTube, Drive, ...) count as the device. */
+    fun storageKind(t: Track): Int =
+        if (t.source != Track.SOURCE_LOCAL) StorageKind.DEVICE else storageById[t.id] ?: StorageKind.DEVICE
+
     /** Bumped whenever the app adds a file to the library itself (a finished download). */
     @Volatile var version = 0
         private set
@@ -40,21 +56,40 @@ object MusicLibrary {
         android.os.Handler(android.os.Looper.getMainLooper()).post { cb() }
     }
 
-    /** Blocking query: call from a background thread. */
+    /**
+     * Every song on the phone, on an SD card and on an OTG drive. Blocking query: call from a background thread.
+     *
+     * MediaStore's "external" volume already spans all mounted volumes, so the phone's storage and any card /
+     * drive the system indexed come from one query; each row is tagged with the volume it is on. Songs of a
+     * picked folder (an OTG drive the system did not index) are added from [FolderLibrary].
+     */
     fun load(context: Context): List<Track> {
         val result = ArrayList<Track>()
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.ALBUM,
-            MediaStore.Audio.Media.DURATION
-        )
+        val kinds = HashMap<Long, Int>()
+        val seenPaths = HashSet<String>()
+        val volumeKinds = HashMap<String, Int>() // volume key -> kind, looked up once per scan
+        fun kindOf(key: String) = volumeKinds.getOrPut(key) { Storages.kindOf(context, key) }
+
+        val modern = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val projection = ArrayList<String>().apply {
+            add(MediaStore.Audio.Media._ID)
+            add(MediaStore.Audio.Media.TITLE)
+            add(MediaStore.Audio.Media.ARTIST)
+            add(MediaStore.Audio.Media.ALBUM)
+            add(MediaStore.Audio.Media.DURATION)
+            if (modern) {
+                add(MediaStore.Audio.Media.VOLUME_NAME)
+                add(MediaStore.Audio.Media.RELATIVE_PATH)
+                add(MediaStore.Audio.Media.DISPLAY_NAME)
+            } else {
+                @Suppress("DEPRECATION") add(MediaStore.Audio.Media.DATA)
+            }
+        }.toTypedArray()
         // Everything the system marks as music, plus whatever the app downloaded into Music/StarrySound
         // (a fresh download may not have its duration / music flag filled in by the system scan yet).
         val base = "(${MediaStore.Audio.Media.IS_MUSIC} != 0 AND ${MediaStore.Audio.Media.DURATION} >= 10000)"
         @Suppress("DEPRECATION")
-        val downloads = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+        val downloads = if (modern)
             "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE 'Music/StarrySound/%'"
         else "${MediaStore.Audio.Media.DATA} LIKE '%/Music/StarrySound/%'"
         val selection = "$base OR $downloads"
@@ -67,24 +102,99 @@ object MusicLibrary {
                 val artistCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                 val albumCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                 val durCol = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+                val volCol = if (modern) c.getColumnIndexOrThrow(MediaStore.Audio.Media.VOLUME_NAME) else -1
+                val relCol = if (modern) c.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH) else -1
+                val nameCol = if (modern) c.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME) else -1
+                @Suppress("DEPRECATION")
+                val dataCol = if (modern) -1 else c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)
                 while (c.moveToNext()) {
                     val artist = c.getString(artistCol)
+                    val id = c.getLong(idCol)
                     result.add(
                         Track(
-                            id = c.getLong(idCol),
+                            id = id,
                             title = c.getString(titleCol) ?: "?",
                             artist = if (artist.isNullOrBlank() || artist == "<unknown>") "" else artist,
                             album = c.getString(albumCol) ?: "",
                             durationMs = c.getLong(durCol)
                         )
                     )
+                    // Which storage is it on, and what is its path (to spot the same file again in a picked folder).
+                    val volKey: String
+                    if (modern) {
+                        volKey = Storages.keyOfMediaStoreName(c.getString(volCol))
+                        seenPaths.add(Storages.pathKey(volKey, c.getString(relCol), c.getString(nameCol)))
+                    } else {
+                        val path = c.getString(dataCol)
+                        volKey = Storages.keyOfPath(path)
+                        val rel = path
+                            ?.replace(Regex("^/storage/emulated/\\d+/"), "")
+                            ?.replace(Regex("^/(storage/[^/]+|sdcard)/"), "")
+                        seenPaths.add((volKey + ":" + (rel ?: "")).lowercase(java.util.Locale.ROOT))
+                    }
+                    val kind = kindOf(volKey)
+                    if (kind != StorageKind.DEVICE) kinds[id] = kind
                 }
             }
         } catch (e: SecurityException) {
             // Permission revoked mid-query: treat as an empty library.
         }
+
+        // OTG / SD folders picked through the file picker (songs MediaStore does not know about).
+        try {
+            val trees = FolderLibrary.trees(context)
+            for (t in FolderLibrary.load(context, seenPaths)) {
+                result.add(t)
+                val vol = trees.firstOrNull { t.remoteId.startsWith(it.toString()) }?.let { FolderLibrary.volumeKey(it) }
+                val kind = if (vol == null) StorageKind.OTG else kindOf(vol)
+                if (kind != StorageKind.DEVICE) kinds[t.id] = kind
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("MusicLibrary", "folder songs skipped", e)
+        }
+
+        storageById = kinds
         result.sortBy { it.title.lowercase() }
         return result
+    }
+
+    // ------------------------------------------------------------------ plug in / pull out
+
+    @Volatile private var watching = false
+
+    /**
+     * Refreshes the Music page when an SD card or OTG drive is inserted or removed. Call once from
+     * [App.onCreate]; the receiver lives as long as the process (system broadcasts only, so it is cheap).
+     */
+    fun watchStorage(app: Context) {
+        if (watching) return
+        watching = true
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                // The system needs a moment to index a freshly mounted volume: look again after 2 s and 10 s.
+                handler.postDelayed({ notifyChanged() }, 2_000L)
+                handler.postDelayed({ notifyChanged() }, 10_000L)
+            }
+        }
+        try {
+            val media = IntentFilter().apply {
+                addAction(Intent.ACTION_MEDIA_MOUNTED)
+                addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+                addAction(Intent.ACTION_MEDIA_EJECT)
+                addAction(Intent.ACTION_MEDIA_REMOVED)
+                addAction(Intent.ACTION_MEDIA_BAD_REMOVAL)
+                addDataScheme("file")
+            }
+            val usb = IntentFilter().apply {
+                addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_ATTACHED)
+                addAction(android.hardware.usb.UsbManager.ACTION_USB_DEVICE_DETACHED)
+            }
+            ContextCompat.registerReceiver(app, receiver, media, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(app, receiver, usb, ContextCompat.RECEIVER_NOT_EXPORTED)
+        } catch (e: Exception) {
+            android.util.Log.w("MusicLibrary", "storage watcher not started", e)
+        }
     }
 
     /** The device's video files (video mode, Device tab). Blocking query: call from a background thread. */

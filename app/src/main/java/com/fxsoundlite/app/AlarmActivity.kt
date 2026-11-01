@@ -284,7 +284,7 @@ class AlarmActivity : AppCompatActivity() {
         }
         rebuild()
 
-        if (MusicLibrary.hasPermission(ctx)) {
+        if (MusicLibrary.canRead(ctx)) {
             try {
                 io.execute {
                     val device = try { MusicLibrary.load(applicationContext) } catch (e: Exception) { emptyList() }

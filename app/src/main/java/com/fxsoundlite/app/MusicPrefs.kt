@@ -33,10 +33,29 @@ object MusicPrefs {
     private const val KEY_PLAYER_BG = "player_bg_screensaver"
     private const val KEY_COVER_ANIM = "player_cover_anim"
     private const val KEY_COVER_CIRCLE = "player_cover_circle"
+    private const val KEY_AUTO_FULLSCREEN = "auto_fullscreen"
+    private const val KEY_APP_LOCK = "app_lock"
+    private const val KEY_KEEP_PLAYING = "keep_playing_when_closed"
+    private const val KEY_APP_LOCK_DELAY = "app_lock_delay_ms"
 
     /** Full-screen player background: false = plain theme colour (default), true = the Screensaver's background. */
     fun playerBgScreensaver(c: Context): Boolean = p(c).getBoolean(KEY_PLAYER_BG, false)
     fun setPlayerBgScreensaver(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_PLAYER_BG, v).apply()
+
+    /** Automatic full screen: the status and navigation bars are hidden in every page of the app (off by default). */
+    fun autoFullscreen(c: Context): Boolean = p(c).getBoolean(KEY_AUTO_FULLSCREEN, false)
+    fun setAutoFullscreen(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_AUTO_FULLSCREEN, v).apply()
+
+    /** Keep the music playing after the app is swiped away from the recent apps (off: closing the app stops it). */
+    fun keepPlayingWhenClosed(c: Context): Boolean = p(c).getBoolean(KEY_KEEP_PLAYING, false)
+    fun setKeepPlayingWhenClosed(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_KEEP_PLAYING, v).apply()
+
+    /** App lock: the app asks for fingerprint / face / screen lock when it is opened (off by default). */
+    fun appLock(c: Context): Boolean = p(c).getBoolean(KEY_APP_LOCK, false)
+    fun setAppLock(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_APP_LOCK, v).apply()
+    /** How long the app may stay out of sight before it locks again (0 = at once). */
+    fun appLockDelayMs(c: Context): Long = p(c).getLong(KEY_APP_LOCK_DELAY, 0L)
+    fun setAppLockDelayMs(c: Context, v: Long) = p(c).edit().putLong(KEY_APP_LOCK_DELAY, v).apply()
 
     /** Cover frame of the full-screen player: false = square (default), true = circle. */
     fun coverAnim(c: Context): Boolean = p(c).getBoolean(KEY_COVER_ANIM, true)

@@ -213,6 +213,8 @@ class MusicService : MediaBrowserService() {
         val d = duration
         // Resolve the next song's link early (after 8 s of this one), so it starts instantly; links stay valid for hours.
         if (d <= 0 || (position < 8_000 && d - position > 60_000)) return
+        // Weak connection: the lookup would compete with this song's own buffering, so wait for its last 40 s.
+        if (NetStatus.weak && d - position > 40_000) return
         val n = peekNext()
         if (n < 0 || n == index) return
         val nt = queue[n]
@@ -696,7 +698,7 @@ class MusicService : MediaBrowserService() {
         val list: List<Track> = when {
             parentId == BR_LIKED -> PlaylistStore.liked(this)
             parentId == BR_RECENT -> MusicPrefs.youtubeHistory(this)
-            parentId == BR_DEVICE -> if (MusicLibrary.hasPermission(this)) MusicLibrary.load(this) else emptyList()
+            parentId == BR_DEVICE -> if (MusicLibrary.canRead(this)) MusicLibrary.load(this) else emptyList()
             parentId.startsWith(BR_PL_PREFIX) -> PlaylistStore.get(this, parentId.removePrefix(BR_PL_PREFIX))?.tracks ?: return null
             else -> return null
         }
@@ -727,7 +729,7 @@ class MusicService : MediaBrowserService() {
                 val pool = ArrayList<Track>()
                 pool += PlaylistStore.liked(this)
                 PlaylistStore.playlists(this).forEach { pool += it.tracks }
-                if (MusicLibrary.hasPermission(this)) pool += MusicLibrary.load(this)
+                if (MusicLibrary.canRead(this)) pool += MusicLibrary.load(this)
                 val all = pool.filter { !it.missing }.distinctBy { it.key }
                 val hits = if (words.isEmpty()) all.take(MAX_BROWSE) else all.filter { t ->
                     val hay = "${t.title} ${t.artist} ${t.album}".lowercase()
@@ -765,9 +767,14 @@ class MusicService : MediaBrowserService() {
         return START_NOT_STICKY
     }
 
-    /** The app was swiped away from the recent apps: stop the music and remove the notification, don't keep playing in the background. */
+    /**
+     * The app was swiped away from the recent apps. By default the music stops and the notification goes; with
+     * "Keep playing after the app is closed" on, a loaded song just keeps going in the foreground service.
+     */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        AppLock.onTaskRemoved() // the next time the app is opened counts as a fresh start
+        if (MusicPrefs.keepPlayingWhenClosed(this) && current != null) return
         stopPlayback()
     }
 

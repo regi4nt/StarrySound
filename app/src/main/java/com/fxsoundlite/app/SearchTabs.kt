@@ -5,15 +5,18 @@ import androidx.appcompat.app.AlertDialog
 
 /**
  * Which online tabs the Search screen shows (Settings > Online music > Search tabs).
- * The Device tab is always there (Drive songs are part of it); YouTube, Online and Radio can be switched off. All are on by default.
+ * The Device tab is always there; the Drive tab (right of it), YouTube, TV, Web, Online, Radio and Spotify can be switched off. YouTube, TV and Radio are on by default; Web, Online and Spotify stay hidden until switched on here.
  */
 object SearchTabs {
 
-    enum class Tab(val key: String, val labelRes: Int) {
+    enum class Tab(val key: String, val labelRes: Int, val defaultOn: Boolean = true) {
+        DRIVE("drive", R.string.source_drive), // Google Drive songs / videos, right of Device
         YOUTUBE("youtube", R.string.source_youtube),
         TV("tv", R.string.source_tv), // live TV, only in video mode, right of YouTube
+        WEB("web", R.string.source_web, false), // browser for videos on websites, only in video mode, right of TV; hidden until switched on here
         RADIO("radio", R.string.source_radio),
-        ONLINE("online", R.string.source_online) // Internet Archive / Audius / Jamendo / ccMixter, right of Radio
+        SPOTIFY("spotify", R.string.source_spotify, false), // opens the Spotify player screen, right of Radio
+        ONLINE("online", R.string.source_online, false) // Internet Archive / Audius / Jamendo / ccMixter, right of Radio
     }
 
     private const val PREFS = "search_tabs"
@@ -21,7 +24,7 @@ object SearchTabs {
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun isShown(context: Context, tab: Tab): Boolean = prefs(context).getBoolean(PREFIX + tab.key, true)
+    fun isShown(context: Context, tab: Tab): Boolean = prefs(context).getBoolean(PREFIX + tab.key, tab.defaultOn)
 
     fun setShown(context: Context, tab: Tab, shown: Boolean) {
         prefs(context).edit().putBoolean(PREFIX + tab.key, shown).apply()

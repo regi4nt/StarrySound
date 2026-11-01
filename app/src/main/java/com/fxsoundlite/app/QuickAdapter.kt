@@ -129,10 +129,10 @@ class QuickAdapter(
             R.string.quick_badge
         ) + " · " + formatDuration(QuickFeed.chorusStartMs(t.durationMs))
 
-        // Video mode: no small cover. The song's picture fills the whole page (sharp, centre cropped) until the
-        // first video frame arrives; otherwise the cover is shown over a blurred backdrop (Android 12+).
+        // The small cover is always shown (video mode too, as in the song reel). In video mode the page behind it is
+        // the sharp song picture until the first video frame arrives, then the clip; otherwise a blurred backdrop (Android 12+).
         val videoMode = videoOn(ctx)
-        b.quickCover.visibility = if (videoMode) View.INVISIBLE else View.VISIBLE // INVISIBLE: spinner / lyrics stay anchored to it
+        b.quickCover.visibility = View.VISIBLE
         if (Build.VERSION.SDK_INT >= 31) {
             b.quickBg.setRenderEffect(if (videoMode) null else RenderEffect.createBlurEffect(60f, 60f, Shader.TileMode.CLAMP))
         }

@@ -22,7 +22,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <!-- Video mode: the clip fills the whole page (under the scrim, so the texts stay readable); transparent until
-         the first frame. The cover is hidden meanwhile (QuickFragment.applyState). -->
+         the first frame. The small cover stays on top of it (QuickFragment.applyState). -->
     <TextureView
         android:id="@+id/quickVideo"
         android:layout_width="0dp"

@@ -18,19 +18,22 @@ import java.util.Locale
 class SongFilter {
     /** [ANY] or one of the Track.SOURCE_* values. */
     var source = ANY
+    /** [StorageKind.ANY] or where the song is stored: device, SD card, OTG drive. */
+    var storage = StorageKind.ANY
     var length = LEN_ANY
     var artist: String? = null
     /** Radio only: one country / city / genre word of the station's subtitle. */
     var tag: String? = null
 
-    val active: Boolean get() = source != ANY || length != LEN_ANY || artist != null || tag != null
+    val active: Boolean get() = source != ANY || storage != StorageKind.ANY || length != LEN_ANY || artist != null || tag != null
 
-    fun reset() { source = ANY; length = LEN_ANY; artist = null; tag = null }
+    fun reset() { source = ANY; storage = StorageKind.ANY; length = LEN_ANY; artist = null; tag = null }
 
-    fun copyFrom(o: SongFilter) { source = o.source; length = o.length; artist = o.artist; tag = o.tag }
+    fun copyFrom(o: SongFilter) { source = o.source; storage = o.storage; length = o.length; artist = o.artist; tag = o.tag }
 
     fun matches(t: Track): Boolean {
         if (source != ANY && t.source != source) return false
+        if (storage != StorageKind.ANY && (t.source != Track.SOURCE_LOCAL || MusicLibrary.storageKind(t) != storage)) return false
         if (length != LEN_ANY) {
             val min = t.durationMs / 60_000.0
             if (t.durationMs <= 0L) return false // unknown length (radio, ...)
@@ -112,7 +115,8 @@ object FilterUi {
      */
     fun showSongFilter(
         ctx: Context, tracks: List<Track>, filter: SongFilter, sort: SortOption? = null,
-        tagMode: Boolean = false, kinds: KindOption? = null, online: OnlineOption? = null, onChanged: () -> Unit
+        tagMode: Boolean = false, kinds: KindOption? = null, online: OnlineOption? = null,
+        manageStorage: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
         // With [kinds] (playlist overview) the dialog is about whole lists, not songs.
         val songSections = !tagMode && kinds == null
@@ -243,6 +247,24 @@ object FilterUi {
                 }
                 root.addView(tagChip)
             }
+        }
+
+        // Storage (Device tab): phone / SD card / OTG. The chips appear once songs come from more than one place;
+        // the "manage" chip is always there so an OTG drive the system did not index can be added.
+        if (songSections && manageStorage != null) {
+            val kindsHere = tracks.filter { it.source == Track.SOURCE_LOCAL }.map { MusicLibrary.storageKind(it) }.distinct().sorted()
+            title(R.string.filter_storage)
+            if (kindsHere.size >= 2) {
+                chips(
+                    listOf(StorageKind.ANY) + kindsHere,
+                    listOf(ctx.getString(R.string.filter_all)) + kindsHere.map { ctx.getString(StorageKind.labelRes(it)) },
+                    { work.storage }, { work.storage = it }
+                )
+            }
+            val manage = LayoutInflater.from(ctx).inflate(R.layout.item_preset_chip, root, false) as TextView
+            manage.setText(R.string.storage_manage)
+            manage.setOnClickListener { manageStorage() }
+            root.addView(manage)
         }
 
         // Source: only when the list really mixes several.

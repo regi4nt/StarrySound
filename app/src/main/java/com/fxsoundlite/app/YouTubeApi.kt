@@ -175,6 +175,7 @@ object YouTubeApi {
      * an ordinary video. Answers are remembered; when the check fails (offline, consent page) the video is kept.
      */
     internal fun dropShorts(tracks: List<Track>): List<Track> {
+        if (NetStatus.weak) return tracks // one extra request per result: not worth waiting for on a weak connection
         if (shortsCache.size > 3000) shortsCache.clear()
         val todo = tracks.filter { it.remoteId.isNotBlank() && it.durationMs <= SHORTS_MAX_MS && !shortsCache.containsKey(it.remoteId) }
             .distinctBy { it.remoteId }

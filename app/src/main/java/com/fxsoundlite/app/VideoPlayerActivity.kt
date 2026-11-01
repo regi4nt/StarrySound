@@ -401,6 +401,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             Track.SOURCE_YOUTUBE -> {
                 val wantH = videoQualityPref()
                 if (wantH > 0 && ytFallbackFor != t.key) {
+                    yt?.pause() // the previous video stays silent while the chosen quality's link is resolved
                     playYoutubeAsFile(t, startMs, wantH) // the quality the user picked; falls back to the YouTube player if it is gone
                 } else {
                     dropFile()
@@ -707,6 +708,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     // ------------------------------------------------------------------ sources
 
     private fun setupYoutube(id: String, startMs: Long) {
+        dropYoutube() // a player still starting up would otherwise stay alive underneath the new one (double sound)
         val v = LayoutInflater.from(this).inflate(R.layout.view_youtube_player, binding.vpVideoFrame, false) as YouTubePlayerView
         v.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER)
         binding.vpVideoFrame.addView(v)
@@ -722,11 +724,13 @@ class VideoPlayerActivity : AppCompatActivity() {
             .build()
         v.initialize(object : AbstractYouTubePlayerListener() {
             override fun onReady(youTubePlayer: YouTubePlayer) {
+                if (ytView !== v) return // this player was dropped meanwhile: it must not start or become [yt]
                 yt = youTubePlayer
                 youTubePlayer.loadVideo(id, startMs / 1000f)
             }
 
             override fun onStateChange(youTubePlayer: YouTubePlayer, state: PlayerConstants.PlayerState) {
+                if (ytView !== v) return
                 playing = state == PlayerConstants.PlayerState.PLAYING || state == PlayerConstants.PlayerState.BUFFERING
                 if (state == PlayerConstants.PlayerState.PLAYING) { failStreak = 0; applySpeed() }
                 updateUi()
@@ -757,6 +761,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
 
             override fun onError(youTubePlayer: YouTubePlayer, error: PlayerConstants.PlayerError) {
+                if (ytView !== v) return
                 // The owner may forbid embedding (or the embedded player refuses): first try the video's own stream link
                 // in the plain video view; only when that fails too, skip / hand over to the YouTube app / browser.
                 val t = queue.getOrNull(index)
@@ -1170,19 +1175,12 @@ class VideoPlayerActivity : AppCompatActivity() {
             runOnUiThread {
                 if (isDestroyed || token != loadToken) return@runOnUiThread
                 if (choices == null) { Toast.makeText(this, R.string.video_quality_failed, Toast.LENGTH_SHORT).show(); return@runOnUiThread }
-                if (choices.isEmpty()) { Toast.makeText(this, R.string.video_quality_none, Toast.LENGTH_LONG).show() }
-                // The full ladder is listed; heights this video cannot play as one file (YouTube keeps picture and
-                // sound apart above ~360p) are marked and do nothing, instead of being missing.
-                val playable = choices.map { it.first }.toSet()
-                val ladder = (listOf(144, 240, 360, 480, 720, 1080, 1440, 2160) + playable).distinct().sorted()
-                val heights = listOf(0) + ladder
-                val labels = heights.map {
-                    when {
-                        it == 0 -> getString(R.string.video_quality_auto)
-                        it in playable -> "${it}p"
-                        else -> getString(R.string.video_quality_unavailable_item, it)
-                    }
-                }.toTypedArray()
+                if (choices.isEmpty()) { Toast.makeText(this, R.string.video_quality_none, Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                // Only what this video can really play: "Automatic" plus the heights YouTube offers as one file.
+                // Heights it does not offer are left out of the list.
+                val playable = choices.map { it.first }.distinct().sorted()
+                val heights = listOf(0) + playable
+                val labels = heights.map { if (it == 0) getString(R.string.video_quality_auto) else "${it}p" }.toTypedArray()
                 val cur = videoQualityPref()
                 val checked = heights.indexOf(cur).let { if (it < 0) 0 else it }
                 AlertDialog.Builder(this)
@@ -1190,10 +1188,6 @@ class VideoPlayerActivity : AppCompatActivity() {
                     .setSingleChoiceItems(labels, checked) { d, which ->
                         d.dismiss()
                         val h = heights[which]
-                        if (h != 0 && h !in playable) {
-                            Toast.makeText(this, R.string.video_quality_unavailable, Toast.LENGTH_SHORT).show()
-                            return@setSingleChoiceItems
-                        }
                         getSharedPreferences(VQ_PREFS, Context.MODE_PRIVATE).edit().putInt(VQ_KEY, h).apply()
                         if (h == cur) return@setSingleChoiceItems
                         applyVideoQuality(t, h, choices)

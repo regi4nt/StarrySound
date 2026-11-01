@@ -24,7 +24,8 @@ object SpotifyImport {
             val total = picks.size + if (includeLiked) 1 else 0
             if (includeLiked) {
                 progress(0, total, likedName)
-                jobs += likedName to SpotifyApi.likedSongs(app)
+                try { jobs += likedName to SpotifyApi.likedSongs(app) }
+                catch (e: SpotifyApi.ApiException) { if (e.code != 403 && e.code != 404) throw e } // Spotify refused liked songs: still import the playlists
             }
             for ((i, pl) in picks.withIndex()) {
                 progress(i + (if (includeLiked) 1 else 0), total, pl.name)

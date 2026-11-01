@@ -64,6 +64,7 @@ class YouTubeEmbedEngine(
     private var playerReady = false
     private var videoId: String? = null
     private var started = false
+    override val audible: Boolean get() = started // the clock stands still until the player really plays
     private var released = false
 
     /** Embedder identity tried in order on error 153 (app id first, as android-youtube-player 13 does). */

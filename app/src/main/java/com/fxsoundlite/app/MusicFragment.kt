@@ -96,6 +96,18 @@ class MusicFragment : Fragment(), MusicService.Listener {
             loadLibrary()
         }
 
+    /** System folder picker: the user points at an OTG drive / SD card (or a folder on it) that MediaStore does not list. */
+    private val folderLauncher =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri == null || _binding == null) return@registerForActivityResult
+            if (FolderLibrary.addTree(requireContext(), uri)) {
+                Toast.makeText(requireContext(), R.string.storage_added, Toast.LENGTH_SHORT).show()
+                loadLibrary()
+            } else {
+                toast(R.string.storage_add_failed)
+            }
+        }
+
     // ---- video mode: the Device tab lists the device's videos
     private var allVideos: List<Track>? = null
     private var videosLoading = false
@@ -126,7 +138,6 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private var driveVideos: List<Track>? = null
     private var driveVideosLoading = false
-    private var driveVideoEmail = ""
 
     private fun loadDriveVideos() {
         if (driveVideosLoading) return
@@ -154,7 +165,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                             try { driveConsentLauncher.launch(c) } catch (e: Exception) { android.util.Log.d("MusicFragment", "ignored: " + e) }
                         }
                     }
-                    if (source == Track.SOURCE_LOCAL && MusicPrefs.videoMode(requireContext())) applyVideoFilter()
+                    if (source == Track.SOURCE_DRIVE && MusicPrefs.videoMode(requireContext())) applyDriveFilter()
                 }
             }
         } catch (e: Exception) {
@@ -165,7 +176,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun applyVideoFilter() {
         val ctx = requireContext()
         val hasPerm = MusicLibrary.hasVideoPermission(ctx)
-        if (!hasPerm && !DriveMusic.isSignedIn(ctx)) {
+        if (!hasPerm) {
             shown = emptyList()
             adapter.submit(shown)
             binding.musicCount.text = ""
@@ -181,13 +192,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             showEmpty(R.string.video_loading)
             return
         }
-        // Google Drive videos join the list when signed in with Google.
-        if (DriveMusic.isSignedIn(ctx)) {
-            val email = DriveSync.email(ctx)
-            if (email != driveVideoEmail) { driveVideoEmail = email; driveVideos = null }
-            if (driveVideos == null) loadDriveVideos()
-        }
-        val all = vids + (if (DriveMusic.isSignedIn(ctx)) driveVideos.orEmpty() else emptyList())
+        val all = vids // Google Drive videos are in the Drive tab
         val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         shown = if (q.isEmpty()) all else all.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
         adapter.submit(shown)
@@ -241,6 +246,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             // after you stop typing (the keyboard's Search key still searches right away).
             override fun afterTextChanged(s: Editable?) {
                 if (source == Track.SOURCE_LOCAL) { applyFilter(); return }
+                if (source == Track.SOURCE_DRIVE) { applyDriveFilter(); return }
                 if (source == Track.SOURCE_TV) { // the box filters the channel list; a pasted link loads by itself
                     handler.removeCallbacks(tvLinkRun)
                     if (TvChannels.isLink(s?.toString()?.trim().orEmpty())) handler.postDelayed(tvLinkRun, 600)
@@ -272,7 +278,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) runOnlinePage()
                 else if (source == Track.SOURCE_TV) { handler.removeCallbacks(tvLinkRun); tvLinkRun.run() }
-                else if (source != Track.SOURCE_LOCAL) runOnlineSearch()
+                else if (source != Track.SOURCE_LOCAL && source != Track.SOURCE_DRIVE) runOnlineSearch()
                 hideKeyboard()
                 true
             } else false
@@ -280,8 +286,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
         binding.actionButton.setOnClickListener { emptyAction?.invoke() }
 
-        // Drive songs are part of the Device list now (labelled "Drive"), so there is no Drive tab.
-        source = MusicPrefs.lastSource(requireContext()).let { if (it == Track.SOURCE_DRIVE) Track.SOURCE_LOCAL else it }
+        source = MusicPrefs.lastSource(requireContext())
         if (!tabAllowed(source)) source = Track.SOURCE_LOCAL
         loadSortModes()
         binding.filterButton.setOnClickListener {
@@ -292,10 +297,13 @@ class MusicFragment : Fragment(), MusicService.Listener {
             }
         }
         binding.tabLocal.setOnClickListener { selectSource(Track.SOURCE_LOCAL) }
+        binding.tabDrive.setOnClickListener { selectSource(Track.SOURCE_DRIVE) }
         binding.tabYoutube.setOnClickListener { selectSource(Track.SOURCE_YOUTUBE) }
         binding.tabOnline.setOnClickListener { selectSource(Track.SOURCE_ONLINE) }
         binding.tabRadio.setOnClickListener { selectSource(Track.SOURCE_RADIO) }
+        binding.tabSpotify.setOnClickListener { startActivity(android.content.Intent(requireContext(), SpotifyActivity::class.java)) }
         binding.tabTv.setOnClickListener { selectSource(Track.SOURCE_TV) }
+        binding.tabWeb.setOnClickListener { startActivity(WebVideoActivity.intent(requireContext())) } // opens the browser, like the Spotify tab
         binding.radioSourceButton.setOnClickListener { showRadioSourceDialog() }
         loadOnlineSrc()
         updateSaverButton()
@@ -353,10 +361,10 @@ class MusicFragment : Fragment(), MusicService.Listener {
         // Settings > Search tabs may have switched the current tab off meanwhile.
         if (!tabAllowed(source)) { source = Track.SOURCE_LOCAL; MusicPrefs.setLastSource(requireContext(), source); refreshList() }
         updateTabs()
-        if (source == Track.SOURCE_LOCAL && !keepList) refreshList() // the user may have signed in or out of Google meanwhile
+        if ((source == Track.SOURCE_LOCAL || source == Track.SOURCE_DRIVE) && !keepList) refreshList() // the user may have signed in or out of Google meanwhile
         // Re-check on every start: the user may have granted access in system settings meanwhile.
         if (!loadedOnce || loadedVersion != MusicLibrary.version ||
-            (allTracks.isEmpty() && MusicLibrary.hasPermission(requireContext()))
+            (allTracks.isEmpty() && MusicLibrary.canRead(requireContext()))
         ) {
             loadLibrary()
         }
@@ -395,7 +403,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private fun loadLibrary() {
         if (_binding == null) return
-        if (!MusicLibrary.hasPermission(requireContext())) {
+        if (!MusicLibrary.canRead(requireContext())) {
             refreshList()
             return
         }
@@ -423,7 +431,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun refreshList() {
         if (_binding == null) return
         if (source == Track.SOURCE_LOCAL) {
-            if (MusicPrefs.videoMode(requireContext()) || MusicLibrary.hasPermission(requireContext()) || DriveMusic.isSignedIn(requireContext())) {
+            if (MusicPrefs.videoMode(requireContext()) || MusicLibrary.canRead(requireContext())) {
                 applyFilter()
             } else {
                 shown = emptyList()
@@ -431,6 +439,9 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 binding.musicCount.text = ""
                 showEmpty(R.string.music_need_permission, R.string.music_allow_access) { requestLibraryAccess() }
             }
+        } else if (source == Track.SOURCE_DRIVE) {
+            handler.removeCallbacks(liveSearch)
+            applyDriveFilter()
         } else if (source == Track.SOURCE_TV) {
             handler.removeCallbacks(liveSearch)
             showTv()
@@ -521,7 +532,23 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 ),
                 { deviceSort }, { deviceSort = it; saveSortMode("device", it) }
             )
-            FilterUi.showSongFilter(ctx, deviceBase, deviceFilter, sort) { if (_binding != null) { applyFilter(); updateFilterButton() } }
+            FilterUi.showSongFilter(
+                ctx, deviceBase, deviceFilter, sort,
+                manageStorage = {
+                    StorageUi.show(ctx, allTracks, { folderLauncher.launch(null) }) {
+                        if (_binding != null) loadLibrary()
+                    }
+                }
+            ) { if (_binding != null) { applyFilter(); updateFilterButton() } }
+        } else if (source == Track.SOURCE_DRIVE) {
+            val sort = SortOption(
+                listOf(
+                    R.string.sort_default, R.string.playlist_sort_title_az, R.string.playlist_sort_title_za,
+                    R.string.playlist_sort_artist, R.string.playlist_sort_longest, R.string.playlist_sort_shortest
+                ),
+                { deviceSort }, { deviceSort = it; saveSortMode("device", it) }
+            )
+            FilterUi.showSongFilter(ctx, driveBase, driveFilter, sort) { if (_binding != null) { applyDriveFilter(); updateFilterButton() } }
         } else if (source == Track.SOURCE_YOUTUBE) {
             val before = MusicPrefs.ytNewest(ctx)
             val sort = SortOption(
@@ -565,11 +592,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun updateFilterButton() {
         val b = _binding ?: return
         b.filterButton.visibility =
-            if (source == Track.SOURCE_LOCAL || source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_RADIO || source == Track.SOURCE_ONLINE || source == Track.SOURCE_TV) View.VISIBLE else View.GONE
+            if (source == Track.SOURCE_LOCAL || source == Track.SOURCE_DRIVE || source == Track.SOURCE_YOUTUBE || source == Track.SOURCE_RADIO || source == Track.SOURCE_ONLINE || source == Track.SOURCE_TV) View.VISIBLE else View.GONE
         FilterUi.setButtonState(
             b.filterButton,
             when (source) {
                 Track.SOURCE_LOCAL -> deviceFilter.active || deviceSort != 0
+                Track.SOURCE_DRIVE -> driveFilter.active || deviceSort != 0
                 Track.SOURCE_YOUTUBE -> ytFilter.active || MusicPrefs.ytNewest(requireContext())
                 Track.SOURCE_TV -> TvChannels.customUrls(requireContext()).isNotEmpty() // own links in use
                 Track.SOURCE_ONLINE -> onlineFilter.active || onlineSort != 0 || onlineGenre != null || onlineLossless || onlineCommercial
@@ -578,19 +606,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
         )
     }
 
-    /** Device songs plus the user's Google Drive songs (when signed in); Drive rows carry a "Drive" label. */
+    /** Device songs only; the Google Drive songs have their own tab ([applyDriveFilter]). */
     private fun applyFilter() {
         if (_binding == null || source != Track.SOURCE_LOCAL) return
         val ctx = requireContext()
         if (MusicPrefs.videoMode(ctx)) { applyVideoFilter(); return }
-        val driveOn = DriveMusic.isSignedIn(ctx)
-        if (driveOn) {
-            val email = DriveSync.email(ctx)
-            if (email != driveEmail) { driveEmail = email; driveAll = null; driveError = null } // another account
-            if (driveAll == null || System.currentTimeMillis() - driveLoadedAt > 2 * 60_000L) loadDrive(force = false)
-        }
-        val device = if (MusicLibrary.hasPermission(ctx)) allTracks else emptyList()
-        val everything = device + (if (driveOn) driveAll.orEmpty() else emptyList())
+        val everything = if (MusicLibrary.canRead(ctx)) allTracks else emptyList()
         deviceBase = everything
         val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         shown = (if (q.isEmpty()) everything else everything.filter {
@@ -604,9 +625,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
         )
         if (shown.isEmpty()) {
             when {
-                everything.isEmpty() && !MusicLibrary.hasPermission(ctx) ->
+                everything.isEmpty() && !MusicLibrary.canRead(ctx) ->
                     showEmpty(R.string.music_need_permission, R.string.music_allow_access) { requestLibraryAccess() }
-                everything.isEmpty() && driveOn && driveLoading -> showEmpty(R.string.drive_music_loading)
                 everything.isEmpty() -> showEmpty(R.string.music_empty)
                 else -> showEmpty(R.string.music_no_results)
             }
@@ -614,6 +634,70 @@ class MusicFragment : Fragment(), MusicService.Listener {
             showList()
         }
         adapter.setCurrentKey(service?.current?.key.orEmpty())
+    }
+
+    private val driveFilter = SongFilter()
+    private var driveBase: List<Track> = emptyList()
+
+    /** Drive tab: the songs (in video mode the videos) of the user's Google Drive. */
+    private fun applyDriveFilter() {
+        if (_binding == null || source != Track.SOURCE_DRIVE) return
+        val ctx = requireContext()
+        val video = MusicPrefs.videoMode(ctx)
+        if (!DriveMusic.isSignedIn(ctx)) {
+            driveBase = emptyList()
+            shown = emptyList()
+            adapter.submit(shown)
+            binding.musicCount.text = ""
+            showEmpty(R.string.drive_music_need_signin, R.string.drive_music_open_settings) { openSettings() }
+            return
+        }
+        val email = DriveSync.email(ctx)
+        if (email != driveEmail) { driveEmail = email; driveAll = null; driveVideos = null; driveError = null } // another account
+        val list: List<Track>?
+        if (video) {
+            if (driveVideos == null) loadDriveVideos()
+            list = driveVideos
+        } else {
+            // driveError stops a failed load from being retried in a loop; the retry button clears it.
+            if (driveError == null && (driveAll == null || System.currentTimeMillis() - driveLoadedAt > 2 * 60_000L)) loadDrive(force = false)
+            list = driveAll
+        }
+        val all = list.orEmpty()
+        driveBase = all
+        val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
+        shown = if (video) {
+            if (q.isEmpty()) all else all.filter { it.title.lowercase(Locale.getDefault()).contains(q) }
+        } else {
+            (if (q.isEmpty()) all else all.filter {
+                it.title.lowercase(Locale.getDefault()).contains(q) ||
+                    it.artist.lowercase(Locale.getDefault()).contains(q) ||
+                    it.album.lowercase(Locale.getDefault()).contains(q)
+            }).filter { driveFilter.matches(it) }.let { sortDevice(it) }
+        }
+        adapter.submit(shown)
+        binding.musicCount.text =
+            if (video) getString(R.string.video_count, all.size)
+            else resources.getQuantityString(R.plurals.music_song_count, all.size, all.size)
+        if (shown.isEmpty()) {
+            val loading = if (video) driveVideosLoading else driveLoading
+            when {
+                list == null && loading -> showEmpty(R.string.drive_music_loading)
+                list == null -> {
+                    showEmpty(R.string.drive_music_error, R.string.radio_retry) {
+                        driveError = null
+                        loadDrive(force = true)
+                        applyDriveFilter()
+                    }
+                    driveError?.takeIf { it.isNotBlank() }?.let { binding.emptyText.text = it }
+                }
+                all.isEmpty() -> showEmpty(if (video) R.string.video_empty else R.string.drive_music_empty)
+                else -> showEmpty(R.string.music_no_results)
+            }
+        } else {
+            showList()
+        }
+        adapter.setCurrentKey(if (video) "" else service?.current?.key.orEmpty())
     }
 
     private fun showList() {
@@ -634,6 +718,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     /** Device is always there; the online tabs can be switched off in Settings > Search tabs. */
     private fun tabAllowed(src: Int): Boolean = when (src) {
+        Track.SOURCE_DRIVE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.DRIVE)
         Track.SOURCE_YOUTUBE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.YOUTUBE)
         // Online (Archive / Audius / Jamendo ...) and Radio have no video: hidden in video mode.
         Track.SOURCE_TV -> MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.TV) // live TV needs the video player
@@ -647,27 +732,32 @@ class MusicFragment : Fragment(), MusicService.Listener {
         Track.SOURCE_YOUTUBE -> getString(R.string.source_youtube)
         Track.SOURCE_RADIO -> getString(R.string.source_radio)
         Track.SOURCE_TV -> getString(R.string.source_tv)
+        Track.SOURCE_DRIVE -> getString(R.string.source_drive)
         else -> getString(R.string.source_local)
     }
 
     private fun updateTabs() {
         binding.tabLocal.isSelected = source == Track.SOURCE_LOCAL
+        binding.tabDrive.isSelected = source == Track.SOURCE_DRIVE
         binding.tabYoutube.isSelected = source == Track.SOURCE_YOUTUBE
         binding.tabRadio.isSelected = source == Track.SOURCE_RADIO
         binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
         binding.tabTv.isSelected = source == Track.SOURCE_TV
         val ctx = requireContext()
+        binding.tabDrive.visibility = if (tabAllowed(Track.SOURCE_DRIVE)) View.VISIBLE else View.GONE
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
         binding.tabOnline.visibility = if (tabAllowed(Track.SOURCE_ONLINE)) View.VISIBLE else View.GONE
         binding.tabRadio.visibility = if (tabAllowed(Track.SOURCE_RADIO)) View.VISIBLE else View.GONE
+        binding.tabSpotify.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.SPOTIFY)) View.VISIBLE else View.GONE
         binding.tabTv.visibility = if (tabAllowed(Track.SOURCE_TV)) View.VISIBLE else View.GONE
+        binding.tabWeb.visibility = if (MusicPrefs.videoMode(ctx) && SearchTabs.isShown(ctx, SearchTabs.Tab.WEB)) View.VISIBLE else View.GONE
                 updateFilterButton()
         binding.radioSourceButton.visibility = View.GONE // radio searches every directory at once
         binding.radioSourceButton.text =
             getString(R.string.radio_source_label, radioSourceName(MusicPrefs.radioSource(requireContext())))
         binding.searchInput.setHint(
             when (source) {
-                Track.SOURCE_LOCAL -> R.string.music_search_hint
+                Track.SOURCE_LOCAL, Track.SOURCE_DRIVE -> R.string.music_search_hint
                 Track.SOURCE_RADIO -> R.string.radio_search_hint
                 Track.SOURCE_TV -> R.string.tv_search_hint
                 Track.SOURCE_ONLINE -> R.string.online_archive_hint
@@ -1002,7 +1092,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private val liveSearch = Runnable {
         if (_binding != null && source == Track.SOURCE_ONLINE) runOnlinePage()
-        else if (_binding != null && source != Track.SOURCE_LOCAL) runOnlineSearch()
+        else if (_binding != null && source != Track.SOURCE_LOCAL && source != Track.SOURCE_DRIVE) runOnlineSearch()
     }
 
     /** Radio tab, nothing typed: popular stations (loaded once, with a retry button on failure). */
@@ -1215,7 +1305,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             .show()
     }
 
-    // ------------------------------------------------------------------ Google Drive songs (merged into Device)
+    // ------------------------------------------------------------------ Google Drive songs (own tab, right of Device)
 
     private var driveAll: List<Track>? = null
     private var driveLoading = false
@@ -1232,7 +1322,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 driveError = null
                 driveVideos = null
                 loadDrive(force = true)
-                if (MusicPrefs.videoMode(requireContext())) applyVideoFilter()
+                if (source == Track.SOURCE_DRIVE) applyDriveFilter()
             } else {
                 driveError = getString(R.string.drive_music_no_permission)
             }
@@ -1278,7 +1368,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                             else -> e.message.orEmpty()
                         }
                     }
-                    if (source == Track.SOURCE_LOCAL) applyFilter() // Drive songs join the Device list
+                    if (source == Track.SOURCE_DRIVE) applyDriveFilter()
                 }
             }
         } catch (e: Exception) {
@@ -1348,7 +1438,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         if (req == Track.SOURCE_LOCAL || req == Track.SOURCE_YOUTUBE || req == Track.SOURCE_RADIO ||
             req == Track.SOURCE_DRIVE
         ) {
-            selectSource(if (req == Track.SOURCE_DRIVE) Track.SOURCE_LOCAL else req)
+            selectSource(req)
         }
         binding.searchInput.requestFocus()
         // Give the pager page a moment to become the visible, focused window before the IME opens.
@@ -1464,6 +1554,14 @@ class MusicFragment : Fragment(), MusicService.Listener {
 
     private fun deleteLocal(t: Track) {
         val ctx = requireContext()
+        if (t.remoteId.isNotEmpty()) { // song of a picked OTG / SD folder
+            try {
+                if (android.provider.DocumentsContract.deleteDocument(ctx.contentResolver, t.uri)) onSongDeleted(t) else toast(R.string.track_delete_failed)
+            } catch (e: Exception) {
+                toast(R.string.track_delete_failed)
+            }
+            return
+        }
         try {
             if (android.os.Build.VERSION.SDK_INT >= 30) {
                 val pi = android.provider.MediaStore.createDeleteRequest(ctx.contentResolver, listOf(t.uri))

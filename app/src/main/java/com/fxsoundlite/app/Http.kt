@@ -19,7 +19,9 @@ object Http {
         connectTimeoutMs: Int = 10_000
     ): Response {
         val conn = URL(url).openConnection() as HttpURLConnection
+        var clean = false // body read to its end: the socket may go back to the pool (no disconnect), so the next request is faster
         try {
+            val t0 = android.os.SystemClock.elapsedRealtime()
             conn.requestMethod = method
             conn.connectTimeout = connectTimeoutMs
             conn.readTimeout = readTimeoutMs
@@ -33,14 +35,16 @@ object Http {
             }
             val code = conn.responseCode
             NetStatus.ok() // a server answered
+            NetStatus.recordLatency(android.os.SystemClock.elapsedRealtime() - t0)
             val stream = if (code in 200..399) conn.inputStream else conn.errorStream
             val text = stream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+            clean = true
             return Response(code, text)
         } catch (e: java.io.IOException) {
             NetStatus.fail(e)
             throw e
         } finally {
-            conn.disconnect()
+            if (!clean) conn.disconnect()
         }
     }
 
@@ -52,21 +56,34 @@ object Http {
     fun bitmap(url: String): Bitmap? {
         val clean = url.trim().let { if (it.startsWith("//")) "https:$it" else it }
         if (clean.isEmpty()) return null
-        repeat(2) {
-            val bmp = try { fetchBitmap(clean) } catch (e: Exception) { null }
-            if (bmp != null) return bmp
+        // On a weak connection: the small YouTube thumbnail first (about a fifth of the bytes), one try per url.
+        val light = if (NetStatus.weak) lighterThumb(clean) else clean
+        val urls = if (light != clean) listOf(light, clean) else listOf(clean)
+        val tries = if (NetStatus.weak) 1 else 2
+        for (u in urls) {
+            repeat(tries) {
+                val bmp = try { fetchBitmap(u) } catch (e: Exception) { null }
+                if (bmp != null) return bmp
+            }
         }
         return null
     }
+
+    private val BIG_THUMB = Regex("/(maxresdefault|sddefault|hqdefault|hq720)\\.(jpg|webp)$")
+
+    /** i.ytimg.com video thumbnail -> its 320x180 version. Only plain urls: signed ones (with a query) must stay as they are. */
+    private fun lighterThumb(url: String): String =
+        if (url.contains("ytimg.com/vi") && !url.contains('?')) url.replace(BIG_THUMB, "/mqdefault.$2") else url
 
     private fun fetchBitmap(startUrl: String): Bitmap? {
         var target = startUrl
         for (hop in 0..5) {
             val conn = URL(target).openConnection() as HttpURLConnection
+            var clean = false // read to the end: keep the socket for the next thumbnail from the same host
             try {
                 conn.instanceFollowRedirects = false
-                conn.connectTimeout = 10_000
-                conn.readTimeout = 15_000
+                conn.connectTimeout = 6_000
+                conn.readTimeout = 8_000
                 conn.setRequestProperty("User-Agent", IMG_UA)
                 conn.setRequestProperty("Accept", "image/*,*/*;q=0.8")
                 val code = conn.responseCode
@@ -77,9 +94,10 @@ object Http {
                 }
                 if (code !in 200..299) return null
                 val bytes = conn.inputStream.use { it.readBytes() }
+                clean = true
                 return decodeScaled(bytes)
             } finally {
-                conn.disconnect()
+                if (!clean) conn.disconnect()
             }
         }
         return null

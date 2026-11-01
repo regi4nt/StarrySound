@@ -243,6 +243,16 @@ class SettingsActivity : AppCompatActivity() {
         binding.coverThemeSwitch.setOnCheckedChangeListener(null)
         binding.coverThemeSwitch.isChecked = MusicPrefs.coverTheme(this)
         binding.coverThemeSwitch.setOnCheckedChangeListener { _, checked -> MusicPrefs.setCoverTheme(this, checked) }
+        binding.autoFullscreenSwitch.setOnCheckedChangeListener(null)
+        binding.autoFullscreenSwitch.isChecked = MusicPrefs.autoFullscreen(this)
+        binding.autoFullscreenSwitch.setOnCheckedChangeListener { _, checked ->
+            MusicPrefs.setAutoFullscreen(this, checked)
+            AutoFullscreen.apply(this) // this page changes at once; the others follow when they come back
+        }
+        binding.keepPlayingSwitch.setOnCheckedChangeListener(null)
+        binding.keepPlayingSwitch.isChecked = MusicPrefs.keepPlayingWhenClosed(this)
+        binding.keepPlayingSwitch.setOnCheckedChangeListener { _, checked -> MusicPrefs.setKeepPlayingWhenClosed(this, checked) }
+        setupAppLockSection()
         binding.skipSegmentsSwitch.setOnCheckedChangeListener(null)
         binding.skipSegmentsSwitch.isChecked = MusicPrefs.skipSegments(this)
         binding.skipSegmentsSwitch.setOnCheckedChangeListener { _, checked -> MusicPrefs.setSkipSegments(this, checked) }
@@ -282,6 +292,71 @@ class SettingsActivity : AppCompatActivity() {
             shown.alpha = 0f
             shown.translationX = dx
             shown.animate().alpha(1f).translationX(0f).setDuration(180L).start()
+        }
+    }
+
+    // ---------------------------------------------------------------- App lock
+
+    private fun appLockDelayLabel(ms: Long): String = getString(
+        when (ms) {
+            30_000L -> R.string.app_lock_delay_30s
+            60_000L -> R.string.app_lock_delay_1m
+            300_000L -> R.string.app_lock_delay_5m
+            else -> R.string.app_lock_delay_now
+        }
+    )
+
+    private fun setupAppLockSection() {
+        val sw = binding.appLockSwitch
+        fun refreshDelay() {
+            binding.appLockDelayValue.text = appLockDelayLabel(MusicPrefs.appLockDelayMs(this))
+            val on = MusicPrefs.appLock(this)
+            binding.appLockDelayRow.alpha = if (on) 1f else 0.4f
+            binding.appLockDelayRow.isEnabled = on
+        }
+        fun setSwitch(v: Boolean) {
+            sw.setOnCheckedChangeListener(null)
+            sw.isChecked = v
+            sw.setOnCheckedChangeListener { _, checked -> onAppLockToggled(checked, { v -> setSwitch(v) }, { refreshDelay() }) }
+        }
+        setSwitch(MusicPrefs.appLock(this))
+        refreshDelay()
+        binding.appLockDelayRow.setOnClickListener {
+            val labels = AppLock.DELAYS.map { appLockDelayLabel(it) }.toTypedArray()
+            val checked = AppLock.DELAYS.indexOf(MusicPrefs.appLockDelayMs(this)).coerceAtLeast(0)
+            AlertDialog.Builder(this)
+                .setTitle(R.string.app_lock_delay_title)
+                .setSingleChoiceItems(labels, checked) { dialog, which ->
+                    MusicPrefs.setAppLockDelayMs(this, AppLock.DELAYS[which])
+                    refreshDelay()
+                    dialog.dismiss()
+                }
+                .show()
+        }
+    }
+
+    /**
+     * Turning the lock on first asks for the fingerprint / face / screen lock once, so the person knows it
+     * works before the app starts asking for it. Turning it off needs nothing: the app is already open.
+     */
+    private fun onAppLockToggled(checked: Boolean, setSwitch: (Boolean) -> Unit, refreshDelay: () -> Unit) {
+        if (!checked) {
+            MusicPrefs.setAppLock(this, false)
+            refreshDelay()
+            return
+        }
+        if (!AppLock.available(this)) {
+            android.widget.Toast.makeText(this, R.string.app_lock_unavailable, android.widget.Toast.LENGTH_LONG).show()
+            setSwitch(false)
+            return
+        }
+        AppLock.authenticate(this, getString(R.string.app_lock_enable_title), getString(R.string.app_lock_prompt_subtitle)) { ok ->
+            if (ok) {
+                MusicPrefs.setAppLock(this, true)
+                AppLock.markUnlocked() // the person has just proved who they are
+            }
+            setSwitch(ok)
+            refreshDelay()
         }
     }
 

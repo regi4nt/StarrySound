@@ -66,9 +66,16 @@ abstract class TimedEngine : RemoteEngine {
 
     override val isPlaying: Boolean get() = playing
     override val duration: Int get() = dur
+    /**
+     * False until the real player is producing sound. [playing] is optimistic (set at load()/play()), so without
+     * this the clock ran while the stream was still being resolved / buffered, and then jumped back to the start
+     * as soon as the audio really began (the seek bar "restarted").
+     */
+    protected open val audible: Boolean get() = true
+
     override val position: Int
         get() {
-            if (!playing) return basePos
+            if (!playing || !audible) return basePos
             val p = basePos + ((SystemClock.elapsedRealtime() - baseTime) * clockSpeed).toInt()
             return if (dur > 0) p.coerceAtMost(dur) else p
         }

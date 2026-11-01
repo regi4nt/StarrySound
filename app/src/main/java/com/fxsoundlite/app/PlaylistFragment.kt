@@ -47,6 +47,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     /** null = overview (create / liked / playlists); otherwise the id of the open list. */
     private var openList: String? = null
+    /** Id of the folder whose playlists the overview shows; null = main list. */
+    private var openFolder: String? = null
     /** True while a generated playlist is being built (the top row shows "Picking songs..."). */
     private var generating = false
     private var shown: List<Track> = emptyList()
@@ -456,8 +458,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         binding.plMoreButton.setOnClickListener { showMoreMenu() }
         binding.plFilterButton.setOnClickListener { showFilterDialog() }
         // "‹ Name · N songs" doubles as a back button while a list is open.
-        binding.plBackButton.setOnClickListener { if (openList != null) goBack() }
-        binding.plPlayBtn.setOnClickListener { playOpenList() }
+        binding.plBackButton.setOnClickListener { if (openList != null || openFolder != null) goBack() }
+        binding.plPlayBtn.setOnClickListener { if (openList == null) openFolder?.let { playFolder(it, false) } else playOpenList() }
         binding.plEditBtn.setOnClickListener { showEditDialog() }
         binding.plSelectBtn.setOnClickListener { startSelection(null) }
         binding.plSelClose.setOnClickListener { exitSelection(); refresh() }
@@ -519,14 +521,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     /** Back pressed while this page is shown: closes the open list and returns true; false when none is open. */
     fun consumeBack(): Boolean {
-        if (openList == null || _binding == null) return false
+        if ((openList == null && openFolder == null) || _binding == null) return false
         goBack()
         return true
     }
 
     private fun goBack() {
         if (selecting) { exitSelection(); refresh(); return } // Back first leaves selection mode
-        openList = null
+        if (openList != null) openList = null else openFolder = null // a list closes to its folder, a folder to the main list
         if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
     }
 
@@ -603,6 +605,19 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             return
         }
         svc.setQueueAndPlay(tracks, 0, fromPlaylist = resolveList(ctx, id)?.name)
+    }
+
+    /** Plays every song of the playlists in folder [folderId], optionally in random order. */
+    private fun playFolder(folderId: String, shuffle: Boolean) {
+        val ctx = context ?: return
+        var tracks = PlaylistFolders.playlistIds(ctx, folderId)
+            .flatMap { PlaylistStore.get(ctx, it)?.tracks.orEmpty() }
+            .filter { !it.missing }.distinctBy { it.syncKey }
+        if (shuffle) tracks = tracks.shuffled()
+        val svc = service ?: MusicService.instance
+        if (tracks.isEmpty() || svc == null) { toast(ctx, R.string.folder_no_songs); return }
+        if (MusicPrefs.videoMode(ctx)) { playAsVideo(tracks, 0); return }
+        svc.setQueueAndPlay(tracks, 0, fromPlaylist = PlaylistFolders.get(ctx, folderId)?.name)
     }
 
     /** Orders [list] by the chosen [sortMode]; the stored playlist itself is never reordered. */
@@ -776,15 +791,18 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private fun refresh() {
         val b = _binding ?: return
         val ctx = context ?: return
-        backCallback?.isEnabled = isResumed && openList != null
+        if (openList == null && openFolder != null && PlaylistFolders.get(ctx, openFolder!!) == null) openFolder = null // deleted meanwhile
+        backCallback?.isEnabled = isResumed && (openList != null || openFolder != null)
         if (openList == null) { listAccent = null; applyCoverBg() }
         // Create (+) and the three-dot menu show on the overview only, not inside an opened list.
+        // Inside a folder only (+) stays: it creates a playlist right there.
         val headerButtons = if (openList == null) View.VISIBLE else View.GONE
         b.plAddButton.visibility = headerButtons
-        b.plMoreButton.visibility = headerButtons
-        b.plPlayBtn.visibility = if (openList == null) View.GONE else View.VISIBLE
+        b.plMoreButton.visibility = if (openList == null && openFolder == null) View.VISIBLE else View.GONE
+        b.plPlayBtn.visibility = if (openList == null && openFolder == null) View.GONE else View.VISIBLE
+        if (openList == null) { b.plPlayBtn.isEnabled = true; b.plPlayBtn.alpha = 1f }
         if (openList == null) b.plEditBtn.visibility = View.GONE // inside a list bindDetail decides
-        b.plBackButton.visibility = if (openList == null) View.GONE else View.VISIBLE
+        b.plBackButton.visibility = if (openList == null && openFolder == null) View.GONE else View.VISIBLE
         // Full strength while a filter or a non-default order is active.
         FilterUi.setButtonState(
             b.plFilterButton,
@@ -803,10 +821,26 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val rows = mutableListOf<Row>()
             // "Generate playlist" lives in the "+" button; "Convert playlist" in the "⋮" menu.
             val want = { kind: Int -> kindFilter == 0 || kindFilter == kind }
-            if (want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
+            if (openFolder == null && want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
                 rows += Row(ROW_LIKED, PlaylistStore.LIKED_ID, likedName, songCount(PlaylistStore.liked(ctx).size))
             }
-            lists.filter { want(F_MINE) && (q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q)) }
+            val folderId = openFolder
+            val pinSet = PlaylistPins.ids(ctx).toSet()
+            // Folders sit on the main list only (they do not nest); a search also matches their names.
+            if (folderId == null && want(F_MINE)) {
+                val ownIds = lists.map { it.id }.toSet()
+                PlaylistFolders.folders(ctx).filter { q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q) }.forEach { f ->
+                    val n = PlaylistFolders.playlistIds(ctx, f.id).count { it in ownIds }
+                    rows += Row(ROW_FOLDER, f.id, f.name, resources.getString(R.string.playlist_overview_count, n), count = n)
+                }
+            }
+            // Playlists in a folder show only inside it (a pinned one also stays on top of the main list).
+            // A search looks through every playlist, folder or not.
+            lists.filter { pl ->
+                val inFolder = PlaylistFolders.folderOf(ctx, pl.id)
+                want(F_MINE) && (q.isEmpty() || pl.name.lowercase(Locale.getDefault()).contains(q)) &&
+                    (if (folderId != null) inFolder == folderId else q.isNotEmpty() || inFolder == null || pl.id in pinSet)
+            }
                 .forEach {
                     // artUrl: fallback cover = artwork of the first song that has one
                     val art = it.tracks.firstOrNull { t -> t.artUrl.isNotBlank() }?.artUrl.orEmpty()
@@ -814,7 +848,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 }
             // Playlists of the signed-in YouTube account, read live (label "YouTube").
             var ytCount = 0
-            if (YouTubeAccount.isSignedIn(ctx)) {
+            if (openFolder == null && YouTubeAccount.isSignedIn(ctx)) {
                 loadYtLists()
                 ytLists.orEmpty().forEach {
                     ytCount++
@@ -827,7 +861,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 }
             }
             // Drive folders that hold audio files, one playlist per folder (label "Drive").
-            if (DriveMusic.isSignedIn(ctx)) {
+            if (openFolder == null && DriveMusic.isSignedIn(ctx)) {
                 loadDriveFolders()
                 (if (drvVideo == MusicPrefs.videoMode(ctx)) drvFolders else null).orEmpty().forEach {
                     ytCount++
@@ -851,18 +885,27 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val playing = rows.firstOrNull { it.id == lastId && it.kind != ROW_LIKED && it.id !in pinIds }
             val pinned = likedRows + pinnedRows + listOfNotNull(playing)
             val rest = rows.filter { it.kind != ROW_LIKED && it.id !in pinIds && it !== playing }
+            val folderRows = rest.filter { it.kind == ROW_FOLDER }.sortedWith { a, b -> java.text.Collator.getInstance().compare(a.name.trim(), b.name.trim()) }
             val collator = java.text.Collator.getInstance()
-            val ordered = when (listSort) {
-                LSORT_NAME_AZ -> rest.sortedWith { a, b -> collator.compare(a.name.trim(), b.name.trim()) }
-                LSORT_NAME_ZA -> rest.sortedWith { a, b -> collator.compare(b.name.trim(), a.name.trim()) }
-                LSORT_MOST -> rest.sortedByDescending { it.count }
-                LSORT_FEWEST -> rest.sortedBy { it.count }
-                else -> rest
+            val others = rest.filter { it.kind != ROW_FOLDER }
+            val ordered = folderRows + when (listSort) {
+                LSORT_NAME_AZ -> others.sortedWith { a, b -> collator.compare(a.name.trim(), b.name.trim()) }
+                LSORT_NAME_ZA -> others.sortedWith { a, b -> collator.compare(b.name.trim(), a.name.trim()) }
+                LSORT_MOST -> others.sortedByDescending { it.count }
+                LSORT_FEWEST -> others.sortedBy { it.count }
+                else -> others
             }
             rowAdapter.submit(pinned + ordered)
             shown = emptyList()
-            b.plTitle.text = getString(R.string.source_playlist)
-            b.plCount.text = getString(R.string.playlist_overview_count, lists.size + ytCount)
+            if (folderId != null) {
+                val inside = ordered.size + pinned.size
+                b.plTitle.text = PlaylistFolders.get(ctx, folderId)?.name.orEmpty()
+                b.plCount.text = getString(R.string.playlist_overview_count, inside)
+                if (inside == 0 && q.isEmpty()) { showEmpty(R.string.folder_empty); return }
+            } else {
+                b.plTitle.text = getString(R.string.source_playlist)
+                b.plCount.text = getString(R.string.playlist_overview_count, lists.size + ytCount)
+            }
             showList()
             return
         }
@@ -960,6 +1003,11 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private fun onRowClicked(row: Row) {
         if (row.kind == ROW_GENERATE) { showGenerateDialog(); return }
         if (row.kind == ROW_CONVERT) { showConvertDialog(); return }
+        if (row.kind == ROW_FOLDER) {
+            openFolder = row.id
+            if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
+            return
+        }
         open(row.id)
     }
 
@@ -1120,6 +1168,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         id.startsWith(DRIVE_PREFIX) ->
             if (drvFolders == null || drvVideo != MusicPrefs.videoMode(ctx)) true
             else drvFolders!!.any { DRIVE_PREFIX + it.id == id }
+        PlaylistFolders.get(ctx, id) != null -> true
         else -> id in own
     }
 
@@ -1142,6 +1191,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private fun onRowLongClicked(row: Row) {
         val ctx = requireContext()
         if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT) return
+        if (row.kind == ROW_FOLDER) {
+            val f = PlaylistFolders.get(ctx, row.id) ?: return
+            val label = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
+            PlaylistUi.folderActions(ctx, f, { shuffle -> playFolder(f.id, shuffle) }, label, { togglePin(row) }) {
+                if (_binding != null) refresh()
+            }
+            return
+        }
         val pinLabel = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
         if (row.kind == ROW_YT || row.kind == ROW_DRIVE) {
             PlaylistUi.pinOnly(ctx, row.name, pinLabel) { togglePin(row) }
@@ -1194,8 +1251,21 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val editable = openList != null && !isRemoteList(openList)
         PlaylistUi.trackActions(
             requireContext(), t, openList.takeUnless { isRemoteList(it) },
-            onSelect = if (editable) ({ startSelection(t) }) else null
+            onSelect = if (editable) ({ startSelection(t) }) else null,
+            onMove = if (editable) ({ moveTrack(t) }) else null
         ) { if (_binding != null) refresh() }
+    }
+
+    /** Moves one song of the open playlist to another playlist (the multi-select "Move" does the same for several). */
+    private fun moveTrack(t: Track) {
+        val ctx = context ?: return
+        val id = openList ?: return
+        PlaylistUi.pickPlaylist(ctx, getString(R.string.track_move_title, t.title), id) { target ->
+            PlaylistStore.addTracks(ctx, target.id, listOf(t))
+            PlaylistStore.removeTracks(ctx, id, listOf(t))
+            Toast.makeText(ctx, getString(R.string.track_moved, t.title, target.name), Toast.LENGTH_SHORT).show()
+            if (_binding != null) refresh()
+        }
     }
 
     // ------------------------------------------------------------------ multi-select: remove / move several songs
@@ -1292,7 +1362,28 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val id = openList
         if (id != null) {
             val pl = PlaylistStore.get(ctx, id) ?: return
-            PlaylistUi.exportActions(ctx, displayName(ctx, pl), { exportM3u(pl) }, { shareLink(pl) })
+            if (id == PlaylistStore.LIKED_ID || isRemoteList(id)) {
+                PlaylistUi.exportActions(ctx, displayName(ctx, pl), { exportM3u(pl) }, { shareLink(pl) })
+                return
+            }
+            AlertDialog.Builder(ctx)
+                .setTitle(displayName(ctx, pl))
+                .setItems(arrayOf(
+                    getString(R.string.folder_move),
+                    getString(R.string.playlist_menu_export_m3u),
+                    getString(R.string.playlist_menu_share_link)
+                )) { _, which ->
+                    when (which) {
+                        0 -> PlaylistUi.moveToFolder(ctx, pl) {
+                            // Back now returns to the folder the playlist went into (or the main list).
+                            openFolder = PlaylistFolders.folderOf(ctx, pl.id)
+                            if (_binding != null) refresh()
+                        }
+                        1 -> exportM3u(pl)
+                        else -> shareLink(pl)
+                    }
+                }
+                .show()
             return
         }
         val labels = arrayOf(
@@ -1316,15 +1407,25 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     /** The "+" button: 1) create a playlist yourself, 2) have one generated (what used to be in the "⋮" menu). */
     private fun showAddMenu() {
         val ctx = requireContext()
+        val folderId = openFolder
+        if (folderId != null) { // inside a folder: a new playlist goes straight into it
+            PlaylistUi.createPlaylist(ctx) { pl ->
+                PlaylistFolders.move(ctx, pl.id, folderId)
+                if (_binding != null) open(pl.id)
+            }
+            return
+        }
         val labels = arrayOf(
             getString(R.string.playlist_create),
-            getString(R.string.playlist_generate) + if (generating) " \u2026" else ""
+            getString(R.string.playlist_generate) + if (generating) " \u2026" else "",
+            getString(R.string.folder_new)
         )
         AlertDialog.Builder(ctx)
             .setItems(labels) { _, which ->
                 when (which) {
                     0 -> PlaylistUi.createPlaylist(ctx) { pl -> if (_binding != null) open(pl.id) }
-                    else -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
+                    1 -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
+                    else -> PlaylistUi.createFolder(ctx) { if (_binding != null) refresh() }
                 }
             }
             .show()
@@ -1632,13 +1733,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     ROW_LIKED -> R.drawable.ic_heart
                     ROW_GENERATE -> R.drawable.ic_sparkle
                     ROW_CONVERT -> R.drawable.ic_playlist
+                    ROW_FOLDER -> R.drawable.ic_folder
                     else -> R.drawable.ic_playlist
                 }
             )
             holder.art.imageTintList = ColorStateList.valueOf(
                 attrColor(
                     ctx,
-                    if (row.kind == ROW_LIST || row.kind == ROW_YT || row.kind == ROW_DRIVE) R.attr.colorTextSecondary else androidx.appcompat.R.attr.colorAccent
+                    if (row.kind == ROW_LIST || row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_FOLDER) R.attr.colorTextSecondary else androidx.appcompat.R.attr.colorAccent
                 )
             )
             holder.art.tag = null
@@ -1691,6 +1793,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         private const val ROW_GENERATE = 3
         private const val ROW_YT = 4
         private const val ROW_CONVERT = 6
+        private const val ROW_FOLDER = 7
         private const val CONVERT_ID = "__convert__"
         private const val MAX_CONVERT_SONGS = 150
         private const val ROW_DRIVE = 5

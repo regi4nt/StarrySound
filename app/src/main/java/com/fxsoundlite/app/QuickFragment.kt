@@ -506,8 +506,8 @@ class QuickFragment : Fragment(), QuickActions {
         val videoShown = wantVideo && previewStarted && e?.showsVideo == true
         // Never exactly 0: a fully transparent TextureView may not get its surface, and then no picture ever arrives.
         vh.b.quickVideo.alpha = if (videoShown) 1f else 0.01f
-        // Video mode: never the small cover (the page picture / the video fills the screen instead).
-        vh.b.quickCover.visibility = if (videoOn()) View.INVISIBLE else View.VISIBLE
+        // The small cover stays on top of the video (same as the song reel); only the background is the video.
+        vh.b.quickCover.visibility = View.VISIBLE
         if (!isCurrent) vh.b.quickProgress.progress = 0
         feed.getOrNull(pos)?.let { applyLike(vh, it) }
         applyLyrics(vh, pos)
@@ -612,7 +612,7 @@ class QuickFragment : Fragment(), QuickActions {
     private fun updateUi() {
         holderAt(currentPos)?.let { applyState(it, currentPos) }
         // The reels next to the current one show their cover again (the clip now plays on the current one).
-        for (d in intArrayOf(-1, 1)) holderAt(currentPos + d)?.b?.let { it.quickVideo.visibility = View.GONE; it.quickCover.visibility = if (videoOn()) View.INVISIBLE else View.VISIBLE }
+        for (d in intArrayOf(-1, 1)) holderAt(currentPos + d)?.b?.let { it.quickVideo.visibility = View.GONE; it.quickCover.visibility = View.VISIBLE }
     }
 
     override fun onVideoSurface(vh: QuickAdapter.VH, available: Boolean) {

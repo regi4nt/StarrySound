@@ -48,7 +48,7 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
     private fun refreshStatus(url: String) {
         for (i in items.indices) {
             val t = items[i]
-            if (t.source == Track.SOURCE_RADIO && t.remoteId == url) notifyItemChanged(i, STATUS_PAYLOAD)
+            if ((t.source == Track.SOURCE_RADIO || t.source == Track.SOURCE_TV) && t.remoteId == url) notifyItemChanged(i, STATUS_PAYLOAD)
         }
     }
 
@@ -105,7 +105,7 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
     override fun onBindViewHolder(holder: VH, position: Int, payloads: MutableList<Any>) {
         if (payloads.contains(STATUS_PAYLOAD)) {
             val t = items.getOrNull(position) ?: return
-            if (t.source == Track.SOURCE_RADIO) bindRadioStatus(holder, t)
+            if (t.source == Track.SOURCE_RADIO || t.source == Track.SOURCE_TV) bindRadioStatus(holder, t)
             return
         }
         super.onBindViewHolder(holder, position, payloads)
@@ -119,11 +119,16 @@ internal class TrackAdapter(private val onClick: (Int) -> Unit, private val onLo
         holder.title.text = t.title
         holder.artist.text = t.artist.ifBlank { t.album }.let {
             if (t.missing) holder.itemView.context.getString(R.string.track_missing_here, it) else it
-        }.let { t.labeledSubtitle(holder.itemView.context, it) }
+        }.let { t.labeledSubtitle(holder.itemView.context, it) }.let { StorageLabel.withBadge(holder.itemView.context, t, it) }
         holder.itemView.alpha = if (t.missing) 0.45f else 1f
         if (t.source == Track.SOURCE_RADIO) bindRadioStatus(holder, t)
         else if (YouTubeApi.isListRow(t)) holder.duration.text = "" // a playlist / mix row has no length
-        else if (t.source == Track.SOURCE_TV) holder.duration.text = "LIVE"
+        else if (t.source == Track.SOURCE_TV) {
+            // Like radio: show whether the channel answers right now. TV lists can be long, so only the rows that are
+            // actually bound (on screen) are probed, not the whole list at once.
+            bindRadioStatus(holder, t)
+            RadioStatus.probe(listOf(t.remoteId)) { url -> refreshStatus(url) }
+        }
         else holder.duration.text = formatDuration(t.durationMs)
 
         val ctx = holder.itemView.context

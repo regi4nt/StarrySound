@@ -45,6 +45,8 @@ class YouTubeStreamEngine(
         /** A stream that is not ready / keeps buffering for this long counts as dropped. */
         private const val PREPARE_TIMEOUT_MS = 25_000L
         private const val STALL_TIMEOUT_MS = 20_000L
+        /** After this long without sound a "slow connection" note is shown. */
+        private const val SLOW_HINT_MS = 6_000L
         /** Playing this long past a resume point proves the connection is healthy again. */
         private const val HEALTHY_AFTER_MS = 10_000
 
@@ -163,7 +165,7 @@ class YouTubeStreamEngine(
          * Safe to call repeatedly: a cached link, or a recent attempt, makes it a no-op.
          */
         fun prefetch(context: Context, videoId: String, video: Boolean = false) {
-            if (!videoId.matches(ID_RE)) return
+            if (!videoId.matches(ID_RE) || NetStatus.failing) return // offline: nothing to prefetch
             val q = StreamQuality.effective(context)
             val lang = MusicPrefs.audioLang(context)
             val k = if (video) vkey(videoId, q, lang) else key(videoId, q, lang)
@@ -216,11 +218,19 @@ class YouTubeStreamEngine(
     private var prepared = false
     private var released = false
     private var started = false
+    override val audible: Boolean get() = prepared // the clock stands still until the stream is ready
     private var token = 0 // bumped on every load()/recovery; stale async results are ignored
     private var volume = 1f
     private var curId: String? = null
     private var retries = 0
     private var recoverPos = 0
+
+    /** Still not playing a few seconds after load(): say so, instead of leaving the player silent with no explanation. */
+    private val slowHint = Runnable {
+        if (released || prepared || !playing || curId == null) return@Runnable
+        try { android.widget.Toast.makeText(appContext, R.string.net_slow_loading, android.widget.Toast.LENGTH_SHORT).show() }
+        catch (e: Exception) { Log.d(TAG, "ignored: $e") }
+    }
 
     /** Fires when the stream never got ready, or stalled while buffering: treat as a dropped link. */
     private val watchdog = Runnable {
@@ -259,6 +269,8 @@ class YouTubeStreamEngine(
             return
         }
         curId = track.remoteId
+        handler.removeCallbacks(slowHint)
+        handler.postDelayed(slowHint, SLOW_HINT_MS)
         playing = true // optimistic, like play(): MusicService calls play() right after load()
         val q0 = StreamQuality.effective(appContext)
         val lang0 = MusicPrefs.audioLang(appContext)
@@ -383,6 +395,7 @@ class YouTubeStreamEngine(
             m.setOnPreparedListener {
                 if (released || mp !== it || my != token) return@setOnPreparedListener
                 handler.removeCallbacks(watchdog)
+                handler.removeCallbacks(slowHint)
                 prepared = true
                 // No scaling mode here: the page's TextureView crops the picture itself (QuickAdapter.cropToFill). A second crop by the player would zoom in twice.
                 if (it.duration > 0) dur = it.duration
@@ -442,6 +455,7 @@ class YouTubeStreamEngine(
 
     private fun fail(code: Int) {
         handler.removeCallbacks(watchdog)
+        handler.removeCallbacks(slowHint)
         stopPlayer()
         setClock(basePos, false)
         cb.onError(code)
@@ -493,6 +507,7 @@ class YouTubeStreamEngine(
         token++
         handler.removeCallbacks(poll)
         handler.removeCallbacks(watchdog)
+        handler.removeCallbacks(slowHint)
         stopPlayer()
     }
 

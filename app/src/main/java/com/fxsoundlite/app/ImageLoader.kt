@@ -9,7 +9,6 @@ import android.util.Size
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
-import java.util.concurrent.Executors
 
 /**
  * Tiny thumbnail loader for the lists: 4 worker threads + an in-memory cache limited by bytes (not by count, so a
@@ -20,7 +19,14 @@ object ImageLoader {
     private val cache = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 8).toInt().coerceAtLeast(4 shl 20)) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
-    private val pool = Executors.newFixedThreadPool(4)
+    // Newest request first: rows the user scrolled to a moment ago must not wait behind ones already scrolled past
+    // (matters on a slow connection, where the queue grows faster than it empties).
+    private class LifoQueue : java.util.concurrent.LinkedBlockingDeque<Runnable>() {
+        override fun offer(e: Runnable): Boolean = offerFirst(e)
+    }
+    private val pool = java.util.concurrent.ThreadPoolExecutor(
+        4, 4, 30L, java.util.concurrent.TimeUnit.SECONDS, LifoQueue()
+    ).apply { allowCoreThreadTimeOut(true) }
     private val main = Handler(Looper.getMainLooper())
 
     // Main thread only: url -> callbacks waiting for the download that is already running.

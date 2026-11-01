@@ -22,8 +22,13 @@ data class Track(
     /** Local song of a synced playlist that has no matching file on this device (not persisted). */
     val missing: Boolean = false
 ) {
-    /** Only meaningful for local tracks. */
-    val uri: Uri get() = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+    /**
+     * Only meaningful for local tracks. A song found through a folder the user picked (OTG drive / SD card the system
+     * did not index) is a local track whose [remoteId] holds its document uri; every other one is a MediaStore row.
+     */
+    val uri: Uri get() =
+        if (source == SOURCE_LOCAL && remoteId.isNotEmpty()) Uri.parse(remoteId)
+        else ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
 
     /** Stable identity across sources, used to highlight the playing row. */
     val key: String get() = if (source == SOURCE_LOCAL) "L$id" else "$source:$remoteId"
@@ -51,7 +56,7 @@ fun formatDuration(ms: Long): String {
     else String.format(java.util.Locale.US, "%d:%02d", m, s)
 }
 
-/** Row subtitle; songs from Google Drive get a "Drive" label so they stand out among the device songs. */
+/** Row subtitle; songs and videos from Google Drive get a "Drive" label so they stand out among the device files. */
 fun Track.labeledSubtitle(ctx: android.content.Context, base: String): String =
-    if (source != Track.SOURCE_DRIVE) base
+    if (source != Track.SOURCE_DRIVE && source != Track.SOURCE_DRIVE_VIDEO) base
     else "\u2601 " + ctx.getString(R.string.source_drive) + if (base.isBlank()) "" else " \u00B7 $base"

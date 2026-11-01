@@ -22,8 +22,20 @@ class YouTubeEngine(
     private val appContext = context.applicationContext
 
     private val stream = YouTubeStreamEngine(context, handler, forward { onStreamError(it) }, audioSessionId)
-    private val embed by lazy { YouTubeEmbedEngine(context, handler, forward { onEmbedError(it) }) }
-    private val web by lazy { YouTubeWebEngine(context, handler, forward(null)) }
+    private val ctx = context
+    private var embedEngine: YouTubeEmbedEngine? = null
+    private var webEngine: YouTubeWebEngine? = null
+    private val embed: YouTubeEmbedEngine
+        get() = embedEngine ?: YouTubeEmbedEngine(ctx, handler, forward { onEmbedError(it) }).also { embedEngine = it }
+    private val web: YouTubeWebEngine
+        get() = webEngine ?: YouTubeWebEngine(ctx, handler, forward(null)).also { webEngine = it }
+
+    /**
+     * Fully stops and frees the WebView fallbacks. Pausing is not enough: a player that was still starting up
+     * ignores pause() and then autoplays the old video on top of the next one (double audio).
+     */
+    private fun dropEmbed() { embedEngine?.release(); embedEngine = null }
+    private fun dropWeb() { webEngine?.release(); webEngine = null }
 
     private var useEmbed = false
     private var useWeb = false
@@ -48,6 +60,7 @@ class YouTubeEngine(
             return
         }
         Log.w("YouTubeEngine", "Stream engine failed ($code), trying the embedded player")
+        try { stream.pause() } catch (e: Exception) { Log.d("YouTubeEngine", "ignored: $e") }
         useEmbed = true
         embed.setVolume(vol)
         embed.load(t) // loadVideo() autoplays once the player is ready
@@ -58,7 +71,9 @@ class YouTubeEngine(
         val t = current
         if (useWeb || t == null || code == RemoteEngine.ERR_NETWORK || MusicPrefs.saver(appContext)) { cb.onError(code); return }
         Log.w("YouTubeEngine", "Embedded player failed ($code), trying the youtube.com page")
-        embed.pause()
+        useEmbed = false
+        // Release after this callback returns: the embed is the one calling us.
+        embedEngine?.let { e -> embedEngine = null; handler.post { e.release() } }
         useWeb = true
         web.setVolume(vol)
         web.load(t) // starts playing by itself (load() is optimistic, like play())
@@ -78,8 +93,8 @@ class YouTubeEngine(
 
     override fun load(track: Track) {
         current = track
-        if (useEmbed) embed.pause()
-        if (useWeb) web.pause()
+        dropEmbed()
+        dropWeb()
         useEmbed = false
         useWeb = false
         stream.load(track)
@@ -94,7 +109,7 @@ class YouTubeEngine(
 
     override fun release() {
         stream.release()
-        if (useEmbed) embed.release()
-        if (useWeb) web.release()
+        dropEmbed()
+        dropWeb()
     }
 }

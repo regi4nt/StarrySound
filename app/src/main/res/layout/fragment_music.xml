@@ -105,6 +105,22 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
             <TextView
+                android:id="@+id/tabDrive"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@drawable/chip_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="9dp"
+                android:text="@string/source_drive"
+                android:textColor="@color/chip_text_color"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+            <TextView
                 android:id="@+id/tabYoutube"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -138,6 +154,23 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
             <TextView
+                android:id="@+id/tabWeb"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@drawable/chip_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="9dp"
+                android:text="@string/source_web"
+                android:textColor="@color/chip_text_color"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+            <TextView
                 android:id="@+id/tabRadio"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -152,6 +185,23 @@
                 android:text="@string/source_radio"
                 android:textColor="@color/chip_text_color"
                 android:textSize="13sp"
+                android:textStyle="bold" />
+            <TextView
+                android:id="@+id/tabSpotify"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@drawable/chip_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:maxLines="1"
+                android:paddingHorizontal="2dp"
+                android:paddingVertical="9dp"
+                android:text="@string/source_spotify"
+                android:textColor="@color/chip_text_color"
+                android:textSize="12sp"
                 android:textStyle="bold" />
             <TextView
                 android:id="@+id/tabOnline"

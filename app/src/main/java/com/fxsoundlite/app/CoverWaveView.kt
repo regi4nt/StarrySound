@@ -10,7 +10,7 @@ import android.util.AttributeSet
 import android.view.View
 
 /**
- * Sedikit area neon (cahaya pendek berekor) yang berputar mengelilingi cover kotak di kartu player. View ini diletakkan di belakang
+ * Dua area neon (cahaya pendek berekor, berurutan) yang berputar mengelilingi cover kotak di kartu player. View ini diletakkan di belakang
  * cover (satu parent, lebih besar dari frame); bentuk cover dibaca dari [target].
  * Berdenyut pelan lewat [advance] (frame loop di NowPlayingActivity); tampil hanya saat [glowOn].
  */
@@ -87,7 +87,12 @@ class CoverWaveView @JvmOverloads constructor(
         measure.setPath(path, true)
         val len = measure.length
         if (len <= 0f) return
-        val head = phase * len
+        // Two comets run one after the other, half a lap apart.
+        for (n in 0 until WAVES) drawComet(canvas, ((phase + n.toFloat() / WAVES) % 1f) * len, len)
+    }
+
+    /** One comet: a bright head at [head] (distance along the outline) with a fading tail behind it. */
+    private fun drawComet(canvas: Canvas, head: Float, len: Float) {
         val tailLen = len * TAIL_FRACTION
         val sliceLen = tailLen / SLICES
         for (j in 0 until SLICES) {
@@ -105,6 +110,7 @@ class CoverWaveView @JvmOverloads constructor(
 
     private companion object {
         const val LAP_SECONDS = 10f
+        const val WAVES = 2 // comets around the cover, spread evenly
         const val TAIL_FRACTION = 0.45f // length of the lit stretch, as a share of the outline
         const val SLICES = 28 // more slices for the longer tail, so the fade stays smooth
     }

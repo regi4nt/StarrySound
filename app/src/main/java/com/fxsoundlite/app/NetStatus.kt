@@ -21,6 +21,26 @@ object NetStatus {
     /** True after two network failures in a row. */
     val failing: Boolean get() = failures >= 2
 
+    // Moving average of how long servers take to start answering (connect + TLS + first byte).
+    // High = a slow / weak connection: callers then skip optional traffic and use lighter requests.
+    @Volatile private var avgMs = 0f
+    @Volatile private var avgAt = 0L
+    private const val WEAK_LATENCY_MS = 1_500f
+    private const val STALE_MS = 3 * 60_000L
+
+    /** Called by the HTTP helpers with the time (ms) a server needed to start answering. */
+    @Synchronized
+    fun recordLatency(ms: Long) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        avgMs = if (avgMs == 0f || now - avgAt > STALE_MS) ms.toFloat() else avgMs * 0.7f + ms * 0.3f
+        avgAt = now
+    }
+
+    /** True while the connection looks weak: a recent network failure, or slow first answers lately. */
+    val weak: Boolean
+        get() = failures >= 1 ||
+            (avgMs > WEAK_LATENCY_MS && android.os.SystemClock.elapsedRealtime() - avgAt < STALE_MS)
+
     fun ok() {
         val was = failing
         failures = 0

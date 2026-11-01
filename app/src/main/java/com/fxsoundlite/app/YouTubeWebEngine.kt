@@ -51,6 +51,7 @@ class YouTubeWebEngine(
     private var web: WebView? = null
     private var released = false
     private var started = false
+    override val audible: Boolean get() = started // the clock stands still until the page really plays
     private var token = 0
     private var volume = 1f
     private var wantPlay = true

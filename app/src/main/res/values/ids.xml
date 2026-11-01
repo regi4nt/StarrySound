@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="queueRowMore" type="id" />
+    <item name="sp_art" type="id" />
+    <item name="sp_title_text" type="id" />
+    <item name="sp_sub_text" type="id" />
+    <item name="sp_action" type="id" />
 </resources>

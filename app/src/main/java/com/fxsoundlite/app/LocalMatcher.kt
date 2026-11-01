@@ -44,7 +44,7 @@ object LocalMatcher {
     private fun build(c: Context, force: Boolean): Index? {
         val cur = index
         if (!force && cur != null && SystemClock.elapsedRealtime() - cur.at <= TTL_MS) return cur
-        if (!MusicLibrary.hasPermission(c)) return null
+        if (!MusicLibrary.canRead(c)) return null
         val list = MusicLibrary.load(c)
         if (list.isEmpty()) return null // library not scanned / unreadable: do not conclude that songs are missing
         val idx = Index(
@@ -76,7 +76,11 @@ object LocalMatcher {
         if (t.source != Track.SOURCE_LOCAL) return t
         val idx = index(c) ?: return t
         val title = norm(t.title)
-        idx.byId[t.id]?.let { if (norm(it.title) == title) return it.copy(addedAt = t.addedAt) }
+        // A song of a picked OTG / SD folder keeps the same id and document uri while its title changes from the file
+        // name to the real tag, so the uri counts as proof of identity too.
+        idx.byId[t.id]?.let {
+            if (norm(it.title) == title || (t.remoteId.isNotEmpty() && t.remoteId == it.remoteId)) return it.copy(addedAt = t.addedAt)
+        }
 
         fun closest(list: List<Track>?): Track? = list?.minByOrNull { abs(it.durationMs - t.durationMs) }
         closest(idx.byKey[localKey(t.title, t.artist)])?.let { return it.copy(addedAt = t.addedAt) }

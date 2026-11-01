@@ -14,14 +14,14 @@ object PlaylistUi {
 
     /** Name prompt used for both "new playlist" and "rename". */
     fun promptName(c: Context, titleRes: Int, initial: String, onName: (String) -> Unit) =
-        promptNameText(c, c.getString(titleRes), initial, onName)
+        promptNameText(c, c.getString(titleRes), initial) { onName(it) }
 
     /** Same prompt with a ready-made title (e.g. "Import 42 songs as..."). */
-    fun promptNameText(c: Context, title: String, initial: String, onName: (String) -> Unit) {
+    fun promptNameText(c: Context, title: String, initial: String, hintRes: Int = R.string.playlist_name_hint, onName: (String) -> Unit) {
         val input = EditText(c).apply {
             setSingleLine()
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            hint = c.getString(R.string.playlist_name_hint)
+            hint = c.getString(hintRes)
             setText(initial)
             setSelection(text.length)
         }
@@ -137,7 +137,7 @@ object PlaylistUi {
      *  [fromHistory] = the row is in the YouTube "recently played" list, which adds delete options. */
     fun trackActions(
         c: Context, t: Track, openListId: String?, fromHistory: Boolean = false,
-        onDelete: (() -> Unit)? = null, onSelect: (() -> Unit)? = null, onChanged: () -> Unit
+        onDelete: (() -> Unit)? = null, onSelect: (() -> Unit)? = null, onMove: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
         val liked = PlaylistStore.isLiked(c, t)
         val labels = mutableListOf<String>()
@@ -159,6 +159,10 @@ object PlaylistUi {
         if (onSelect != null) { // inside an editable playlist: start picking several songs
             labels += c.getString(R.string.select_songs)
             actions += { onSelect() }
+        }
+        if (onMove != null) { // inside an editable playlist: move this song to another playlist
+            labels += c.getString(R.string.track_move_playlist)
+            actions += { onMove() }
         }
         if (openListId != null && openListId != PlaylistStore.LIKED_ID) {
             labels += c.getString(R.string.playlist_remove_song)
@@ -224,37 +228,123 @@ object PlaylistUi {
             .show()
     }
 
-    /** Long-press menu of a playlist row: edit / export / share / delete. */
+    /** Long-press menu of a playlist row: pin / move to folder / edit / export / share / delete. */
     fun playlistActions(
         c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit,
         pinLabel: String? = null, onPin: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
-        val hasPin = pinLabel != null && onPin != null
         val labels = mutableListOf<String>()
-        if (hasPin) labels += pinLabel!!
-        labels += c.getString(R.string.playlist_menu_edit)
-        labels += c.getString(R.string.playlist_menu_export_m3u)
-        labels += c.getString(R.string.playlist_menu_share_link)
+        val actions = mutableListOf<() -> Unit>()
+        if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
+        labels += c.getString(R.string.folder_move); actions += { moveToFolder(c, pl, onChanged) }
+        labels += c.getString(R.string.playlist_menu_edit); actions += { onEdit(pl) }
+        labels += c.getString(R.string.playlist_menu_export_m3u); actions += { onExport(pl) }
+        labels += c.getString(R.string.playlist_menu_share_link); actions += { onShare(pl) }
         labels += c.getString(R.string.playlist_delete)
+        actions += {
+            AlertDialog.Builder(c)
+                .setMessage(c.getString(R.string.playlist_delete_confirm, pl.name))
+                .setPositiveButton(R.string.playlist_delete) { _, _ ->
+                    PlaylistStore.delete(c, pl.id)
+                    onChanged()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
         AlertDialog.Builder(c)
             .setTitle(pl.name)
-            .setItems(labels.toTypedArray()) { _, picked ->
-                val which = if (hasPin) picked - 1 else picked
-                when (which) {
-                    -1 -> onPin?.invoke()
-                    0 -> onEdit(pl)
-                    1 -> onExport(pl)
-                    2 -> onShare(pl)
-                    else -> AlertDialog.Builder(c)
-                        .setMessage(c.getString(R.string.playlist_delete_confirm, pl.name))
-                        .setPositiveButton(R.string.playlist_delete) { _, _ ->
-                            PlaylistStore.delete(c, pl.id)
-                            onChanged()
-                        }
-                        .setNegativeButton(android.R.string.cancel, null)
-                        .show()
-                }
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
+            .show()
+    }
+
+    /** Asks for a folder name and creates the folder. */
+    fun createFolder(c: Context, then: (PlaylistFolder) -> Unit) {
+        promptNameText(c, c.getString(R.string.folder_new), "", R.string.folder_name_hint) { name ->
+            then(PlaylistFolders.create(c, name))
+        }
+    }
+
+    /**
+     * Picker for a destination folder: "Move to main list" (when [currentId] is not null), every other folder,
+     * and "+ New folder". [onPick] gets null for the main list.
+     */
+    private fun pickFolder(c: Context, title: String, currentId: String?, onPick: (PlaylistFolder?) -> Unit) {
+        val names = mutableListOf<String>()
+        val targets = mutableListOf<PlaylistFolder?>()
+        if (currentId != null) { names += c.getString(R.string.folder_none); targets += null }
+        PlaylistFolders.folders(c).filter { it.id != currentId }
+            .sortedBy { it.name.lowercase() }
+            .forEach { names += "\uD83D\uDCC1  " + it.name; targets += it }
+        val dp = c.resources.displayMetrics.density
+        var dialog: AlertDialog? = null
+        val listView = android.widget.ListView(c).apply {
+            adapter = android.widget.ArrayAdapter(c, android.R.layout.simple_list_item_1, names)
+            setOnItemClickListener { _, _, pos, _ -> dialog?.dismiss(); onPick(targets[pos]) }
+        }
+        val create = android.widget.Button(c).apply {
+            text = c.getString(R.string.folder_new_item)
+            isAllCaps = false
+            setOnClickListener { dialog?.dismiss(); createFolder(c) { f -> onPick(f) } }
+        }
+        val box = android.widget.LinearLayout(c).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding((16 * dp).toInt(), 0, (16 * dp).toInt(), 0)
+            addView(listView, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(create, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT))
+        }
+        dialog = AlertDialog.Builder(c)
+            .setTitle(title)
+            .setView(box)
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun movedToast(c: Context, f: PlaylistFolder?) =
+        toast(c, if (f == null) c.getString(R.string.folder_moved_out) else c.getString(R.string.folder_moved, f.name))
+
+    /** "Move to folder" for a playlist. */
+    fun moveToFolder(c: Context, pl: Playlist, onChanged: () -> Unit) {
+        pickFolder(c, c.getString(R.string.folder_move_title, pl.name), PlaylistFolders.folderOf(c, pl.id)) { f ->
+            PlaylistFolders.move(c, pl.id, f?.id)
+            movedToast(c, f)
+            onChanged()
+        }
+    }
+
+    /** Long-press menu of a folder row play / shuffle / pin / rename / delete (its playlists are kept). */
+    fun folderActions(
+        c: Context, f: PlaylistFolder, onPlay: (Boolean) -> Unit,
+        pinLabel: String?, onPin: (() -> Unit)?, onChanged: () -> Unit
+    ) {
+        val labels = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+        labels += c.getString(R.string.folder_play); actions += { onPlay(false) }
+        labels += c.getString(R.string.folder_shuffle); actions += { onPlay(true) }
+        if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
+        labels += c.getString(R.string.folder_rename)
+        actions += {
+            promptNameText(c, c.getString(R.string.folder_rename), f.name, R.string.folder_name_hint) { name ->
+                PlaylistFolders.rename(c, f.id, name)
+                onChanged()
             }
+        }
+        labels += c.getString(R.string.folder_delete)
+        actions += {
+            AlertDialog.Builder(c)
+                .setMessage(c.getString(R.string.folder_delete_confirm, f.name))
+                .setPositiveButton(R.string.playlist_delete) { _, _ ->
+                    PlaylistFolders.delete(c, f.id) // the playlists stay and go back to the main list
+                    onChanged()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+        AlertDialog.Builder(c)
+            .setTitle(f.name)
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
             .show()
     }
 }

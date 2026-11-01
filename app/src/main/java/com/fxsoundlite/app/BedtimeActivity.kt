@@ -426,7 +426,7 @@ class BedtimeActivity : AppCompatActivity() {
 
     private fun loadDevice() {
         val driveOn = DriveMusic.isSignedIn(context)
-        if (!MusicLibrary.hasPermission(context) && !driveOn) {
+        if (!MusicLibrary.canRead(context) && !driveOn) {
             showMessage(
                 context.getString(R.string.music_need_permission), context.getString(R.string.music_allow_access)
             ) { devicePermissionLauncher.launch(MusicLibrary.requiredPermission) }
@@ -437,7 +437,7 @@ class BedtimeActivity : AppCompatActivity() {
             if (email != driveEmail) { driveEmail = email; driveAll = null; driveError = null } // another account
             if (driveAll == null || System.currentTimeMillis() - driveLoadedAt > DRIVE_TTL_MS) loadDrive(force = false)
         }
-        if (deviceTracks != null || !MusicLibrary.hasPermission(context)) {
+        if (deviceTracks != null || !MusicLibrary.canRead(context)) {
             if (deviceTracks == null) deviceTracks = emptyList()
             renderDevice()
             return
@@ -475,7 +475,7 @@ class BedtimeActivity : AppCompatActivity() {
             it.title.lowercase().contains(q) || it.artist.lowercase().contains(q) || it.album.lowercase().contains(q)
         }
         if (matches.isEmpty()) {
-            if (all.isEmpty() && !MusicLibrary.hasPermission(context) && !driveLoading) {
+            if (all.isEmpty() && !MusicLibrary.canRead(context) && !driveLoading) {
                 showMessage(
                     context.getString(R.string.music_need_permission), context.getString(R.string.music_allow_access)
                 ) { devicePermissionLauncher.launch(MusicLibrary.requiredPermission) }
