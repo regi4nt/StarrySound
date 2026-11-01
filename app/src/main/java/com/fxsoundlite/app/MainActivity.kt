@@ -248,7 +248,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         val pad = (9 * resources.displayMetrics.density).toInt()
         b.miniArt.setPadding(pad, pad, pad, pad)
         b.miniArt.setImageResource(R.drawable.ic_tab_spotify)
-        b.miniArt.imageTintList = android.content.res.ColorStateList.valueOf(CoverColors.themeColor(this, R.attr.colorAccent))
+        b.miniArt.imageTintList = android.content.res.ColorStateList.valueOf(CoverColors.themeColor(this, androidx.appcompat.R.attr.colorAccent))
         b.miniProgress.progress = 0
         applyMiniTint(null)
     }
