@@ -101,6 +101,7 @@ class ScreensaverFragment : Fragment() {
             binding.screensaverBottomBlock.visibility = View.GONE
             binding.screensaverLockButton.visibility = View.GONE
             binding.screensaverPlayerButton.visibility = View.GONE
+            binding.screensaverTouchFx.visibility = View.GONE
             return
         }
         binding.screensaverPlayerButton.setOnClickListener {
@@ -116,6 +117,7 @@ class ScreensaverFragment : Fragment() {
             activity?.overridePendingTransition(R.anim.slide_up, R.anim.stay)
         }
         setupLockButton()
+        setupTouchFx()
         // Don't load media here: this fragment is created once and kept alive
         // for the whole ViewPager2 lifetime (offscreenPageLimit = 1), so this
         // only ever runs once per app session. Loading is instead driven from
@@ -159,6 +161,8 @@ class ScreensaverFragment : Fragment() {
         if (binding.screensaverVideo.visibility == View.VISIBLE) {
             binding.screensaverVideo.pause()
         }
+        binding.screensaverTouchFx.reset()
+        binding.screensaverAnimatedBg.setPush(0f, 0f, false)
         binding.screensaverAnimatedBg.stop() // cheap to restart in onResume; no reason to keep ticking off-screen
     }
     override fun onDestroyView() {
@@ -169,6 +173,36 @@ class ScreensaverFragment : Fragment() {
         binding.screensaverImage.setImageDrawable(null)
         binding.screensaverAnimatedBg.stop()
         _binding = null
+    }
+
+    // ------------------------------------------------------------------ touch effect (temporary)
+
+    /**
+     * Touch effect of this page: ripples / sparkles / glow on any background, or "Scatter" which also pushes the
+     * rain / stars of the animated background away from the finger. It is chosen in Settings > Screensaver
+     * ([ScreensaverPrefs.touchFx]) and only runs on the main screen: the charging screensaver closes on any touch by design.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    private fun setupTouchFx() {
+        if (activity !is MainActivity) {
+            binding.screensaverTouchFx.visibility = View.GONE
+            return
+        }
+        binding.screensaverTouchFx.setAccent(
+            CoverColors.themeColor(requireContext(), androidx.appcompat.R.attr.colorAccent)
+        )
+        // Events that no button took end up here. Consuming the DOWN is what makes the MOVE / UP arrive; a horizontal
+        // swipe is still taken over by the pager (we then get a CANCEL and the effect just fades out).
+        binding.root.setOnTouchListener { _, ev ->
+            val mode = ScreensaverPrefs.touchFx(requireContext())
+            if (mode == ScreensaverTouchFx.Mode.OFF) return@setOnTouchListener false
+            binding.screensaverTouchFx.onTouch(ev)
+            if (mode == ScreensaverTouchFx.Mode.SCATTER && binding.screensaverAnimatedBg.visibility == View.VISIBLE) {
+                val up = ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
+                binding.screensaverAnimatedBg.setPush(ev.x, ev.y, !up)
+            }
+            true
+        }
     }
 
     // ------------------------------------------------------------------ swipe / touch lock

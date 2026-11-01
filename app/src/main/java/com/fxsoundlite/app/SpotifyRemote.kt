@@ -54,8 +54,10 @@ object SpotifyRemote {
      * Blocking. Starts one song on the active Spotify device (or, with none active, on the first device Spotify lists).
      * Returns the HTTP code: 2xx = started, 404 = no device at all (open the Spotify app first), 403 = refused (Premium).
      */
-    fun playTrack(c: Context, uri: String): Int {
-        val body = org.json.JSONObject().put("uris", org.json.JSONArray().put(uri)).toString()
+    fun playTrack(c: Context, uri: String, positionMs: Int = 0): Int {
+        val o = org.json.JSONObject().put("uris", org.json.JSONArray().put(uri))
+        if (positionMs > 0) o.put("position_ms", positionMs)
+        val body = o.toString()
         val first = SpotifyApi.put(c, "/me/player/play", body)
         if (first.code != 404) return first.code
         val device = SpotifyApi.firstDeviceId(c) ?: return 404
@@ -63,7 +65,11 @@ object SpotifyRemote {
     }
 
     /** Blocking. Resume / pause / seek through the Web API; the HTTP code is returned (2xx = done). */
-    fun resume(c: Context): Int = SpotifyApi.put(c, "/me/player/play", "{}").code
+    fun resume(c: Context, uri: String = "", positionMs: Int = 0): Int {
+        val code = SpotifyApi.put(c, "/me/player/play", "{}").code
+        // 404: the Spotify device went idle after a long pause. Start the same song again at the same second.
+        return if (code == 404 && uri.isNotBlank()) playTrack(c, uri, positionMs) else code
+    }
     fun pausePlayback(c: Context): Int = SpotifyApi.put(c, "/me/player/pause", "{}").code
     fun seek(c: Context, ms: Int): Int = SpotifyApi.put(c, "/me/player/seek?position_ms=$ms", "{}").code
 

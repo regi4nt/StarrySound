@@ -78,6 +78,8 @@ class SleepBackgroundView @JvmOverloads constructor(
                 val deltaMs = ((frameTimeNanos - lastFrameTimeNanos) / 1_000_000L)
                     .coerceIn(0L, 100L) // clamp huge gaps (e.g. after being backgrounded)
                 elapsedMs += deltaMs
+                pushNow += (pushTarget - pushNow) * (deltaMs / 140f).coerceAtMost(1f)
+                if (pushTarget == 0f && pushNow < 0.01f) pushNow = 0f
                 when (style) {
                     Style.RAIN -> advanceRain(deltaMs)
                     Style.STARFIELD -> advanceStarfield(deltaMs)
@@ -91,6 +93,41 @@ class SleepBackgroundView @JvmOverloads constructor(
     }
     private var elapsedMs = 0L
     private var seeded = false
+
+    // --- touch "Scatter" effect (temporary, see ScreensaverTouchFx) ------------
+    // While a finger is down the particles near it are pushed away; they ease back when it lifts.
+    private var pushX = 0f
+    private var pushY = 0f
+    private var pushNow = 0f      // eased 0..1
+    private var pushTarget = 0f   // 1 while touching
+
+    fun setPush(x: Float, y: Float, active: Boolean) {
+        pushX = x; pushY = y
+        pushTarget = if (active) 1f else 0f
+        if (!running) invalidate()
+    }
+
+    private fun pushRadius() = minOf(width, height) * 0.3f
+
+    private fun pushedX(x: Float, y: Float): Float {
+        if (pushNow <= 0.01f) return x
+        val dx = x - pushX; val dy = y - pushY
+        val d = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        val r = pushRadius()
+        if (d >= r || d < 0.5f) return x
+        val f = 1f - d / r
+        return x + dx / d * f * f * r * 0.6f * pushNow
+    }
+
+    private fun pushedY(x: Float, y: Float): Float {
+        if (pushNow <= 0.01f) return y
+        val dx = x - pushX; val dy = y - pushY
+        val d = hypot(dx.toDouble(), dy.toDouble()).toFloat()
+        val r = pushRadius()
+        if (d >= r || d < 0.5f) return y
+        val f = 1f - d / r
+        return y + dy / d * f * f * r * 0.6f * pushNow
+    }
 
     fun start() {
         if (width > 0 && height > 0 && !seeded) seedAll()
@@ -170,7 +207,10 @@ class SleepBackgroundView @JvmOverloads constructor(
         drawBackground(canvas, "#0B1420", "#1C2E40")
         for (d in drops) {
             rainPaint.alpha = d.alpha
-            canvas.drawLine(d.x, d.y, d.x - d.len * 0.18f, d.y + d.len, rainPaint)
+            canvas.drawLine(
+                pushedX(d.x, d.y), pushedY(d.x, d.y),
+                pushedX(d.x - d.len * 0.18f, d.y + d.len), pushedY(d.x - d.len * 0.18f, d.y + d.len), rainPaint
+            )
         }
     }
 
@@ -210,7 +250,7 @@ class SleepBackgroundView @JvmOverloads constructor(
             val twinkle = 0.5f + 0.5f * sin(s.phase + elapsedMs * s.speed)
             starPaint.color = tint
             starPaint.alpha = (100 + twinkle * 155).toInt().coerceIn(0, 255)
-            canvas.drawCircle(s.x, s.y, s.r, starPaint)
+            canvas.drawCircle(pushedX(s.x, s.y), pushedY(s.x, s.y), s.r, starPaint)
         }
     }
 
@@ -356,7 +396,7 @@ class SleepBackgroundView @JvmOverloads constructor(
         for (s in specks) {
             val twinkle = 0.8f + 0.2f * sin(s.phase + elapsedMs * s.speed)
             speckPaint.alpha = (s.baseAlpha * twinkle).toInt().coerceIn(0, 255)
-            canvas.drawCircle(s.x, s.y, s.r, speckPaint)
+            canvas.drawCircle(pushedX(s.x, s.y), pushedY(s.x, s.y), s.r, speckPaint)
         }
         for (g in glints) {
             if (g.age < 0f || g.age > g.lifespan) continue // currently waiting -- invisible
@@ -371,7 +411,7 @@ class SleepBackgroundView @JvmOverloads constructor(
             val travelled = g.speed * (g.age / 1000f) // px moved since it appeared
             val sx = g.x + g.ux * travelled
             val sy = g.y + g.uy * travelled
-            canvas.drawLine(sx, sy, sx + g.dx, sy + g.dy, streakPaint)
+            canvas.drawLine(pushedX(sx, sy), pushedY(sx, sy), pushedX(sx + g.dx, sy + g.dy), pushedY(sx + g.dx, sy + g.dy), streakPaint)
         }
     }
 

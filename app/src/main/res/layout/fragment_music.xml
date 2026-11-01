@@ -88,7 +88,7 @@
             android:layout_marginTop="12dp"
             android:orientation="horizontal">
 
-            <TextView
+<TextView
                 android:id="@+id/tabLocal"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -137,6 +137,22 @@
                 android:textSize="13sp"
                 android:textStyle="bold" />
             <TextView
+                android:id="@+id/tabRadio"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:background="@drawable/chip_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="9dp"
+                android:text="@string/source_radio"
+                android:textColor="@color/chip_text_color"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+            <TextView
                 android:id="@+id/tabTv"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -171,7 +187,7 @@
                 android:textStyle="bold"
                 android:visibility="gone" />
             <TextView
-                android:id="@+id/tabRadio"
+                android:id="@+id/tabOnline"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="6dp"
@@ -182,7 +198,7 @@
                 android:focusable="true"
                 android:paddingHorizontal="6dp"
                 android:paddingVertical="9dp"
-                android:text="@string/source_radio"
+                android:text="@string/source_online"
                 android:textColor="@color/chip_text_color"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -190,7 +206,7 @@
                 android:id="@+id/tabSpotify"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
+                android:layout_marginEnd="0dp"
                 android:layout_weight="1"
                 android:gravity="center"
                 android:background="@drawable/chip_bg"
@@ -202,22 +218,6 @@
                 android:text="@string/source_spotify"
                 android:textColor="@color/chip_text_color"
                 android:textSize="12sp"
-                android:textStyle="bold" />
-            <TextView
-                android:id="@+id/tabOnline"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="0dp"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:background="@drawable/chip_bg"
-                android:clickable="true"
-                android:focusable="true"
-                android:paddingHorizontal="6dp"
-                android:paddingVertical="9dp"
-                android:text="@string/source_online"
-                android:textColor="@color/chip_text_color"
-                android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
 

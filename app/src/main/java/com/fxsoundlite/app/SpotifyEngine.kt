@@ -43,6 +43,11 @@ class SpotifyEngine(
 
     private val pollRun = Runnable { poll() }
 
+    private companion object {
+        val TOLERATE_PLAY = setOf(403)
+        val TOLERATE_PAUSE = setOf(403, 404)
+    }
+
     // ------------------------------------------------------------------ RemoteEngine
 
     override fun load(track: Track) {
@@ -67,20 +72,21 @@ class SpotifyEngine(
         val now = SystemClock.elapsedRealtime()
         if (now - loadedAt < 1500L) return // load() has just started the song
         quietUntil = now + 1500L
-        setClock(position, true)
-        send(gen) { SpotifyRemote.resume(app) }
+        val at = position // read on the main thread; the request runs on the io thread
+        setClock(at, true)
+        send(gen, tolerate = TOLERATE_PLAY) { SpotifyRemote.resume(app, uri, at) }
     }
 
     override fun pause() {
         quietUntil = SystemClock.elapsedRealtime() + 1500L
         setClock(position, false)
-        send(gen) { SpotifyRemote.pausePlayback(app) }
+        send(gen, tolerate = TOLERATE_PAUSE) { SpotifyRemote.pausePlayback(app) }
     }
 
     override fun seekTo(ms: Int) {
         quietUntil = SystemClock.elapsedRealtime() + 1500L
         setClock(ms, playing)
-        send(gen) { SpotifyRemote.seek(app, ms) }
+        send(gen, tolerate = TOLERATE_PLAY) { SpotifyRemote.seek(app, ms) }
     }
 
     /** Spotify's own volume is not touched (fades and ducking only apply to the local players). */
@@ -104,13 +110,15 @@ class SpotifyEngine(
     // ------------------------------------------------------------------ requests
 
     /** Runs a player request off the main thread; a refusal is reported once, a success starts the polling. */
-    private fun send(my: Int, block: () -> Int) {
+    private fun send(my: Int, tolerate: Set<Int> = emptySet(), block: () -> Int) {
         try {
             io.execute {
                 val code = try { block() } catch (e: SpotifyApi.ApiException) { e.code } catch (e: Exception) { -1 }
                 handler.post {
                     if (my != gen || released) return@post
-                    if (code in 200..299) schedulePoll(700L) else fail(code)
+                    // Spotify answers 403 "restriction violated" when asked to pause / play what is already paused / playing
+                    // (e.g. the Spotify app's own notification got there first): not an error, the poll reconciles the state.
+                    if (code in 200..299 || code in tolerate) schedulePoll(700L) else fail(code)
                 }
             }
         } catch (e: Exception) {

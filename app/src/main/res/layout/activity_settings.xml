@@ -1331,6 +1331,44 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Touch effect card: what the Screensaver page does when it is touched (not the charging screensaver). -->
+        <LinearLayout
+            android:id="@+id/touchFxRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:padding="16dp"
+            android:layout_marginTop="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/screensaver_fx_section"
+                android:textColor="?attr/colorTextPrimary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/screensaver_fx_subtitle"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/touchFxValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textColor="?attr/colorAccent"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
         <!-- Greeting message card: short text shown under the clock on the
              Screensaver page. Saved as you type; leave empty to hide it. -->
         <LinearLayout

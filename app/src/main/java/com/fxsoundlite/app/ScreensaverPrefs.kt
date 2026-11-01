@@ -20,6 +20,7 @@ object ScreensaverPrefs {
     private const val KEY_ANIMATED_STYLE = "screensaver_animated_style"
     private const val KEY_CLOCK_STYLE = "screensaver_clock_style"
     private const val KEY_GREETING = "screensaver_greeting"
+    private const val KEY_TOUCH_FX = "screensaver_touch_fx"
     private const val KEY_AUTO_ON_CHARGE = "screensaver_auto_on_charge"
     private const val KEY_NOTIF_PERM_ASKED = "screensaver_notif_perm_asked"
     private const val KEY_PRESET_NOTIF = "preset_notification_enabled"
@@ -90,6 +91,16 @@ object ScreensaverPrefs {
 
     fun setClockStyle(context: Context, style: String) {
         prefs(context).edit().putString(KEY_CLOCK_STYLE, style).apply()
+    }
+
+    /** Touch effect of the Screensaver page (name of a [ScreensaverTouchFx.Mode]); ripples by default. */
+    fun touchFx(context: Context): ScreensaverTouchFx.Mode {
+        val name = prefs(context).getString(KEY_TOUCH_FX, null)
+        return ScreensaverTouchFx.Mode.values().firstOrNull { it.name == name } ?: ScreensaverTouchFx.Mode.RIPPLE
+    }
+
+    fun setTouchFx(context: Context, mode: ScreensaverTouchFx.Mode) {
+        prefs(context).edit().putString(KEY_TOUCH_FX, mode.name).apply()
     }
 
     /** Short greeting shown under the clock/date on the Screensaver page.

@@ -167,7 +167,13 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             PlayerMode.init(this)
             val svc = MusicService.instance
             val cur = svc?.current
-            if (cur == null) { spotifyTabFragment()?.playFromMini(); return@setOnClickListener } // empty Spotify mini player
+            if (cur == null) { // empty Spotify mini player: start the last song and open the player on it
+                if (spotifyTabFragment()?.playFromMini(openPlayer = true) == true) {
+                    startActivity(Intent(this, NowPlayingActivity::class.java))
+                    overridePendingTransition(R.anim.slide_up, R.anim.stay)
+                }
+                return@setOnClickListener
+            }
             if (svc != null && PlayerMode.isVideo(cur)) {
                 // Last used in video mode: the bar reopens the video at the second the audio reached.
                 val pos = svc.position.toLong()

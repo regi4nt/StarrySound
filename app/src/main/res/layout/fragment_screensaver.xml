@@ -196,6 +196,14 @@
             android:shadowDy="1" />
     </LinearLayout>
 
+    <!-- Touch effect (ripples / sparkles / glow). Draws only; touches are fed to it by ScreensaverFragment. -->
+    <com.fxsoundlite.app.TouchFxView
+        android:id="@+id/screensaverTouchFx"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false" />
+
     <!-- Swallows every touch while the Screensaver is locked (see ScreensaverFragment.applyLock). -->
     <View
         android:id="@+id/screensaverTouchShield"

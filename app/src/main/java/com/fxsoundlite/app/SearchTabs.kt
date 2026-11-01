@@ -5,7 +5,7 @@ import androidx.appcompat.app.AlertDialog
 
 /**
  * Which online tabs the Search screen shows (Settings > Online music > Search tabs).
- * The Device tab is always there; the Drive tab (right of it), YouTube, TV, Web, Radio and Spotify can be switched off. YouTube, TV and Radio are on by default; Web and Spotify stay hidden until switched on here.
+ * The Device tab is always there; the Drive tab (right of it), YouTube, Radio, TV, Web and Spotify (in that order) can be switched off. YouTube, TV and Radio are on by default; Web and Spotify stay hidden until switched on here.
  * One Web switch drives both Web tabs: the video-mode website browser and the music-mode Internet Archive / Audius / Jamendo / ccMixter tab.
  */
 object SearchTabs {
@@ -13,10 +13,10 @@ object SearchTabs {
     enum class Tab(val key: String, val labelRes: Int, val defaultOn: Boolean = true) {
         DRIVE("drive", R.string.source_drive), // Google Drive songs / videos, right of Device
         YOUTUBE("youtube", R.string.source_youtube),
-        TV("tv", R.string.source_tv), // live TV, only in video mode, right of YouTube
-        WEB("web", R.string.source_web, false), // one switch for both Web tabs: video mode = browser for videos on websites (right of TV); music mode = Internet Archive / Audius / Jamendo / ccMixter (right of Radio); hidden until switched on here
-        RADIO("radio", R.string.source_radio),
-        SPOTIFY("spotify", R.string.source_spotify, false) // searches Spotify like YouTube; songs play in the StarrySound player; right of Radio, not shown in video mode
+        RADIO("radio", R.string.source_radio), // music mode only, right of YouTube
+        TV("tv", R.string.source_tv), // live TV, only in video mode, right of Radio
+        WEB("web", R.string.source_web, false), // one switch for both Web tabs: video mode = browser for videos on websites; music mode = Internet Archive / Audius / Jamendo / ccMixter; hidden until switched on here
+        SPOTIFY("spotify", R.string.source_spotify, false) // searches Spotify like YouTube; songs play in the StarrySound player; last tab, not shown in video mode
     }
 
     private const val PREFS = "search_tabs"

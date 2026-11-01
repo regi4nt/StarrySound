@@ -55,16 +55,7 @@ class SongDetectActivity : AppCompatActivity() {
         private val LANGS = listOf(
             "" to R.string.detect_lang_auto,
             "id-ID" to R.string.detect_lang_id,
-            "en-US" to R.string.detect_lang_en,
-            "jv-ID" to R.string.detect_lang_jv,
-            "su-ID" to R.string.detect_lang_su,
-            "ms-MY" to R.string.detect_lang_ms,
-            "ja-JP" to R.string.detect_lang_ja,
-            "ko-KR" to R.string.detect_lang_ko,
-            "zh-CN" to R.string.detect_lang_zh,
-            "hi-IN" to R.string.detect_lang_hi,
-            "ar-SA" to R.string.detect_lang_ar,
-            "es-ES" to R.string.detect_lang_es
+            "en-US" to R.string.detect_lang_en
         )
     }
 

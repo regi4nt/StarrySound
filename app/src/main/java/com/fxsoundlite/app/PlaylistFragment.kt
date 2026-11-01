@@ -723,8 +723,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
         val kinds = ArrayList<Int>().apply {
             add(0); add(F_LIKED); add(F_MINE)
-            if (deviceFoldersAvailable(ctx)) add(F_DEVICE)
             if (YouTubeAccount.isSignedIn(ctx)) add(F_YT)
+            if (deviceFoldersAvailable(ctx)) add(F_DEVICE)
             if (DriveMusic.isSignedIn(ctx)) add(F_DRIVE)
         }
         val sort = SortOption(
@@ -897,8 +897,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     val art = it.tracks.firstOrNull { t -> t.artUrl.isNotBlank() }?.artUrl.orEmpty()
                     rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size)
                 }
-            // Playlists of the signed-in YouTube account, read live (label "YouTube").
             var ytCount = 0
+            // Playlists of the signed-in YouTube account, read live (label "YouTube").
             if (openFolder == null && YouTubeAccount.isSignedIn(ctx)) {
                 loadYtLists()
                 ytLists.orEmpty().forEach {
@@ -907,20 +907,6 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                         rows += Row(
                             ROW_YT, YouTubeAccount.ID_PREFIX + it.id, it.title,
                             "\u25B6 " + getString(R.string.source_youtube) + " \u00B7 " + songCount(it.count), it.thumb, count = it.count
-                        )
-                    }
-                }
-            }
-            // Drive folders that hold audio files, one playlist per folder (label "Drive").
-            if (openFolder == null && DriveMusic.isSignedIn(ctx)) {
-                loadDriveFolders()
-                (if (drvVideo == MusicPrefs.videoMode(ctx)) drvFolders else null).orEmpty().forEach {
-                    ytCount++
-                    if (want(F_DRIVE) && (q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q))) {
-                        rows += Row(
-                            ROW_DRIVE, DRIVE_PREFIX + it.id, it.name,
-                            "\u2601 " + getString(R.string.source_drive) + " \u00B7 " + songCount(it.tracks.size),
-                            count = it.tracks.size
                         )
                     }
                 }
@@ -934,6 +920,20 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                         rows += Row(
                             ROW_DEVICE, DEVICE_PREFIX + it.id, it.name,
                             "\uD83D\uDCC1 " + getString(StorageKind.labelRes(it.kind)) + " \u00B7 " + songCount(it.tracks.size),
+                            count = it.tracks.size
+                        )
+                    }
+                }
+            }
+            // Drive folders that hold audio files, one playlist per folder (label "Drive").
+            if (openFolder == null && DriveMusic.isSignedIn(ctx)) {
+                loadDriveFolders()
+                (if (drvVideo == MusicPrefs.videoMode(ctx)) drvFolders else null).orEmpty().forEach {
+                    ytCount++
+                    if (want(F_DRIVE) && (q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q))) {
+                        rows += Row(
+                            ROW_DRIVE, DRIVE_PREFIX + it.id, it.name,
+                            "\u2601 " + getString(R.string.source_drive) + " \u00B7 " + songCount(it.tracks.size),
                             count = it.tracks.size
                         )
                     }

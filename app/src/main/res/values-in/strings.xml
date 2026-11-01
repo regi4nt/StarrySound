@@ -1157,4 +1157,11 @@
     <string name="web_cd_close">Tutup</string>
     <string name="web_cd_reload">Muat ulang atau hentikan</string>
     <string name="web_cd_save">Simpan situs ini</string>
+    <string name="screensaver_fx_off">Mati</string>
+    <string name="screensaver_fx_ripple">Riak</string>
+    <string name="screensaver_fx_sparkle">Percikan</string>
+    <string name="screensaver_fx_glow">Cahaya</string>
+    <string name="screensaver_fx_scatter">Hamburan (hujan / bintang)</string>
+    <string name="screensaver_fx_section">Efek sentuhan</string>
+    <string name="screensaver_fx_subtitle">Cara halaman Screensaver bereaksi saat disentuh. Tidak dipakai oleh screensaver otomatis saat mengisi daya.</string>
 </resources>

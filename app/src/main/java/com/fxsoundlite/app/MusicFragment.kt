@@ -760,11 +760,11 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabLocal to R.drawable.ic_tab_device,
         binding.tabDrive to R.drawable.ic_tab_drive,
         binding.tabYoutube to R.drawable.ic_tab_youtube,
+        binding.tabRadio to R.drawable.ic_tab_radio,
         binding.tabTv to R.drawable.ic_tab_tv,
         binding.tabWeb to R.drawable.ic_tab_web,
-        binding.tabRadio to R.drawable.ic_tab_radio,
-        binding.tabSpotify to R.drawable.ic_tab_spotify,
-        binding.tabOnline to R.drawable.ic_tab_web
+        binding.tabOnline to R.drawable.ic_tab_web,
+        binding.tabSpotify to R.drawable.ic_tab_spotify
     )
 
     /**
@@ -829,18 +829,20 @@ class MusicFragment : Fragment(), MusicService.Listener {
      * Play button of the empty Spotify mini player: starts the last song played from the Spotify tab;
      * with no history (or no account connected yet) it puts the cursor in the search box instead.
      */
-    fun playFromMini() {
-        val b = _binding ?: return
-        val ctx = context ?: return
+    fun playFromMini(openPlayer: Boolean = false): Boolean {
+        val b = _binding ?: return false
+        val ctx = context ?: return false
         val svc = service ?: MusicService.instance
         val history = if (SpotifyAuth.isConnected(ctx)) MusicPrefs.spotifyHistory(ctx) else emptyList()
         if (svc != null && history.isNotEmpty()) {
             svc.setQueueAndPlay(history, 0, fromYoutubeSearch = true)
+            return openPlayer && svc.current != null
         } else {
             b.searchInput.requestFocus()
             (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
                 ?.showSoftInput(b.searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
+        return false
     }
 
     private fun updateTabs() {
