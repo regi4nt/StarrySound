@@ -149,6 +149,11 @@ class VideoPlayerActivity : AppCompatActivity() {
     private var full = false
     private var orientationBeforeFull = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
 
+    // Screen lock (landscape / full screen): every touch is ignored until the lock icon is tapped; rotation is held.
+    private var locked = false
+    private var orientationBeforeLock = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    private val hideUnlock = Runnable { if (::binding.isInitialized) binding.vpUnlock.visibility = View.GONE }
+
     // Landscape controls: portrait look to restore, and the cut-out / bar insets.
     private var panelLp: ViewGroup.LayoutParams? = null
     private var seekDefaultTrack: android.graphics.drawable.Drawable? = null
@@ -251,6 +256,8 @@ class VideoPlayerActivity : AppCompatActivity() {
             requestedOrientation = if (land) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         }
         binding.vpLandBack.setOnClickListener { exitToPortrait() }
+        binding.vpLandLock.setOnClickListener { setLocked(true) }
+        binding.vpUnlock.setOnClickListener { setLocked(false) }
         binding.vpLandVolume.setOnClickListener { showSystemVolume() }
         binding.vpLandMore.setOnClickListener { showMoreMenu(it) }
         // Keep the landscape bars clear of a camera cut-out / rounded corners.
@@ -272,6 +279,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
+                    locked -> { showUnlockButton(); Toast.makeText(this@VideoPlayerActivity, R.string.video_locked_hint, Toast.LENGTH_SHORT).show() }
                     full -> exitToPortrait()
                     resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ->
                         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
@@ -599,10 +607,12 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpLandTop.setPadding(dp(8) + i.left, dp(4) + i.top, dp(8) + i.right, dp(20))
         val c = binding.vpControls
         if (c.parent === binding.vpRoot) c.setPadding(i.left, dp(24), i.right, dp(4) + i.bottom)
+        (binding.vpUnlock.layoutParams as ViewGroup.MarginLayoutParams).marginStart = dp(24) + i.left
+        binding.vpUnlock.requestLayout()
     }
 
     private fun setOverlayShown(show: Boolean) {
-        val v = if (show) View.VISIBLE else View.GONE
+        val v = if (show && !locked) View.VISIBLE else View.GONE
         binding.vpControls.visibility = v
         val over = isOverlay()
         binding.vpLandTop.visibility = if (over) v else View.GONE
@@ -640,7 +650,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     private fun showControls(show: Boolean) {
         handler.removeCallbacks(hideControls)
         setOverlayShown(show)
-        if (show) handler.postDelayed(hideControls, 3500L)
+        if (show && !locked) handler.postDelayed(hideControls, 3500L)
     }
 
     /** Remote control / headset keys (play, pause, next, previous, channel up / down) work in the video player too. */
@@ -656,8 +666,51 @@ class VideoPlayerActivity : AppCompatActivity() {
         return true
     }
 
+    /** Locks / unlocks the screen. Only in landscape / full screen; the picture keeps playing, the controls go away. */
+    private fun setLocked(on: Boolean) {
+        if (locked == on || (on && !isOverlay())) return
+        locked = on
+        handler.removeCallbacks(hideUnlock)
+        if (on) {
+            orientationBeforeLock = requestedOrientation
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE // no turning to portrait by accident
+            handler.removeCallbacks(hideControls)
+            setOverlayShown(false)
+            showUnlockButton()
+            Toast.makeText(this, R.string.video_locked_hint, Toast.LENGTH_SHORT).show()
+        } else {
+            binding.vpUnlock.visibility = View.GONE
+            requestedOrientation = orientationBeforeLock
+            showControls(true)
+        }
+    }
+
+    /** The lock icon appears on a touch and goes away again after a moment. */
+    private fun showUnlockButton() {
+        binding.vpUnlock.visibility = View.VISIBLE
+        handler.removeCallbacks(hideUnlock)
+        handler.postDelayed(hideUnlock, 2500L)
+    }
+
     /** Any touch on the controls keeps them shown a few seconds longer. */
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (locked) {
+            // Locked: only the lock icon gets touches; a touch anywhere else just shows the icon.
+            val u = binding.vpUnlock
+            val loc = IntArray(2)
+            u.getLocationOnScreen(loc)
+            val slop = dp(8)
+            val onIcon = u.visibility == View.VISIBLE &&
+                ev.rawX >= loc[0] - slop && ev.rawX <= loc[0] + u.width + slop &&
+                ev.rawY >= loc[1] - slop && ev.rawY <= loc[1] + u.height + slop
+            if (onIcon) {
+                handler.removeCallbacks(hideUnlock)
+                handler.postDelayed(hideUnlock, 2500L)
+                return super.dispatchTouchEvent(ev)
+            }
+            if (ev.action == MotionEvent.ACTION_UP) showUnlockButton()
+            return true
+        }
         if (ev.action == MotionEvent.ACTION_UP && isOverlay() && binding.vpControls.visibility == View.VISIBLE) {
             handler.removeCallbacks(hideControls)
             handler.postDelayed(hideControls, 3500L)
@@ -1495,6 +1548,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         handler.removeCallbacks(poll)
         handler.removeCallbacks(sleepRun)
         handler.removeCallbacks(cacheTrim)
+        handler.removeCallbacks(hideUnlock)
         try { ytView?.release() } catch (e: Exception) { android.util.Log.d("VideoPlayerActivity", "ignored: " + e) }
         fileView?.stopPlayback()
         loadToken++

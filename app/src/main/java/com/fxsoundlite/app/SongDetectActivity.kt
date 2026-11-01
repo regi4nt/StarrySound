@@ -55,7 +55,16 @@ class SongDetectActivity : AppCompatActivity() {
         private val LANGS = listOf(
             "" to R.string.detect_lang_auto,
             "id-ID" to R.string.detect_lang_id,
-            "en-US" to R.string.detect_lang_en
+            "en-US" to R.string.detect_lang_en,
+            "jv-ID" to R.string.detect_lang_jv,
+            "su-ID" to R.string.detect_lang_su,
+            "ms-MY" to R.string.detect_lang_ms,
+            "ja-JP" to R.string.detect_lang_ja,
+            "ko-KR" to R.string.detect_lang_ko,
+            "zh-CN" to R.string.detect_lang_zh,
+            "hi-IN" to R.string.detect_lang_hi,
+            "ar-SA" to R.string.detect_lang_ar,
+            "es-ES" to R.string.detect_lang_es
         )
     }
 
@@ -81,6 +90,7 @@ class SongDetectActivity : AppCompatActivity() {
     private val resultsLabel by lazy { findViewById<View>(R.id.detectResultsLabel) }
     private val modeChips by lazy { findViewById<LinearLayout>(R.id.detectModes) }
     private val langChips by lazy { findViewById<LinearLayout>(R.id.detectLangs) }
+    private val langScroll by lazy { findViewById<View>(R.id.detectLangsScroll) }
 
     private var service: MusicService? = null
     private var bound = false
@@ -175,8 +185,12 @@ class SongDetectActivity : AppCompatActivity() {
 
     private fun buildLangChips() {
         langChips.removeAllViews()
-        for ((code, label) in LANGS) {
+        for ((index, pair) in LANGS.withIndex()) {
+            val (code, label) = pair
             val chip = LayoutInflater.from(this).inflate(R.layout.item_preset_chip, langChips, false) as TextView
+            // No trailing margin on the last chip, otherwise the row sits 8dp left of the middle.
+            (chip.layoutParams as LinearLayout.LayoutParams).marginEnd = if (index == LANGS.lastIndex) 0 else (8 * resources.displayMetrics.density).toInt()
+            chip.gravity = android.view.Gravity.CENTER
             chip.setText(label)
             chip.setOnClickListener {
                 lang = code
@@ -190,7 +204,7 @@ class SongDetectActivity : AppCompatActivity() {
     private fun applyMode() {
         for (i in 0 until modeChips.childCount) modeChips.getChildAt(i).isSelected = MODES[i].first == mode
         for (i in 0 until langChips.childCount) langChips.getChildAt(i).isSelected = LANGS[i].first == lang
-        langChips.visibility = if (mode == MODE_SING) View.VISIBLE else View.GONE
+        langScroll.visibility = if (mode == MODE_SING) View.VISIBLE else View.GONE
         if (mode != MODE_SING) edit.visibility = View.GONE
         subtitle.setText(
             when (mode) {

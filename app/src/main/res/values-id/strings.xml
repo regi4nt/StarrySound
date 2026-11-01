@@ -487,6 +487,15 @@
     <string name="detect_lang_auto">Otomatis</string>
     <string name="detect_lang_id">Indonesia</string>
     <string name="detect_lang_en">English</string>
+    <string name="detect_lang_jv">Jawa</string>
+    <string name="detect_lang_su">Sunda</string>
+    <string name="detect_lang_ms">Melayu</string>
+    <string name="detect_lang_ja">Jepang</string>
+    <string name="detect_lang_ko">Korea</string>
+    <string name="detect_lang_zh">Mandarin</string>
+    <string name="detect_lang_hi">Hindi</string>
+    <string name="detect_lang_ar">Arab</string>
+    <string name="detect_lang_es">Spanyol</string>
     <string name="detect_edit_hint">Ubah liriknya, lalu tekan cari</string>
     <string name="detect_hum_need_keys">Deteksi senandung butuh kunci ACRCloud. Isi di Pengaturan.</string>
     <string name="detect_listening_nearby">Mendengarkan musik di sekitar…</string>
@@ -849,6 +858,9 @@
     <string name="quick_action_video">Preview video</string>
     <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>
     <string name="video_rotate">Layar penuh</string>
+    <string name="video_lock">Kunci layar</string>
+    <string name="video_unlock">Buka kunci</string>
+    <string name="video_locked_hint">Layar terkunci. Ketuk layar, lalu ketuk ikon gembok untuk membuka.</string>
     <string name="video_back_portrait">Kembali ke potret</string>
     <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
     <string name="video_skipped">%d lagu tanpa video dilewati</string>

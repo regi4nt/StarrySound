@@ -800,10 +800,16 @@ class MusicFragment : Fragment(), MusicService.Listener {
                     tv.text = full
                     tv.setCompoundDrawablesRelative(null, null, null, null)
                     tv.contentDescription = null
-                } else if (!allFit && !showingIcon) {
-                    val d = androidx.core.content.ContextCompat.getDrawable(requireContext(), iconRes)?.mutate()
-                    if (d != null) {
-                        d.setBounds(0, 0, iconSize, iconSize)
+                } else if (!allFit) {
+                    // A start drawable is drawn at the left edge of the text area, so the icon is wrapped in an
+                    // InsetDrawable as wide as the tab's content area: the icon is then drawn exactly in the
+                    // middle, whatever the padding, tab width or rotation (rebuilt on every pass).
+                    val raw = androidx.core.content.ContextCompat.getDrawable(requireContext(), iconRes)?.mutate()
+                    if (raw != null) {
+                        val contentW = (tv.width - tv.paddingLeft - tv.paddingRight).coerceAtLeast(iconSize)
+                        val inset = (contentW - iconSize) / 2
+                        val d = android.graphics.drawable.InsetDrawable(raw, inset, 0, contentW - iconSize - inset, 0)
+                        d.setBounds(0, 0, contentW, iconSize)
                         tv.compoundDrawableTintList = tv.textColors // follows selected / unselected state
                         tv.setCompoundDrawablesRelative(d, null, null, null)
                         tv.compoundDrawablePadding = 0

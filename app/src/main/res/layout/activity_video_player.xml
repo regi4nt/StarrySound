@@ -366,6 +366,16 @@
         <!-- vpPanel (shuffle / repeat) is inserted here in landscape. -->
 
         <ImageButton
+            android:id="@+id/vpLandLock"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/video_lock"
+            android:padding="8dp"
+            android:src="@drawable/ic_lock_open"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
             android:id="@+id/vpLandVolume"
             android:layout_width="40dp"
             android:layout_height="40dp"
@@ -394,5 +404,19 @@
         android:layout_gravity="center"
         android:gravity="center"
         android:orientation="horizontal"
+        android:visibility="gone" />
+
+    <!-- Shown while the screen is locked (landscape / full screen): the only thing that reacts to touch. -->
+    <ImageButton
+        android:id="@+id/vpUnlock"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_gravity="center_vertical|start"
+        android:layout_marginStart="24dp"
+        android:background="@drawable/bg_overlay_circle"
+        android:contentDescription="@string/video_unlock"
+        android:padding="14dp"
+        android:src="@drawable/ic_lock"
+        android:tint="#FFFFFF"
         android:visibility="gone" />
 </FrameLayout>

@@ -502,6 +502,15 @@
     <string name="detect_lang_auto">Auto</string>
     <string name="detect_lang_id">Indonesian</string>
     <string name="detect_lang_en">English</string>
+    <string name="detect_lang_jv">Javanese</string>
+    <string name="detect_lang_su">Sundanese</string>
+    <string name="detect_lang_ms">Malay</string>
+    <string name="detect_lang_ja">Japanese</string>
+    <string name="detect_lang_ko">Korean</string>
+    <string name="detect_lang_zh">Chinese</string>
+    <string name="detect_lang_hi">Hindi</string>
+    <string name="detect_lang_ar">Arabic</string>
+    <string name="detect_lang_es">Spanish</string>
     <string name="detect_edit_hint">Edit the lyrics, then press search</string>
     <string name="detect_hum_need_keys">Hum detection needs ACRCloud keys. Add them in Settings.</string>
     <string name="detect_listening_nearby">Listening to the music around you…</string>
@@ -1022,6 +1031,9 @@
     <string name="quick_action_video">Video preview</string>
     <string name="private_mode_settings_desc">Do not remember what you play (history, taste, scrobbles).</string>
     <string name="video_rotate">Fullscreen</string>
+    <string name="video_lock">Lock screen</string>
+    <string name="video_unlock">Unlock</string>
+    <string name="video_locked_hint">Screen locked. Tap the screen, then the lock icon, to unlock.</string>
     <string name="video_back_portrait">Back to portrait</string>
     <string name="video_error_drive">Could not open the Drive video</string>
     <string name="video_skipped">%d songs without video were skipped</string>

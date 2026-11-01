@@ -67,12 +67,23 @@
             android:orientation="horizontal" />
 
         <!-- Language of the lyrics (sing mode only) -->
-        <LinearLayout
-            android:id="@+id/detectLangs"
+        <HorizontalScrollView
+            android:id="@+id/detectLangsScroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:orientation="horizontal" />
+            android:fillViewport="true"
+            android:overScrollMode="never"
+            android:scrollbars="none">
+
+            <!-- match_parent + fillViewport + gravity: centred when the chips fit, scrolls when they do not. -->
+            <LinearLayout
+                android:id="@+id/detectLangs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
 
         <FrameLayout
             android:layout_width="match_parent"
