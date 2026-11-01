@@ -15,7 +15,6 @@ class App : Application() {
         AutoFullscreen.install(this)
         AppLock.install(this)
         MusicPrefs.purgeLegacySpotify(this)
-        DiscordPresence.start(this)
         MusicLibrary.watchStorage(this)
         Thread { CacheCleaner.autoTrim(this) }.start()
         try {

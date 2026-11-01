@@ -61,6 +61,7 @@ class ChargingScreensaverActivity : AppCompatActivity() {
         setContentView(R.layout.activity_charging_screensaver)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        AutoFullscreen.setCutoutMode(this, true)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.systemBars())
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

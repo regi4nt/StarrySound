@@ -521,14 +521,6 @@
     <string name="detect_no_speech">Pengenalan suara tidak tersedia di perangkat ini. Isi kunci ACRCloud di Pengaturan untuk deteksi lewat senandung.</string>
     <string name="detect_opening">Membuka lagu…</string>
     <string name="detect_play_failed">Lagu tidak bisa diputar.</string>
-    <!-- Discord activity -->
-    <string name="discord_title">Aktivitas Discord</string>
-    <string name="discord_desc">Tampilkan lagu yang sedang diputar di profil Discord kamu (\"Listening to StarrySound\"), seperti Spotify.</string>
-    <string name="discord_app_id_hint">Application ID Discord</string>
-    <string name="discord_status_no_sdk">SDK Discord belum disertakan di build ini. Lihat app/src/main/cpp/discord/README.md.</string>
-    <string name="discord_status_need_id">Isi Application ID dari aplikasi Discord kamu.</string>
-    <string name="discord_status_ready">Siap. Aplikasi Discord harus terpasang dan sudah login di ponsel ini. Jeda atau mode Privat menyembunyikannya.</string>
-    <string name="discord_get_id">Buka Discord Developer Portal</string>
     <string name="acr_section">Deteksi lagu (senandung)</string>
     <string name="acr_section_subtitle">Opsional. Project gratis dari console.acrcloud.com (buat project Audio &amp; Video Recognition dan aktifkan bucket Humming). Tanpa ini, deteksi hanya bisa lewat menyanyikan liriknya.</string>
     <string name="acr_host_hint">Host (mis. identify-ap-southeast-1.acrcloud.com)</string>
@@ -668,7 +660,7 @@
     <string name="home_radio_popular">Radio populer</string>
     <string name="home_tv_reco">TV yang direkomendasikan</string>
     <string name="home_tv_popular">TV populer</string>
-    <string name="settings_cat_general_sub">Tema, warna aksen, bahasa</string>
+    <string name="settings_cat_general_sub">Tema, warna aksen, bahasa, kunci aplikasi, layar penuh, tetap memutar</string>
     <string name="settings_cat_player_sub">Cover pemutar, bentuk cover</string>
     <string name="settings_cat_screensaver_sub">Latar, jam, sapaan, lagu yang diputar, screensaver saat mengisi daya</string>
     <string name="settings_cat_online_sub">Kunci YouTube, AI, tab pencarian, kualitas audio, hemat data, Last.fm, deteksi lagu</string>
@@ -950,7 +942,7 @@
     <string name="search_tabs_title">Tab pencarian</string>
     <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>
     <string name="search_tabs_none">Hanya perangkat</string>
-    <string name="source_online">Online</string>
+    <string name="source_online">Web</string>
     <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo dan ccMixter, atau tempel link</string>
     <string name="online_src_all">Semua sumber</string>
     <string name="online_src_archive">Internet Archive</string>
@@ -994,9 +986,6 @@
     <string name="spotify_disconnect">Putuskan</string>
     <string name="spotify_import">Impor playlist</string>
     <string name="spotify_dashboard">Buka Spotify Developer Dashboard</string>
-    <string name="spotify_prev">Sebelumnya</string>
-    <string name="spotify_play_pause">Putar / jeda</string>
-    <string name="spotify_next">Berikutnya</string>
     <string name="spotify_eq">Equalizer untuk audio Spotify</string>
     <string name="spotify_login_ok">Terhubung ke Spotify.</string>
     <string name="spotify_login_failed">Masuk ke Spotify gagal: %1$s</string>

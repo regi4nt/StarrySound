@@ -101,13 +101,20 @@ salah satunya agar tidak dua-duanya memasang equalizer ke output yang sama.
   (`READ_MEDIA_AUDIO` di Android 13+, `READ_EXTERNAL_STORAGE` di bawahnya), diminta saat
   tab Musik dibuka dan tombol "Izinkan akses" ditekan.
 
-- **Sumber musik online: YouTube**: di tab **Musik** ada dua tab sumber —
-  **Perangkat** dan **YouTube**. Pencarian YouTube dijalankan lewat
+- **Sumber musik online: YouTube**: di tab **Musik** ada tab sumber —
+  **Perangkat** dan **YouTube**, plus **Drive**, **Radio**, **Spotify** dan **Web**
+  (Internet Archive, Audius, Jamendo, ccMixter; dulu bernama "Online") yang bisa
+  ditampilkan/disembunyikan di **Settings > Musik online > Tab pencarian**. Pencarian YouTube dijalankan lewat
   API key yang diisi di **Settings > Musik online**, hasilnya tampil di daftar yang sama.
   Semua kontrol (putar/jeda, sebelumnya/berikutnya, seek, acak, ulangi) ada di halaman pemutar
   ini, bukan di Screensaver. Semua sumber memakai satu `MusicService`, jadi pemutaran **tetap
   jalan di latar belakang** dengan **notifikasi media + kontrol di layar kunci/headset**
   seperti saat memutar YouTube versi web. Setup di bawah.
+
+- **Layar penuh sampai area notch**: saat bilah status disembunyikan (opsi **Layar penuh otomatis** di Settings > General,
+  pemutar video landscape/layar penuh, video web layar penuh, screensaver pengisian daya, alarm bangun),
+  gambar kini ikut menutupi area notch/kamera di tepi atas — tidak ada lagi garis hitam. Tombol kontrol
+  tetap diberi jarak dari notch. Pengaturannya ada di `AutoFullscreen.setCutoutMode()`.
 
 - **Deteksi lagu** (tile di Beranda, menggantikan tombol Screensaver; Screensaver tetap ada di tab
   navigasi bawah). Ketuk mik; ada tiga mode:

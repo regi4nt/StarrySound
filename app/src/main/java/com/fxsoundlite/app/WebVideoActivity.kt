@@ -189,6 +189,7 @@ class WebVideoActivity : AppCompatActivity() {
     private fun enterFullscreen() {
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        AutoFullscreen.setCutoutMode(this, true)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
@@ -208,6 +209,7 @@ class WebVideoActivity : AppCompatActivity() {
         // With "Automatic full screen" on, the bars stay hidden; otherwise they come back.
         if (!MusicPrefs.autoFullscreen(this)) {
             WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
+            AutoFullscreen.setCutoutMode(this, false)
         }
     }
 

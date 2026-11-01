@@ -748,7 +748,8 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE
         binding.tabOnline.visibility = if (tabAllowed(Track.SOURCE_ONLINE)) View.VISIBLE else View.GONE
         binding.tabRadio.visibility = if (tabAllowed(Track.SOURCE_RADIO)) View.VISIBLE else View.GONE
-        binding.tabSpotify.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.SPOTIFY)) View.VISIBLE else View.GONE
+        // Spotify has no video either: hidden in video mode, like Online and Radio.
+        binding.tabSpotify.visibility = if (!MusicPrefs.videoMode(ctx) && SearchTabs.isShown(ctx, SearchTabs.Tab.SPOTIFY)) View.VISIBLE else View.GONE
         binding.tabTv.visibility = if (tabAllowed(Track.SOURCE_TV)) View.VISIBLE else View.GONE
         binding.tabWeb.visibility = if (MusicPrefs.videoMode(ctx) && SearchTabs.isShown(ctx, SearchTabs.Tab.WEB)) View.VISIBLE else View.GONE
                 updateFilterButton()

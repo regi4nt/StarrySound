@@ -54,22 +54,6 @@ android {
         jvmTarget = '17'
     }
 
-    // Discord activity ("Listening to ..."): the native bridge is only built once the Discord Social SDK has been
-    // unpacked into src/main/cpp/discord/sdk (see the README there). Without it the app builds as usual.
-    // The folder alone is not enough (the header may be committed without the binaries): require a real
-    // libdiscord_partner_sdk.so for every ABI we ship, otherwise skip the native build.
-    def discordSdkDir = file('src/main/cpp/discord/sdk')
-    def discordSdkReady = ['arm64-v8a', 'armeabi-v7a'].every { abi ->
-        ['lib/' + abi, abi, 'libs/' + abi].any { new File(discordSdkDir, it + '/libdiscord_partner_sdk.so').exists() }
-    }
-    if (discordSdkReady) {
-        externalNativeBuild {
-            cmake {
-                path 'src/main/cpp/discord/CMakeLists.txt'
-            }
-        }
-    }
-
     buildFeatures {
         viewBinding true
         buildConfig true
@@ -84,8 +68,6 @@ android {
 }
 
 dependencies {
-    // Optional jar that ships with the Discord Social SDK (see src/main/cpp/discord/README.md).
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     // App lock: fingerprint / face / screen-lock prompt (BiometricPrompt).

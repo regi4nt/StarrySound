@@ -715,7 +715,6 @@ class SettingsActivity : AppCompatActivity() {
             }
         })
         setupAiSection()
-        setupDiscordSection()
         setupSpotifySection()
         setupPrivateSection()
         setupKeyLinks()
@@ -805,9 +804,6 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
         binding.spotifyImportButton.setOnClickListener { startSpotifyImport() }
-        binding.spotifyPrevButton.setOnClickListener { SpotifyRemote.previous(this) }
-        binding.spotifyToggleButton.setOnClickListener { SpotifyRemote.playPause(this) }
-        binding.spotifyNextButton.setOnClickListener { SpotifyRemote.next(this) }
         refreshSpotifyStatus()
     }
 
@@ -873,38 +869,6 @@ class SettingsActivity : AppCompatActivity() {
                 if (!isFinishing) refreshSpotifyStatus()
             }
         }.start()
-    }
-
-    private fun setupDiscordSection() {
-        binding.discordSwitch.setOnCheckedChangeListener(null)
-        binding.discordSwitch.isChecked = DiscordPresence.enabled(this)
-        binding.discordAppIdInput.setText(DiscordPresence.appId(this))
-        binding.discordPortalLink.text = getString(R.string.discord_get_id)
-        binding.discordPortalLink.setOnClickListener { openLink("https://discord.com/developers/applications") }
-        fun status() {
-            binding.discordStatus.setText(
-                when {
-                    DiscordPresence.appId(this).isBlank() -> R.string.discord_status_need_id
-                    DiscordPresence.enabled(this) && !DiscordPresence.sdkAvailable() -> R.string.discord_status_no_sdk
-                    else -> R.string.discord_status_ready
-                }
-            )
-        }
-        status()
-        binding.discordSwitch.setOnCheckedChangeListener { _, checked ->
-            DiscordPresence.setEnabled(this, checked)
-            DiscordPresence.refresh(this)
-            status()
-        }
-        binding.discordAppIdInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                DiscordPresence.setAppId(this@SettingsActivity, s?.toString().orEmpty())
-                DiscordPresence.refresh(this@SettingsActivity)
-                status()
-            }
-        })
     }
 
     private fun setupAiSection() {

@@ -595,7 +595,7 @@
     <string name="home_radio_popular">Radio populer</string>
     <string name="home_tv_reco">TV yang direkomendasikan</string>
     <string name="home_tv_popular">TV populer</string>
-    <string name="settings_cat_general_sub">Tema, warna aksen, bahasa</string>
+    <string name="settings_cat_general_sub">Tema, warna aksen, bahasa, kunci aplikasi, layar penuh, tetap memutar</string>
     <string name="settings_cat_player_sub">Cover pemutar, bentuk cover</string>
     <string name="settings_cat_screensaver_sub">Latar, jam, sapaan, lagu yang diputar, screensaver saat mengisi daya</string>
     <string name="settings_cat_online_sub">Kunci YouTube, AI, hemat data, Last.fm, deteksi lagu</string>
@@ -821,9 +821,6 @@
     <string name="spotify_disconnect">Putuskan</string>
     <string name="spotify_import">Impor playlist</string>
     <string name="spotify_dashboard">Buka Spotify Developer Dashboard</string>
-    <string name="spotify_prev">Sebelumnya</string>
-    <string name="spotify_play_pause">Putar / jeda</string>
-    <string name="spotify_next">Berikutnya</string>
     <string name="spotify_eq">Equalizer untuk audio Spotify</string>
     <string name="spotify_login_ok">Terhubung ke Spotify.</string>
     <string name="spotify_login_failed">Masuk ke Spotify gagal: %1$s</string>

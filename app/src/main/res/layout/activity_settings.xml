@@ -697,6 +697,176 @@
             </RadioGroup>
         </LinearLayout>
 
+                <!-- Automatic full screen: hide the status and navigation bars in the whole app. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/auto_fullscreen_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/auto_fullscreen_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/autoFullscreenSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Keep the music playing after the app is swiped away from the recent apps. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/keep_playing_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/keep_playing_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/keepPlayingSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- App lock: fingerprint / face / screen lock when the app is opened. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/app_lock_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/app_lock_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/appLockSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/appLockDelayRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/app_lock_delay_title"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/appLockDelayValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="?attr/colorAccent"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+
         </LinearLayout>
 
         <LinearLayout
@@ -892,176 +1062,6 @@
             </LinearLayout>
         </LinearLayout>
 
-
-        <!-- Automatic full screen: hide the status and navigation bars in the whole app. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/auto_fullscreen_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/auto_fullscreen_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/autoFullscreenSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Keep the music playing after the app is swiped away from the recent apps. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/keep_playing_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/keep_playing_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/keepPlayingSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- App lock: fingerprint / face / screen lock when the app is opened. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/app_lock_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/app_lock_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/appLockSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/appLockDelayRow"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="14dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/app_lock_delay_title"
-                    android:textColor="?attr/colorTextPrimary"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/appLockDelayValue"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </LinearLayout>
 
         <!-- Colours from the cover + skipping non-music parts of YouTube songs -->
         <LinearLayout
@@ -1573,6 +1573,322 @@
             <include layout="@layout/item_setting_jamendo_key" />
         </LinearLayout>
 
+        <!-- Taste signals: what YouTube Music plays on this phone, and the YouTube account's likes /
+             subscriptions. Both feed Quick, the Home shelves, AI picks and generated playlists
+             (see TasteSignals). On-device only. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:layout_marginTop="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/taste_section"
+                android:textColor="?attr/colorTextPrimary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/taste_section_subtitle"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/taste_ext_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/taste_ext_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/tasteExtSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tasteExtStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/tasteExtAccessBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:backgroundTint="?attr/colorAccent"
+                android:textColor="?attr/colorOnAccent"
+                android:text="@string/charging_grant_btn"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/tasteExtClearBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                style="?android:attr/buttonBarButtonStyle"
+                android:textColor="?attr/colorAccent"
+                android:text="@string/taste_clear_btn"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/taste_acc_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/taste_acc_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/tasteAccSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tasteAccStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/tasteAccClearBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                style="?android:attr/buttonBarButtonStyle"
+                android:textColor="?attr/colorAccent"
+                android:text="@string/taste_clear_btn"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- AI card: pick Gemini / OpenAI / Anthropic, then that service's own API key + optional model. Saved as you type. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:layout_marginTop="14dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_section"
+                android:textColor="?attr/colorTextPrimary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/ai_section_subtitle"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/aiProviderGemini"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="4dp"
+                    android:text="Gemini"
+                    android:textColor="?attr/colorTextPrimary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/aiProviderOpenai"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="4dp"
+                    android:text="OpenAI"
+                    android:textColor="?attr/colorTextPrimary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/aiProviderAnthropic"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:minWidth="0dp"
+                    android:paddingHorizontal="4dp"
+                    android:text="Anthropic"
+                    android:textColor="?attr/colorTextPrimary" />
+            </LinearLayout>
+
+            <EditText
+                android:id="@+id/aiKeyInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/input_bg"
+                android:hint="@string/ai_key_hint"
+                android:importantForAutofill="no"
+                android:inputType="textPassword"
+                android:imeOptions="actionDone"
+                android:maxLines="1"
+                android:minHeight="48dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="?attr/colorTextPrimary"
+                android:textColorHint="?attr/colorTextSecondary"
+                android:textSize="14sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/aiGetKeyLink"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginTop="2dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="6dp"
+                android:textAllCaps="false"
+                android:textColor="?attr/colorAccent"
+                android:textSize="13sp" />
+
+            <EditText
+                android:id="@+id/aiModelInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/input_bg"
+                android:importantForAutofill="no"
+                android:inputType="text"
+                android:imeOptions="actionDone"
+                android:maxLines="1"
+                android:minHeight="48dp"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:textColor="?attr/colorTextPrimary"
+                android:textColorHint="?attr/colorTextSecondary"
+                android:textSize="14sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/ai_balance_title"
+                        android:textColor="?attr/colorTextPrimary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/ai_balance_desc"
+                        android:textColor="?attr/colorTextSecondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/aiBalanceSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- YouTube card: Data API v3 key used for searching. Saved as you type. -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -1746,88 +2062,40 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- AI card: pick Gemini / OpenAI / Anthropic, then that service's own API key + optional model. Saved as you type. -->
+        <!-- Spotify: import playlists + remote control of the Spotify app -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
             android:orientation="vertical"
             android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginTop="14dp">
+            android:padding="16dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/ai_section"
+                android:text="@string/spotify_title"
                 android:textColor="?attr/colorTextPrimary"
                 android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="@string/ai_section_subtitle"
+                android:text="@string/spotify_desc"
                 android:textColor="?attr/colorTextSecondary"
                 android:textSize="12sp" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal">
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/aiProviderGemini"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:minWidth="0dp"
-                    android:paddingHorizontal="4dp"
-                    android:text="Gemini"
-                    android:textColor="?attr/colorTextPrimary" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/aiProviderOpenai"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:minWidth="0dp"
-                    android:paddingHorizontal="4dp"
-                    android:text="OpenAI"
-                    android:textColor="?attr/colorTextPrimary" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/aiProviderAnthropic"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:minWidth="0dp"
-                    android:paddingHorizontal="4dp"
-                    android:text="Anthropic"
-                    android:textColor="?attr/colorTextPrimary" />
-            </LinearLayout>
-
             <EditText
-                android:id="@+id/aiKeyInput"
+                android:id="@+id/spotifyClientInput"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:background="@drawable/input_bg"
-                android:hint="@string/ai_key_hint"
+                android:hint="@string/spotify_client_hint"
                 android:importantForAutofill="no"
-                android:inputType="textPassword"
+                android:inputType="textNoSuggestions"
                 android:imeOptions="actionDone"
                 android:maxLines="1"
                 android:minHeight="48dp"
@@ -1837,204 +2105,65 @@
                 android:textColorHint="?attr/colorTextSecondary"
                 android:textSize="14sp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/aiGetKeyLink"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
-                android:layout_marginTop="2dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:minWidth="0dp"
-                android:paddingHorizontal="6dp"
-                android:textAllCaps="false"
-                android:textColor="?attr/colorAccent"
-                android:textSize="13sp" />
-
-            <EditText
-                android:id="@+id/aiModelInput"
+            <TextView
+                android:id="@+id/spotifyStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:background="@drawable/input_bg"
-                android:importantForAutofill="no"
-                android:inputType="text"
-                android:imeOptions="actionDone"
-                android:maxLines="1"
-                android:minHeight="48dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:textColor="?attr/colorTextPrimary"
-                android:textColorHint="?attr/colorTextSecondary"
-                android:textSize="14sp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/ai_balance_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/ai_balance_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/aiBalanceSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Taste signals: what YouTube Music plays on this phone, and the YouTube account's likes /
-             subscriptions. Both feed Quick, the Home shelves, AI picks and generated playlists
-             (see TasteSignals). On-device only. -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginTop="14dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/taste_section"
-                android:textColor="?attr/colorTextPrimary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/taste_section_subtitle"
                 android:textColor="?attr/colorTextSecondary"
                 android:textSize="12sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
 
-                <LinearLayout
+                <TextView
+                    android:id="@+id/spotifyConnectButton"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:minHeight="40dp"
+                    android:textAllCaps="false"
+                    android:textColor="?attr/colorAccent"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/taste_ext_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/taste_ext_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/tasteExtSwitch"
-                    android:layout_width="wrap_content"
+                <TextView
+                    android:id="@+id/spotifyImportButton"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
+                    android:layout_weight="1"
+                    android:background="?attr/selectableItemBackground"
+                    android:gravity="center_vertical"
+                    android:minHeight="40dp"
+                    android:text="@string/spotify_import"
+                    android:textAllCaps="false"
+                    android:textColor="?attr/colorAccent"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
             </LinearLayout>
-
-            <TextView
-                android:id="@+id/tasteExtStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/tasteExtAccessBtn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:backgroundTint="?attr/colorAccent"
-                android:textColor="?attr/colorOnAccent"
-                android:text="@string/charging_grant_btn"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/tasteExtClearBtn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                style="?android:attr/buttonBarButtonStyle"
-                android:textColor="?attr/colorAccent"
-                android:text="@string/taste_clear_btn"
-                android:visibility="gone" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/taste_acc_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="13sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/taste_acc_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
+                    android:text="@string/spotify_eq"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="13sp" />
 
                 <Switch
-                    android:id="@+id/tasteAccSwitch"
+                    android:id="@+id/spotifyEqSwitch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
@@ -2043,23 +2172,16 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/tasteAccStatus"
-                android:layout_width="match_parent"
+                android:id="@+id/spotifyDashLink"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp"
-                android:visibility="gone" />
-
-            <Button
-                android:id="@+id/tasteAccClearBtn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                style="?android:attr/buttonBarButtonStyle"
+                android:layout_marginTop="6dp"
+                android:background="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:minHeight="40dp"
+                android:textAllCaps="false"
                 android:textColor="?attr/colorAccent"
-                android:text="@string/taste_clear_btn"
-                android:visibility="gone" />
+                android:textSize="13sp" />
         </LinearLayout>
 
         <!-- Last.fm: own API key + secret (saved as you type), web login, scrobbling + taste switches. -->
@@ -2350,255 +2472,6 @@
                 android:textSize="13sp" />
         </LinearLayout>
 
-        <!-- Discord activity: "Listening to ..." on the Discord profile (Discord Social SDK, see DiscordPresence). -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/discord_title"
-                        android:textColor="?attr/colorTextPrimary"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/discord_desc"
-                        android:textColor="?attr/colorTextSecondary"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <Switch
-                    android:id="@+id/discordSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-
-            <EditText
-                android:id="@+id/discordAppIdInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/input_bg"
-                android:hint="@string/discord_app_id_hint"
-                android:importantForAutofill="no"
-                android:inputType="number"
-                android:imeOptions="actionDone"
-                android:maxLines="1"
-                android:minHeight="48dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:textColor="?attr/colorTextPrimary"
-                android:textColorHint="?attr/colorTextSecondary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/discordStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/discordPortalLink"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:background="?attr/selectableItemBackground"
-                android:minHeight="40dp"
-                android:gravity="center_vertical"
-                android:textAllCaps="false"
-                android:textColor="?attr/colorAccent"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <!-- Spotify: import playlists + remote control of the Spotify app -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/spotify_title"
-                android:textColor="?attr/colorTextPrimary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="@string/spotify_desc"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp" />
-
-            <EditText
-                android:id="@+id/spotifyClientInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/input_bg"
-                android:hint="@string/spotify_client_hint"
-                android:importantForAutofill="no"
-                android:inputType="textNoSuggestions"
-                android:imeOptions="actionDone"
-                android:maxLines="1"
-                android:minHeight="48dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:textColor="?attr/colorTextPrimary"
-                android:textColorHint="?attr/colorTextSecondary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/spotifyStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/spotifyConnectButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="40dp"
-                    android:textAllCaps="false"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/spotifyImportButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="40dp"
-                    android:text="@string/spotify_import"
-                    android:textAllCaps="false"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/spotifyPrevButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="40dp"
-                    android:text="@string/spotify_prev"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/spotifyToggleButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="40dp"
-                    android:text="@string/spotify_play_pause"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="13sp" />
-
-                <TextView
-                    android:id="@+id/spotifyNextButton"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="?attr/selectableItemBackground"
-                    android:gravity="center_vertical"
-                    android:minHeight="40dp"
-                    android:text="@string/spotify_next"
-                    android:textColor="?attr/colorAccent"
-                    android:textSize="13sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/spotify_eq"
-                    android:textColor="?attr/colorTextPrimary"
-                    android:textSize="13sp" />
-
-                <Switch
-                    android:id="@+id/spotifyEqSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/spotifyDashLink"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:background="?attr/selectableItemBackground"
-                android:gravity="center_vertical"
-                android:minHeight="40dp"
-                android:textAllCaps="false"
-                android:textColor="?attr/colorAccent"
-                android:textSize="13sp" />
-        </LinearLayout>
         </LinearLayout>
 
         <LinearLayout

@@ -15,7 +15,7 @@ object SearchTabs {
         TV("tv", R.string.source_tv), // live TV, only in video mode, right of YouTube
         WEB("web", R.string.source_web, false), // browser for videos on websites, only in video mode, right of TV; hidden until switched on here
         RADIO("radio", R.string.source_radio),
-        SPOTIFY("spotify", R.string.source_spotify, false), // opens the Spotify player screen, right of Radio
+        SPOTIFY("spotify", R.string.source_spotify, false), // opens the Spotify player screen, right of Radio; not shown in video mode
         ONLINE("online", R.string.source_online, false) // Internet Archive / Audius / Jamendo / ccMixter, right of Radio
     }
 

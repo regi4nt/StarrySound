@@ -66,6 +66,7 @@ class WakeAlarmActivity : AppCompatActivity() {
         // Edge to edge over the Screensaver background; the controls get the bar insets as padding so the
         // Stop button is never hidden under the gesture / navigation bar.
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        AutoFullscreen.setCutoutMode(this, true)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
         window.navigationBarColor = android.graphics.Color.TRANSPARENT
         WindowCompat.getInsetsController(window, window.decorView).apply {

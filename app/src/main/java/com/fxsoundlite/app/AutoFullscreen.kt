@@ -66,7 +66,7 @@ object AutoFullscreen {
     }
 
     /** With a camera cut-out the picture otherwise stops below it (a black strip) once the status bar is gone. */
-    private fun setCutoutMode(a: Activity, fullscreen: Boolean) {
+    fun setCutoutMode(a: Activity, fullscreen: Boolean) {
         if (Build.VERSION.SDK_INT < 28) return
         val lp = a.window.attributes
         lp.layoutInDisplayCutoutMode = if (fullscreen) WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES

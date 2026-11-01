@@ -500,6 +500,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val immersive = land || full
         val controller = WindowInsetsControllerCompat(window, window.decorView)
         WindowCompat.setDecorFitsSystemWindows(window, !immersive)
+        AutoFullscreen.setCutoutMode(this, immersive) // picture reaches the very top, behind the notch / status area
         if (immersive) {
             controller.hide(WindowInsetsCompat.Type.systemBars())
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
