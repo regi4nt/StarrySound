@@ -5,7 +5,8 @@ import androidx.appcompat.app.AlertDialog
 
 /**
  * Which online tabs the Search screen shows (Settings > Online music > Search tabs).
- * The Device tab is always there; the Drive tab (right of it), YouTube, TV, Web, Online, Radio and Spotify can be switched off. YouTube, TV and Radio are on by default; Web, Online and Spotify stay hidden until switched on here.
+ * The Device tab is always there; the Drive tab (right of it), YouTube, TV, Web, Radio and Spotify can be switched off. YouTube, TV and Radio are on by default; Web and Spotify stay hidden until switched on here.
+ * One Web switch drives both Web tabs: the video-mode website browser and the music-mode Internet Archive / Audius / Jamendo / ccMixter tab.
  */
 object SearchTabs {
 
@@ -13,10 +14,9 @@ object SearchTabs {
         DRIVE("drive", R.string.source_drive), // Google Drive songs / videos, right of Device
         YOUTUBE("youtube", R.string.source_youtube),
         TV("tv", R.string.source_tv), // live TV, only in video mode, right of YouTube
-        WEB("web", R.string.source_web, false), // browser for videos on websites, only in video mode, right of TV; hidden until switched on here
+        WEB("web", R.string.source_web, false), // one switch for both Web tabs: video mode = browser for videos on websites (right of TV); music mode = Internet Archive / Audius / Jamendo / ccMixter (right of Radio); hidden until switched on here
         RADIO("radio", R.string.source_radio),
-        SPOTIFY("spotify", R.string.source_spotify, false), // opens the Spotify player screen, right of Radio; not shown in video mode
-        ONLINE("online", R.string.source_online, false) // Internet Archive / Audius / Jamendo / ccMixter, right of Radio
+        SPOTIFY("spotify", R.string.source_spotify, false) // opens the Spotify player screen, right of Radio; not shown in video mode
     }
 
     private const val PREFS = "search_tabs"
@@ -24,7 +24,14 @@ object SearchTabs {
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
-    fun isShown(context: Context, tab: Tab): Boolean = prefs(context).getBoolean(PREFIX + tab.key, tab.defaultOn)
+    fun isShown(context: Context, tab: Tab): Boolean {
+        val p = prefs(context)
+        // The old separate "Online" switch was merged into Web: if Web was never set but Online was on, keep it on.
+        if (tab == Tab.WEB && !p.contains(PREFIX + tab.key) && p.contains(PREFIX + "online")) {
+            return p.getBoolean(PREFIX + "online", false)
+        }
+        return p.getBoolean(PREFIX + tab.key, tab.defaultOn)
+    }
 
     fun setShown(context: Context, tab: Tab, shown: Boolean) {
         prefs(context).edit().putBoolean(PREFIX + tab.key, shown).apply()

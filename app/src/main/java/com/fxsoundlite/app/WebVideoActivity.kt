@@ -190,6 +190,7 @@ class WebVideoActivity : AppCompatActivity() {
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         AutoFullscreen.setCutoutMode(this, true)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false) // reach the very top, no empty strip
         WindowInsetsControllerCompat(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             hide(WindowInsetsCompat.Type.systemBars())
@@ -210,6 +211,7 @@ class WebVideoActivity : AppCompatActivity() {
         if (!MusicPrefs.autoFullscreen(this)) {
             WindowInsetsControllerCompat(window, window.decorView).show(WindowInsetsCompat.Type.systemBars())
             AutoFullscreen.setCutoutMode(this, false)
+            androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
         }
     }
 

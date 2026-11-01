@@ -126,12 +126,17 @@ class QuickFragment : Fragment(), QuickActions {
             if (!visible || engine == null || suppressAutoStart) return
             // The preview was started silent while the user's music kept playing: only now, when it really
             // has sound, pause that music and give the preview full volume (see startPreview).
-            if (!audioTaken) {
-                takeAudio()
-                engine?.setVolume(1f)
-            }
+            if (!audioTaken) takeAudio()
             previewStarted = true
             errorStreak = 0
+            // Playback has begun: only now seek to the chorus (tick() then does not repeat it).
+            if (!seekFixed) {
+                seekFixed = true
+                engine?.seekTo(clipStart.toInt())
+                unmuteWhenSeeked() // silent until the jump is done, so the start of the song is never heard
+            } else {
+                engine?.setVolume(1f)
+            }
             updateUi()
         }
 
@@ -367,15 +372,16 @@ class QuickFragment : Fragment(), QuickActions {
         val e = engine ?: YouTubeStreamEngine(requireContext(), handler, engineCallback).also { engine = it }
         e.onVideoSize = { w, h -> holderAt(currentPos)?.b?.quickVideo?.let { QuickAdapter.cropToFill(it, w, h) } }
         holderAt(pos)?.b?.quickVideo?.let { QuickAdapter.cropToFill(it, 0, 0) } // the new clip has its own size
-        e.setVolume(if (waitForSound) 0f else 1f)
+        cancelUnmute()
+        e.setVolume(0f) // silent until onStarted() has jumped to the chorus
         e.videoMode = videoOn()
         // The reel's video view must be on screen for its surface to exist: switch it on before the player starts.
         val vh0 = holderAt(pos)
         if (e.videoMode) vh0?.b?.quickVideo?.visibility = View.VISIBLE
         e.setSurface(if (e.videoMode) vh0?.surface else null) // (a reel whose view is not ready yet reports it later)
         e.load(t)
-        // Called before the stream is ready: the engine starts at this position once it is.
-        e.seekTo(clipStart.toInt())
+        // Like the main player: no seek while the stream is still loading. play() only asks to start; the jump to
+        // the chorus is made in onStarted(), once the sound has really begun.
         e.play()
         // Resolve the next reels' stream links now (two ahead, one in data-saver mode), so swiping
         // to them starts without waiting for YouTube to be asked.
@@ -409,8 +415,35 @@ class QuickFragment : Fragment(), QuickActions {
         am.requestAudioFocus(req)
     }
 
+    private var unmute: Runnable? = null
+
+    private fun cancelUnmute() {
+        unmute?.let { handler.removeCallbacks(it) }
+        unmute = null
+    }
+
+    /** Gives the preview its sound once the seek to the chorus has landed (or after 0.9 s at most). */
+    private fun unmuteWhenSeeked() {
+        cancelUnmute()
+        val t0 = android.os.SystemClock.uptimeMillis()
+        val r = object : Runnable {
+            override fun run() {
+                val e = engine ?: return
+                if (e.position >= clipStart - 500 || android.os.SystemClock.uptimeMillis() - t0 > 900) {
+                    unmute = null
+                    e.setVolume(1f)
+                } else {
+                    handler.postDelayed(this, 50)
+                }
+            }
+        }
+        unmute = r
+        handler.postDelayed(r, 50)
+    }
+
     /** Stops the preview engine and gives audio focus back. Does not touch [MusicService]. */
     private fun stopPreviewAudio() {
+        cancelUnmute()
         engine?.setVolume(0f) // nothing a late-arriving stream could play is audible
         engine?.release()
         audioTaken = false

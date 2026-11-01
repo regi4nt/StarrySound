@@ -103,7 +103,7 @@ salah satunya agar tidak dua-duanya memasang equalizer ke output yang sama.
 
 - **Sumber musik online: YouTube**: di tab **Musik** ada tab sumber —
   **Perangkat** dan **YouTube**, plus **Drive**, **Radio**, **Spotify** dan **Web**
-  (Internet Archive, Audius, Jamendo, ccMixter; dulu bernama "Online") yang bisa
+  (satu saklar untuk dua tab: di mode video berupa browser situs video, di mode musik berupa Internet Archive, Audius, Jamendo, ccMixter; dulu "Online") yang bisa
   ditampilkan/disembunyikan di **Settings > Musik online > Tab pencarian**. Pencarian YouTube dijalankan lewat
   API key yang diisi di **Settings > Musik online**, hasilnya tampil di daftar yang sama.
   Semua kontrol (putar/jeda, sebelumnya/berikutnya, seek, acak, ulangi) ada di halaman pemutar
@@ -114,7 +114,7 @@ salah satunya agar tidak dua-duanya memasang equalizer ke output yang sama.
 - **Layar penuh sampai area notch**: saat bilah status disembunyikan (opsi **Layar penuh otomatis** di Settings > General,
   pemutar video landscape/layar penuh, video web layar penuh, screensaver pengisian daya, alarm bangun),
   gambar kini ikut menutupi area notch/kamera di tepi atas — tidak ada lagi garis hitam. Tombol kontrol
-  tetap diberi jarak dari notch. Pengaturannya ada di `AutoFullscreen.setCutoutMode()`.
+  tetap diberi jarak dari notch. Pengaturannya ada di `AutoFullscreen` (jendela digambar edge-to-edge, tanpa strip kosong setinggi notch/status bar di atas).
 
 - **Deteksi lagu** (tile di Beranda, menggantikan tombol Screensaver; Screensaver tetap ada di tab
   navigasi bawah). Ketuk mik; ada tiga mode:

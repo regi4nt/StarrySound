@@ -722,7 +722,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         Track.SOURCE_YOUTUBE -> SearchTabs.isShown(requireContext(), SearchTabs.Tab.YOUTUBE)
         // Online (Archive / Audius / Jamendo ...) and Radio have no video: hidden in video mode.
         Track.SOURCE_TV -> MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.TV) // live TV needs the video player
-        Track.SOURCE_ONLINE -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.ONLINE)
+        Track.SOURCE_ONLINE -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.WEB)
         Track.SOURCE_RADIO -> !MusicPrefs.videoMode(requireContext()) && SearchTabs.isShown(requireContext(), SearchTabs.Tab.RADIO)
         else -> true
     }

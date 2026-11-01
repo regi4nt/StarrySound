@@ -164,12 +164,12 @@
     <!-- Sumber musik online (YouTube) -->
     <string name="source_local">Perangkat</string>
     <string name="source_drive">Drive</string>
-    <string name="drive_music_need_signin">Masuk dengan Google untuk memutar musik di Google Drive-mu.</string>
+    <string name="drive_music_need_signin">Masuk dengan Google untuk memakai Google Drive-mu.</string>
     <string name="drive_music_open_settings">Buka pengaturan</string>
-    <string name="drive_music_loading">Memuat musik Google Drive…</string>
-    <string name="drive_music_error">Musik Drive tidak bisa dimuat</string>
+    <string name="drive_music_loading">Memuat Google Drive…</string>
+    <string name="drive_music_error">Google Drive tidak bisa dimuat</string>
     <string name="drive_music_empty">Tidak ada file audio di Google Drive-mu.</string>
-    <string name="drive_music_no_permission">Akses Google Drive tidak diizinkan, jadi musik Drive tidak bisa ditampilkan.</string>
+    <string name="drive_music_no_permission">Akses Google Drive tidak diizinkan, jadi Google Drive tidak bisa ditampilkan.</string>
     <string name="drive_music_play_failed">Lagu ini tidak bisa diunduh dari Google Drive</string>
     <string name="out_preset_title">Preset otomatis per output</string>
     <string name="out_preset_desc">Setiap output (speaker, colokan headphone, Bluetooth) mengingat presetnya sendiri dan beralih otomatis. Pilih preset saat output itu aktif untuk mengaturnya, atau ketuk baris di bawah.</string>

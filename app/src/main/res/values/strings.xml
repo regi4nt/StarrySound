@@ -171,12 +171,12 @@
     <!-- Online music sources (YouTube) -->
     <string name="source_local">Device</string>
     <string name="source_drive">Drive</string>
-    <string name="drive_music_need_signin">Sign in with Google to play the music in your Google Drive.</string>
+    <string name="drive_music_need_signin">Sign in with Google to use your Google Drive.</string>
     <string name="drive_music_open_settings">Open settings</string>
-    <string name="drive_music_loading">Loading your Google Drive music…</string>
-    <string name="drive_music_error">Could not load your Drive music</string>
+    <string name="drive_music_loading">Loading Google Drive…</string>
+    <string name="drive_music_error">Could not load Google Drive</string>
     <string name="drive_music_empty">No audio files found in your Google Drive.</string>
-    <string name="drive_music_no_permission">Google Drive access was not allowed, so your Drive music cannot be shown.</string>
+    <string name="drive_music_no_permission">Google Drive access was not allowed, so Google Drive cannot be shown.</string>
     <string name="drive_music_play_failed">Could not download this song from Google Drive</string>
     <string name="out_preset_title">Auto preset per output</string>
     <string name="out_preset_desc">Each output (speaker, headphone jack, Bluetooth) remembers its own preset and switches to it automatically. Pick a preset while an output is active to set it, or tap a row below.</string>

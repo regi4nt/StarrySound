@@ -4,7 +4,10 @@ import android.app.Activity
 import android.app.Application
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.view.WindowManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import java.util.Collections
@@ -55,14 +58,38 @@ object AutoFullscreen {
         val w = a.window
         val controller = WindowInsetsControllerCompat(w, w.decorView)
         if (MusicPrefs.autoFullscreen(a)) {
+            // Draw edge to edge: otherwise the system keeps an empty strip the height of the notch / status bar at the top.
+            WindowCompat.setDecorFitsSystemWindows(w, false)
             setCutoutMode(a, true)
+            installInsets(a)
             controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             controller.hide(WindowInsetsCompat.Type.systemBars())
             hidden.add(a)
         } else if (hidden.remove(a)) {
             controller.show(WindowInsetsCompat.Type.systemBars())
             setCutoutMode(a, false)
+            WindowCompat.setDecorFitsSystemWindows(w, true)
+            a.findViewById<View>(android.R.id.content)?.let {
+                ViewCompat.setOnApplyWindowInsetsListener(it, null)
+                it.setPadding(0, 0, 0, 0)
+                ViewCompat.requestApplyInsets(it)
+            }
         }
+    }
+
+    /**
+     * With the window edge to edge the page no longer shrinks for the keyboard by itself, so lift it by the keyboard height,
+     * and keep it clear of a side cut-out in landscape. The top is left alone on purpose: the picture reaches the top edge.
+     */
+    private fun installInsets(a: Activity) {
+        val content = a.findViewById<View>(android.R.id.content) ?: return
+        ViewCompat.setOnApplyWindowInsetsListener(content) { v, insets ->
+            val cut = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            v.setPadding(cut.left, 0, cut.right, ime.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(content)
     }
 
     /** With a camera cut-out the picture otherwise stops below it (a black strip) once the status bar is gone. */
