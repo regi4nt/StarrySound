@@ -247,6 +247,10 @@
     <string name="np_more">Opsi lainnya</string>
     <string name="np_sleep_timer">Timer tidur</string>
     <string name="np_share">Bagikan lagu</string>
+    <string name="np_find_flac">Cari versi FLAC</string>
+    <string name="np_find_flac_searching">Mencari salinan FLAC…</string>
+    <string name="np_find_flac_none">Tidak ada salinan FLAC di Internet Archive</string>
+    <string name="np_find_flac_found">Memutar FLAC dari: %1$s</string>
     <string name="np_info">Info lagu</string>
     <string name="np_timer_off">Mati</string>
     <string name="np_timer_running">Timer tidur · berhenti dalam %s</string>
@@ -898,6 +902,7 @@
     <string name="pip_pause">Jeda</string>
     <string name="pip_prev">Video sebelumnya</string>
     <string name="pip_next">Video berikutnya</string>
+    <string name="sp_mini_hint">Ketuk putar untuk lagu terakhir, atau cari lagu</string>
     <string name="source_spotify">Spotify</string>
     <string name="sp_title">Pemutar Spotify</string>
     <string name="sp_playlists">Playlist</string>

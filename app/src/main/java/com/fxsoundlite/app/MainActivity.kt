@@ -167,7 +167,8 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             PlayerMode.init(this)
             val svc = MusicService.instance
             val cur = svc?.current
-            if (svc != null && cur != null && PlayerMode.isVideo(cur)) {
+            if (cur == null) { spotifyTabFragment()?.playFromMini(); return@setOnClickListener } // empty Spotify mini player
+            if (svc != null && PlayerMode.isVideo(cur)) {
                 // Last used in video mode: the bar reopens the video at the second the audio reached.
                 val pos = svc.position.toLong()
                 if (svc.isPlaying) svc.pause()
@@ -180,7 +181,10 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         binding.miniAddPlaylist.setOnClickListener {
             MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) }
         }
-        binding.miniPlay.setOnClickListener { MusicService.instance?.togglePlayPause() }
+        binding.miniPlay.setOnClickListener {
+            val svc = MusicService.instance
+            if (svc?.current == null) spotifyTabFragment()?.playFromMini() else svc.togglePlayPause()
+        }
         setupMiniSwipeToClose()
         MusicService.addGlobalListener(this)
         onMusicStateChanged()
@@ -229,10 +233,34 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         }
     }
 
+    /** The Music page's fragment while its Spotify tab is the one showing, else null. */
+    private fun spotifyTabFragment(): MusicFragment? =
+        (supportFragmentManager.findFragmentByTag("f$PAGE_MUSIC") as? MusicFragment)?.takeIf { it.isSpotifyTabActive() }
+
+    /** Nothing queued yet, but the Spotify tab is open: the bar shows as an empty "Spotify" player. */
+    private fun showSpotifyPlaceholder() {
+        val b = binding
+        miniHandler.removeCallbacks(miniTick)
+        b.miniPlayer.visibility = if (keyboardOpen) android.view.View.GONE else android.view.View.VISIBLE
+        b.miniTitle.text = getString(R.string.source_spotify)
+        b.miniArtist.text = getString(R.string.sp_mini_hint)
+        b.miniPlay.setImageResource(R.drawable.ic_play)
+        val pad = (9 * resources.displayMetrics.density).toInt()
+        b.miniArt.setPadding(pad, pad, pad, pad)
+        b.miniArt.setImageResource(R.drawable.ic_tab_spotify)
+        b.miniArt.imageTintList = android.content.res.ColorStateList.valueOf(CoverColors.themeColor(this, R.attr.colorAccent))
+        b.miniProgress.progress = 0
+        applyMiniTint(null)
+    }
+
     override fun onMusicStateChanged() {
         if (!::binding.isInitialized) return
         val s = MusicService.instance
         val t = s?.current
+        if (t == null && currentPage == PAGE_MUSIC && spotifyTabFragment() != null) { showSpotifyPlaceholder(); return }
+        // Real track: undo the placeholder's icon styling on the cover.
+        binding.miniArt.setPadding(0, 0, 0, 0)
+        binding.miniArt.imageTintList = null
         // No mini player on the Screensaver (full-screen) nor on Quick (its own full-page player UI).
         if (s == null || t == null || currentPage == PAGE_SCREENSAVER || currentPage == PAGE_QUICK) {
             binding.miniPlayer.visibility = android.view.View.GONE

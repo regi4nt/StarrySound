@@ -727,6 +727,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         if (MusicService.instance?.current?.source != Track.SOURCE_RADIO && src != Track.SOURCE_SPOTIFY) { // Spotify songs cannot be saved
             popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
         }
+        if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_SPOTIFY || src == Track.SOURCE_ONLINE) popup.menu.add(0, MENU_FLAC, 5, R.string.np_find_flac)
         popup.menu.add(0, MENU_SHARE, 8, R.string.np_share)
         popup.menu.add(0, MENU_INFO, 9, R.string.np_info)
         popup.setOnMenuItemClickListener {
@@ -736,6 +737,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 MENU_LISTEN -> ListenTogetherUi.show(this)
                 MENU_DOWNLOAD -> MusicService.instance?.current?.let { t -> SongDownloader.download(this, t) }
                 MENU_INFO -> showSongInfo()
+                MENU_FLAC -> findFlacVersion()
                 MENU_SPEED -> showSpeedDialog()
                 MENU_AUDIO -> showAudioTrackDialog()
                 MENU_QUALITY -> StreamQuality.showDialog(this) { MusicService.instance?.reloadCurrent() } // applies to the song playing now
@@ -832,6 +834,26 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         SongShareCard.share(this, t, svc.artwork, trackLink(t), getString(R.string.np_share_via))
     }
 
+    /** Looks for a lossless copy on the Internet Archive and, when there is one, plays it instead of the current stream. */
+    private fun findFlacVersion() {
+        val svc = MusicService.instance ?: return
+        val t = svc.current ?: return
+        android.widget.Toast.makeText(this, R.string.np_find_flac_searching, android.widget.Toast.LENGTH_SHORT).show()
+        val ctx = applicationContext
+        Thread {
+            val found = try { ArchiveApi.findFlac(ctx, t.title, t.artist) } catch (e: Exception) { null }
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                if (found == null) {
+                    android.widget.Toast.makeText(this, R.string.np_find_flac_none, android.widget.Toast.LENGTH_LONG).show()
+                } else {
+                    android.widget.Toast.makeText(this, getString(R.string.np_find_flac_found, found.album), android.widget.Toast.LENGTH_SHORT).show()
+                    svc.setQueueAndPlay(listOf(found), 0, fromYoutubeSearch = true)
+                }
+            }
+        }.start()
+    }
+
     private fun showSongInfo() {
         val t = MusicService.instance?.current ?: return
         val rows = mutableListOf(getString(R.string.np_info_title) to t.title)
@@ -925,6 +947,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         private const val MENU_SPEED = 5
         private const val MENU_AUDIO = 6
         private const val MENU_QUALITY = 7
+        private const val MENU_FLAC = 8
     }
 
     // ------------------------------------------------------------------ audio -> video

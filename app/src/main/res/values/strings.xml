@@ -258,6 +258,10 @@
     <string name="np_more">More options</string>
     <string name="np_sleep_timer">Sleep timer</string>
     <string name="np_share">Share song</string>
+    <string name="np_find_flac">Find FLAC version</string>
+    <string name="np_find_flac_searching">Looking for a FLAC copy…</string>
+    <string name="np_find_flac_none">No FLAC copy found on the Internet Archive</string>
+    <string name="np_find_flac_found">Playing FLAC from: %1$s</string>
     <string name="np_info">Song info</string>
     <string name="np_timer_off">Off</string>
     <string name="np_timer_running">Sleep timer · stops in %s</string>
@@ -1075,6 +1079,7 @@
     <string name="pip_pause">Pause</string>
     <string name="pip_prev">Previous video</string>
     <string name="pip_next">Next video</string>
+    <string name="sp_mini_hint">Tap play for your last song, or search</string>
     <string name="source_spotify">Spotify</string>
     <string name="sp_title">Spotify player</string>
     <string name="sp_playlists">Playlists</string>

@@ -822,6 +822,27 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    /** The Spotify tab is the one on screen: the mini player then shows up even before a song is chosen. */
+    fun isSpotifyTabActive(): Boolean = _binding != null && source == Track.SOURCE_SPOTIFY
+
+    /**
+     * Play button of the empty Spotify mini player: starts the last song played from the Spotify tab;
+     * with no history (or no account connected yet) it puts the cursor in the search box instead.
+     */
+    fun playFromMini() {
+        val b = _binding ?: return
+        val ctx = context ?: return
+        val svc = service ?: MusicService.instance
+        val history = if (SpotifyAuth.isConnected(ctx)) MusicPrefs.spotifyHistory(ctx) else emptyList()
+        if (svc != null && history.isNotEmpty()) {
+            svc.setQueueAndPlay(history, 0, fromYoutubeSearch = true)
+        } else {
+            b.searchInput.requestFocus()
+            (ctx.getSystemService(Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
+                ?.showSoftInput(b.searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
     private fun updateTabs() {
         binding.tabLocal.isSelected = source == Track.SOURCE_LOCAL
         binding.tabDrive.isSelected = source == Track.SOURCE_DRIVE
@@ -830,6 +851,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
         binding.tabTv.isSelected = source == Track.SOURCE_TV
         binding.tabSpotify.isSelected = source == Track.SOURCE_SPOTIFY
+        (activity as? MainActivity)?.onMusicStateChanged() // the Spotify tab shows the mini player right away
         val ctx = requireContext()
         binding.tabDrive.visibility = if (tabAllowed(Track.SOURCE_DRIVE)) View.VISIBLE else View.GONE
         binding.tabYoutube.visibility = if (SearchTabs.isShown(ctx, SearchTabs.Tab.YOUTUBE)) View.VISIBLE else View.GONE

@@ -118,6 +118,74 @@ object ArchiveApi {
         }
     }
 
+    private fun norm(s: String): String =
+        java.text.Normalizer.normalize(s.lowercase(Locale.US), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .replace(Regex("\\(.*?\\)|\\[.*?]"), " ") // "(Remastered)", "[Live]"
+            .replace(Regex("[^a-z0-9 ]"), " ").replace(Regex("\\s+"), " ").trim()
+
+    /**
+     * Looks for a lossless copy of a song on the Internet Archive (public / uploaded FLAC files only; coverage varies):
+     * searches FLAC items by the artist, then reads the file lists of the most downloaded ones for a FLAC whose title
+     * or file name is the song's title. Returns null when nothing matches. Blocking: call from a background thread.
+     */
+    @Throws(IOException::class)
+    fun findFlac(context: Context, title: String, artist: String): Track? {
+        val wantTitle = norm(title)
+        if (wantTitle.length < 2) return null
+        val wantArtist = norm(artist.substringBefore(',').substringBefore(" feat"))
+        val query = (wantArtist + " " + wantTitle).trim()
+        // Items by this performer first, then free text over artist + title.
+        val items = LinkedHashMap<String, ArchiveItem>()
+        if (wantArtist.isNotEmpty()) {
+            val q = "creator:(" + wantArtist + ") AND mediatype:audio AND format:(Flac)"
+            val url = "$BASE/advancedsearch.php?q=" + URLEncoder.encode(q, "UTF-8") +
+                "&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&sort%5B%5D=downloads+desc&rows=6&page=1&output=json"
+            runCatching { parseItems(get(url)) }.getOrDefault(emptyList()).forEach { items[it.identifier] = it }
+        }
+        if (items.size < 3) runCatching { search(context, query, losslessOnly = true).take(4) }.getOrDefault(emptyList()).forEach { items.putIfAbsent(it.identifier, it) }
+
+        for (item in items.values.take(6)) {
+            val files = runCatching { JSONObject(get("$BASE/metadata/" + URLEncoder.encode(item.identifier, "UTF-8"))).optJSONArray("files") }.getOrNull() ?: continue
+            for (i in 0 until files.length()) {
+                val o = files.optJSONObject(i) ?: continue
+                val format = o.optString("format")
+                val f = format.lowercase(Locale.US)
+                if (f != "flac" && f != "24bit flac") continue
+                val name = o.optString("name")
+                val fileTitle = norm(o.optString("title").ifBlank { name.substringBeforeLast('.').substringAfterLast('/') })
+                // exact title, or the file name ends with the title ("01 One More Time"); never a loose substring
+                val hit = fileTitle == wantTitle || fileTitle.removePrefix(fileTitle.takeWhile { it.isDigit() || it == ' ' }) == wantTitle
+                if (!hit) continue
+                val url = "$BASE/download/" + URLEncoder.encode(item.identifier, "UTF-8") + "/" +
+                    name.split('/').joinToString("/") { URLEncoder.encode(it, "UTF-8").replace("+", "%20") }
+                val t = Track(
+                    id = 0L,
+                    title = o.optString("title").trim().ifBlank { title },
+                    artist = o.optString("creator").trim().ifBlank { item.creator.ifBlank { artist } },
+                    album = item.title,
+                    durationMs = (parseLength(o.optString("length")) * 1000).toLong(),
+                    source = Track.SOURCE_ONLINE, remoteId = url, artUrl = item.thumbUrl
+                )
+                AudioQuality.put(t, infoOf(format, o.optString("bitrate").trim().toIntOrNull() ?: 0))
+                return t
+            }
+        }
+        return null
+    }
+
+    private fun parseItems(json: String): List<ArchiveItem> {
+        val docs = JSONObject(json).optJSONObject("response")?.optJSONArray("docs") ?: return emptyList()
+        val out = ArrayList<ArchiveItem>()
+        for (i in 0 until docs.length()) {
+            val d = docs.optJSONObject(i) ?: continue
+            val id = d.optString("identifier").trim()
+            if (id.isEmpty()) continue
+            out += ArchiveItem(id, firstText(d, "title").ifBlank { id }, firstText(d, "creator"), "$BASE/services/img/" + URLEncoder.encode(id, "UTF-8"))
+        }
+        return out
+    }
+
     /** Higher = preferred for [level]; -1 = not an audio format we play. */
     private fun rank(format: String, level: StreamQuality.Level): Int {
         val f = format.lowercase(Locale.US)
