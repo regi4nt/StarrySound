@@ -43,21 +43,33 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <!-- Bottom of the floating header (18dp padding + 44dp buttons): the cover never goes above this line. -->
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/quickTopGuide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="62dp" />
+
+    <!-- Cover: placed like the full player's cover (NowPlayingActivity.applyCoverSize): a square sized to the free space
+         (max 360dp), centred between the top bar and the content below it. Here the free space runs from the header down
+         to the action rail, so the cover never touches the buttons; the square size is set in QuickAdapter. -->
     <ImageView
         android:id="@+id/quickCover"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="44dp"
-        android:layout_marginEnd="44dp"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="8dp"
         android:background="@drawable/quick_cover_bg"
         android:contentDescription="@string/quick_cover"
         android:scaleType="centerCrop"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintDimensionRatio="1:1"
+        app:layout_constraintBottom_toTopOf="@id/quickRail"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.34" />
+        app:layout_constraintTop_toBottomOf="@id/quickTopGuide"
+        app:layout_constraintVertical_bias="0.5" />
 
     <ProgressBar
         android:id="@+id/quickSpinner"
@@ -84,22 +96,23 @@
         app:layout_constraintStart_toStartOf="@id/quickCover"
         app:layout_constraintTop_toTopOf="@id/quickCover" />
 
-    <!-- Lyrics bottom-left, right above the "Chorus preview" badge and left of the action rail (so the buttons never cover them): previous / current / next line, filled by QuickFragment.applyLyrics -->
+    <!-- Lyrics: centred vertically in the free band between the top of the action rail (the cover ends above it) and the title block, left of the action rail (so the
+         buttons never cover them) and aligned with the title's left edge: previous / current / next line, filled by QuickFragment.applyLyrics -->
     <LinearLayout
         android:id="@+id/quickLyrics"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="18dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="14dp"
-        android:layout_marginBottom="10dp"
-        android:gravity="bottom|start"
+        android:layout_marginBottom="8dp"
+        android:gravity="center_vertical|start"
         android:orientation="vertical"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/quickInfo"
         app:layout_constraintEnd_toStartOf="@id/quickRail"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/quickCover">
+        app:layout_constraintTop_toTopOf="@id/quickRail">
 
         <TextView
             android:id="@+id/quickLyPrev"
@@ -108,7 +121,8 @@
             android:ellipsize="end"
             android:gravity="start"
             android:textAlignment="viewStart"
-            android:maxLines="2"
+            android:maxLines="1"
+            android:minLines="1"
             android:shadowColor="#99000000"
             android:shadowDx="0"
             android:shadowDy="1"
@@ -121,14 +135,16 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:gravity="start"
+            android:gravity="start|center_vertical"
             android:textAlignment="viewStart"
             android:maxLines="2"
+            android:minLines="2"
             android:shadowColor="#99000000"
             android:shadowDx="0"
             android:shadowDy="1"
             android:shadowRadius="4"
             android:textColor="#FFFFFF"
+            android:lineSpacingExtra="2dp"
             android:textSize="17sp"
             android:textStyle="bold"
             android:layout_marginTop="6dp"
@@ -140,7 +156,8 @@
             android:ellipsize="end"
             android:gravity="start"
             android:textAlignment="viewStart"
-            android:maxLines="2"
+            android:maxLines="1"
+            android:minLines="1"
             android:shadowColor="#99000000"
             android:shadowDx="0"
             android:shadowDy="1"

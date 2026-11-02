@@ -187,7 +187,7 @@ class MusicService : MediaBrowserService() {
             statsLast = now
             val t = current
             if (delta > 0 && t != null && isPlaying && !driveLoading && !MusicPrefs.privateMode(this@MusicService)) { // not while a Drive song is still downloading, nor in private mode
-                StatsStore.addListening(this@MusicService, delta)
+                StatsStore.addListening(this@MusicService, delta, t)
                 lastFmTick(t, delta)
                 if (!statsCounted) {
                     statsListened += delta

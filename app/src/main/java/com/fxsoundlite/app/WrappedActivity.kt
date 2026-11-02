@@ -106,14 +106,22 @@ class WrappedActivity : AppCompatActivity() {
         return if (h > 0) getString(R.string.stats_fmt_hour_min, h, m) else getString(R.string.stats_fmt_min, m)
     }
 
+    /** "12× · 1h 20m": play count, plus the time listened once it is a minute or more (older data has no time). */
+    private fun countAndTime(plays: Int, ms: Long): String {
+        val c = getString(R.string.wrapped_count_fmt, plays)
+        return if (ms >= 60_000L) c + " \u00B7 " + duration(ms) else c
+    }
+
     private fun hourLabel(h: Int) = String.format(Locale.US, "%02d:00–%02d:00", h, (h + 1) % 24)
 
     private fun sourceName(src: Int) = getString(
         when (src) {
             Track.SOURCE_YOUTUBE -> R.string.source_youtube
             Track.SOURCE_RADIO -> R.string.source_radio
-            Track.SOURCE_DRIVE -> R.string.source_drive
+            Track.SOURCE_DRIVE, Track.SOURCE_DRIVE_VIDEO -> R.string.source_drive
             Track.SOURCE_ONLINE -> R.string.source_online
+            Track.SOURCE_SPOTIFY -> R.string.source_spotify
+            Track.SOURCE_TV -> R.string.source_tv
             else -> R.string.source_local
         }
     )
@@ -183,13 +191,13 @@ class WrappedActivity : AppCompatActivity() {
                 orientation = LinearLayout.HORIZONTAL
                 if (topArtist != null) addView(highlight(
                     R.string.wrapped_top_artist, topArtist.first,
-                    getString(R.string.wrapped_count_fmt, topArtist.second)
+                    countAndTime(topArtist.second, r.artistMs[topArtist.first] ?: 0L)
                 ), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
                     if (topSong != null) marginEnd = dp(6)
                 })
                 if (topSong != null) addView(highlight(
                     R.string.wrapped_top_song, topSong.title,
-                    topSong.artist.ifBlank { getString(R.string.wrapped_count_fmt, topSong.plays) }
+                    listOf(topSong.artist, countAndTime(topSong.plays, topSong.ms)).filter { it.isNotBlank() }.joinToString(" \u00B7 ")
                 ), LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply {
                     if (topArtist != null) marginStart = dp(6)
                 })
@@ -201,7 +209,7 @@ class WrappedActivity : AppCompatActivity() {
             cards.addView(card(R.string.wrapped_artists_title).apply {
                 val max = r.artists.first().second.coerceAtLeast(1)
                 r.artists.forEachIndexed { i, (name, n) ->
-                    addView(barRow(i + 1, name, getString(R.string.wrapped_count_fmt, n), n.toFloat() / max))
+                    addView(barRow(i + 1, name, countAndTime(n, r.artistMs[name] ?: 0L), n.toFloat() / max))
                 }
             }, lp(top = 12))
         }
@@ -212,7 +220,7 @@ class WrappedActivity : AppCompatActivity() {
                 val max = r.tracks.first().plays.coerceAtLeast(1)
                 r.tracks.forEachIndexed { i, t ->
                     val name = if (t.artist.isBlank()) t.title else t.title + " — " + t.artist
-                    addView(barRow(i + 1, name, getString(R.string.wrapped_count_fmt, t.plays), t.plays.toFloat() / max))
+                    addView(barRow(i + 1, name, countAndTime(t.plays, t.ms), t.plays.toFloat() / max))
                 }
             }, lp(top = 12))
         }
@@ -425,14 +433,14 @@ class WrappedActivity : AppCompatActivity() {
         sb.append(getString(R.string.wrapped_plays_line, r.plays, r.activeDays)).append('\n')
         if (r.artists.isNotEmpty()) {
             sb.append('\n').append(getString(R.string.wrapped_artists_title)).append('\n')
-            r.artists.forEachIndexed { i, (n, c) -> sb.append(i + 1).append(". ").append(n).append(" (").append(getString(R.string.wrapped_count_fmt, c)).append(")\n") }
+            r.artists.forEachIndexed { i, (n, c) -> sb.append(i + 1).append(". ").append(n).append(" (").append(countAndTime(c, r.artistMs[n] ?: 0L)).append(")\n") }
         }
         if (r.tracks.isNotEmpty()) {
             sb.append('\n').append(getString(R.string.wrapped_songs_title)).append('\n')
             r.tracks.forEachIndexed { i, t ->
                 sb.append(i + 1).append(". ").append(t.title)
                 if (t.artist.isNotBlank()) sb.append(" — ").append(t.artist)
-                sb.append(" (").append(getString(R.string.wrapped_count_fmt, t.plays)).append(")\n")
+                sb.append(" (").append(countAndTime(t.plays, t.ms)).append(")\n")
             }
         }
         return sb.toString().trimEnd()
@@ -452,8 +460,8 @@ class WrappedActivity : AppCompatActivity() {
             artistsTitle = getString(R.string.wrapped_artists_title),
             songsTitle = getString(R.string.wrapped_songs_title),
             topSongTitle = getString(R.string.wrapped_top_song),
-            artists = r.artists.map { (n, c) -> n to getString(R.string.wrapped_count_fmt, c) },
-            songs = r.tracks.map { Triple(it.title, it.artist, getString(R.string.wrapped_count_fmt, it.plays)) },
+            artists = r.artists.map { (n, c) -> n to countAndTime(c, r.artistMs[n] ?: 0L) },
+            songs = r.tracks.map { Triple(it.title, it.artist, countAndTime(it.plays, it.ms)) },
             footer = footer.joinToString(" \u00B7 "),
             coverUrl = r.tracks.firstOrNull()?.track?.artUrl.orEmpty()
         )

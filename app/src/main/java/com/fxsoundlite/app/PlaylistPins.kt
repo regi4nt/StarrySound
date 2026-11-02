@@ -29,6 +29,18 @@ object PlaylistPins {
 
     private fun save(c: Context, list: List<String>) {
         p(c).edit().putString(KEY, list.joinToString("\n")).apply()
+        DriveSync.markDirty(c)
+    }
+
+    /** For the Drive backup. */
+    fun exportJson(c: Context): org.json.JSONArray = org.json.JSONArray().also { a -> ids(c).forEach { a.put(it) } }
+
+    /** Applies the backup's pins: this device's first, then the backup's up to [MAX] when [merge]. Never marks data as changed. */
+    @Synchronized
+    fun importJson(c: Context, a: org.json.JSONArray, merge: Boolean) {
+        val incoming = (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() && it != PlaylistStore.LIKED_ID }
+        val result = (if (merge) ids(c) + incoming else incoming).distinct().take(MAX)
+        p(c).edit().putString(KEY, result.joinToString("\n")).apply()
     }
 
     /** Pins [id] at the end of the pinned rows. Returns false when [MAX] rows are already pinned. */

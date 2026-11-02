@@ -81,6 +81,7 @@
     <string name="animated_rain">Rain</string>
     <string name="animated_night_sky">Night Sky</string>
     <string name="animated_starfield">Starfield</string>
+    <string name="animated_water">Night Water</string>
     <string name="animated_selected_desc">Current background: %1$s (animated)</string>
 
     <!-- Screensaver greeting -->
@@ -556,7 +557,7 @@
     <!-- Google account + Drive backup (Settings) -->
     <string name="settings_group_account">Account &amp; backup</string>
     <string name="drive_section">Google account</string>
-    <string name="drive_section_subtitle">Sign in with Google to back up your playlists, liked songs, history and listening stats to your own Google Drive (a hidden app folder; your other Drive files are never touched) and restore them on any device.</string>
+    <string name="drive_section_subtitle">Sign in with Google to back up your playlists, liked songs, playlist folders and pins, history and listening stats to your own Google Drive (a hidden app folder; your other Drive files are never touched) and restore them on any device. API keys and app settings are not backed up.</string>
     <string name="drive_status_signed_out">Not signed in</string>
     <string name="drive_status_signed_in">Signed in as %1$s</string>
     <string name="drive_last_sync">Last synced: %1$s</string>
@@ -608,6 +609,7 @@
     <string name="get_key_youtube">Get a YouTube Data API key</string>
     <string name="get_key_lastfm">Get a Last.fm API key</string>
     <string name="get_key_acr">Get ACRCloud credentials</string>
+    <string name="get_key_jamendo">Get a Jamendo client ID</string>
     <string name="ai_model_hint">Model (empty = %1$s)</string>
     <string name="ai_err_no_key">Add an AI API key (Gemini, OpenAI or Anthropic) in Settings first.</string>
     <string name="ai_err_no_taste">Like or play a few songs first, so the AI knows your taste.</string>
@@ -625,13 +627,13 @@
 
     <!-- Playlist import / export -->
     <string name="playlist_more">More options</string>
-    <string name="playlist_menu_import_link">Import from link</string>
+    <string name="playlist_menu_import_link">Import from YT</string>
     <string name="playlist_menu_import_file">Import from file (M3U or backup)</string>
     <string name="playlist_menu_backup">Back up all playlists to a file</string>
     <string name="playlist_menu_export_m3u">Export as M3U file</string>
     <string name="playlist_menu_share_link">Share as link</string>
     <string name="playlist_import_link_hint">Paste a link here</string>
-    <string name="playlist_import_link_help">A YouTube or YouTube Music playlist link, or a link shared from StarrySound.</string>
+    <string name="playlist_import_link_help">A YouTube, YouTube Music or Spotify playlist link, or a link shared from StarrySound.</string>
     <string name="playlist_import_fetching">Fetching the playlist…</string>
     <string name="playlist_import_name_title">Import %1$d songs as…</string>
     <string name="playlist_import_default_name">Imported playlist</string>
@@ -685,10 +687,10 @@
     <string name="home_tv_reco">Recommended TV</string>
     <string name="home_tv_popular">Popular TV</string>
     <string name="settings_cat_general_sub">Theme, accent color, language, app lock, full screen, keep playing</string>
-    <string name="settings_cat_player_sub">Player cover, cover shape</string>
-    <string name="settings_cat_screensaver_sub">Background, clock, greeting, now playing, charging screensaver</string>
-    <string name="settings_cat_online_sub">YouTube key, AI, search tabs, audio quality, data saver, Last.fm, song detection</string>
-    <string name="settings_cat_advanced_sub">Auto preset, preset notification, root mode, storage, about &amp; help</string>
+    <string name="settings_cat_player_sub">Player cover, cover shape, animation, colours from the cover</string>
+    <string name="settings_cat_screensaver_sub">Background, clock, touch effect, greeting, now playing, charging screensaver</string>
+    <string name="settings_cat_online_sub">YouTube, Spotify, AI, search tabs, Jamendo, data saver, taste, Last.fm, song detection</string>
+    <string name="settings_cat_advanced_sub">Private mode, safe volume, auto preset, preset notification, root mode, storage, about &amp; help</string>
     <string name="home_playlist_reco">Recommended playlists</string>
     <string name="home_playlist_popular">Popular playlists</string>
     <string name="home_playlist_loading">Loading playlist…</string>
@@ -899,7 +901,7 @@
     <string name="listen_create">Create room</string>
     <string name="listen_join">Join</string>
     <string name="listen_code_hint">Room code</string>
-    <string name="listen_server">Server settings</string>
+    <string name="listen_server">Room settings</string>
     <string name="listen_server_title">Firebase database URL</string>
     <string name="listen_server_hint">https://your-project-default-rtdb.firebaseio.com</string>
     <string name="listen_server_msg">Create a Realtime Database in Firebase, allow read and write on \"rooms\" in its rules, and paste its URL here.</string>
@@ -912,7 +914,7 @@
     <string name="listen_leave">Leave room</string>
     <string name="listen_close">Close room</string>
     <string name="listen_ended">The room was closed</string>
-    <string name="listen_err_config">Set the server first (Server settings)</string>
+    <string name="listen_err_config">Set the server first (Room settings)</string>
     <string name="listen_err_network">Could not reach the server</string>
     <string name="listen_err_notfound">Room not found</string>
     <string name="listen_err_busy">Already in a room</string>
@@ -976,7 +978,7 @@
     <string name="online_src_jamendo">Jamendo</string>
     <string name="jamendo_key_title">Jamendo client ID</string>
     <string name="jamendo_key_hint">Client ID</string>
-    <string name="jamendo_key_msg">Free at developer.jamendo.com (create an app, copy its Client ID). Needed to search Jamendo, which has full-length Creative Commons music.</string>
+    <string name="jamendo_key_msg">Free at devportal.jamendo.com (create an app, copy its Client ID). Needed to search Jamendo, which has full-length Creative Commons music.</string>
     <string name="online_need_jamendo_key">Add your Jamendo client ID in Settings to search Jamendo.</string>
     <string name="online_no_results">No results.</string>
     <string name="online_player_not_ready">The player is not ready yet. Try again.</string>
@@ -1120,7 +1122,7 @@
     <string name="storage_added">Folder added. Reading songs…</string>
     <string name="storage_add_failed">Could not get access to this folder</string>
     <string name="external_open_failed">Couldn’t open this file.</string>
-    <string name="folder_new">New folder</string>
+    <string name="folder_new">Create folder</string>
     <string name="folder_name_hint">Folder name</string>
     <string name="folder_rename">Rename folder</string>
     <string name="folder_delete">Delete folder</string>
@@ -1128,7 +1130,7 @@
     <string name="folder_move">Move to folder</string>
     <string name="folder_move_title">Move “%s” to</string>
     <string name="folder_none">Move to main list</string>
-    <string name="folder_new_item">+ New folder</string>
+    <string name="folder_new_item">+ Create folder</string>
     <string name="folder_moved">Moved to “%s”</string>
     <string name="folder_moved_out">Moved to the main list</string>
     <string name="folder_empty">This folder is empty. Tap + to create a playlist here, or long-press a playlist and choose “Move to folder”.</string>
@@ -1172,13 +1174,14 @@
     <string name="screensaver_fx_off">Off</string>
     <string name="screensaver_fx_ripple">Ripples</string>
     <string name="screensaver_fx_sparkle">Sparkles</string>
-    <string name="screensaver_fx_scatter">Scatter (rain / stars)</string>
+    <string name="screensaver_fx_scatter">Scatter</string>
     <string name="screensaver_fx_section">Touch effect</string>
     <string name="screensaver_fx_subtitle">How the Screensaver page reacts when you touch it. Not used by the automatic charging screensaver.</string>
     <string name="spotify_link_title">Import from playlist link</string>
     <string name="spotify_link_msg">No Spotify login needed. In Spotify tap Share > Copy link on a PUBLIC playlist and paste it here. Only the first ~100 songs are read.</string>
     <string name="spotify_link_hint">https://open.spotify.com/playlist/...</string>
     <string name="spotify_link_error">Could not read the playlist: %1$s</string>
+    <string name="playlist_import_spotify_account">From Spotify account</string>
     <string name="spotify_import_menu">Import from Spotify</string>
     <string name="link_download_tile">Download from link</string>
     <string name="link_download_title">Download from link</string>

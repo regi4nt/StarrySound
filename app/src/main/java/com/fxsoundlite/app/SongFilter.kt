@@ -32,7 +32,7 @@ class SongFilter {
     fun copyFrom(o: SongFilter) { source = o.source; storage = o.storage; length = o.length; artist = o.artist; tag = o.tag }
 
     fun matches(t: Track): Boolean {
-        if (source != ANY && t.source != source) return false
+        if (source != ANY && group(t.source) != source) return false
         if (storage != StorageKind.ANY && ((t.source != Track.SOURCE_LOCAL && t.source != Track.SOURCE_VIDEO) || MusicLibrary.storageKind(t) != storage)) return false
         if (length != LEN_ANY) {
             val min = t.durationMs / 60_000.0
@@ -52,6 +52,13 @@ class SongFilter {
     }
 
     companion object {
+        /** Video files and Drive videos are listed under the same chip as their audio twin (Device / Drive). */
+        fun group(src: Int): Int = when (src) {
+            Track.SOURCE_VIDEO -> Track.SOURCE_LOCAL
+            Track.SOURCE_DRIVE_VIDEO -> Track.SOURCE_DRIVE
+            else -> src
+        }
+
         const val ANY = -1
         const val LEN_ANY = 0
         const val LEN_SHORT = 1
@@ -101,6 +108,9 @@ object FilterUi {
         Track.SOURCE_YOUTUBE -> R.string.source_youtube
         Track.SOURCE_RADIO -> R.string.source_radio
         Track.SOURCE_DRIVE -> R.string.source_drive
+        Track.SOURCE_SPOTIFY -> R.string.source_spotify
+        Track.SOURCE_TV -> R.string.source_tv
+        Track.SOURCE_ONLINE -> R.string.source_online
         else -> R.string.source_local
     }
 
@@ -116,12 +126,12 @@ object FilterUi {
     fun showSongFilter(
         ctx: Context, tracks: List<Track>, filter: SongFilter, sort: SortOption? = null,
         tagMode: Boolean = false, kinds: KindOption? = null, online: OnlineOption? = null,
-        manageStorage: (() -> Unit)? = null, onChanged: () -> Unit
+        manageStorage: (() -> Unit)? = null, showSource: Boolean = true, onChanged: () -> Unit
     ) {
         // With [kinds] (playlist overview) the dialog is about whole lists, not songs.
         val songSections = !tagMode && kinds == null
         val dp = ctx.resources.displayMetrics.density
-        val work = SongFilter().also { it.copyFrom(filter) }
+        val work = SongFilter().also { it.copyFrom(filter); if (!showSource) it.source = SongFilter.ANY }
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding((20 * dp).toInt(), (8 * dp).toInt(), (20 * dp).toInt(), 0)
@@ -268,7 +278,7 @@ object FilterUi {
         }
 
         // Source: only when the list really mixes several.
-        val sources = if (!songSections) emptyList() else tracks.map { it.source }.distinct().sorted()
+        val sources = if (!songSections || !showSource) emptyList() else tracks.map { SongFilter.group(it.source) }.distinct().sorted()
         if (sources.size >= 2) {
             title(R.string.filter_source)
             val values = listOf(SongFilter.ANY) + sources

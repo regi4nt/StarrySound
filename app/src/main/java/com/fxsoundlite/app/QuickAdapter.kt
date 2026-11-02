@@ -77,12 +77,29 @@ class QuickAdapter(
         val b = ItemQuickBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         val vh = VH(b)
 
-        // Rounded cover.
-        val radius = 18f * parent.resources.displayMetrics.density
+        // Cover size: same rule as the full player (NowPlayingActivity.applyCoverSize) - a square that fits the free
+        // space (page width minus 32dp each side, header bottom + 8dp down to 8dp above the action rail), max 360dp.
+        val dens = parent.resources.displayMetrics.density
+        b.quickRoot.addOnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
+            val top = ((62 + 8) * dens).toInt()
+            val bottom = b.quickRail.top - (8 * dens).toInt()
+            val free = minOf((right - left) - (64 * dens).toInt(), bottom - top)
+            val size = minOf(free, (360 * dens).toInt())
+            val lp = b.quickCover.layoutParams
+            if (size > 0 && (lp.width != size || lp.height != size)) {
+                lp.width = size
+                lp.height = size
+                v.post { b.quickCover.layoutParams = lp }
+            }
+        }
+
+        // Cover frame: the same as the full player's (Settings > Player > Cover shape): rounded square or circle.
+        val radius = 24f * parent.resources.displayMetrics.density
         b.quickCover.clipToOutline = true
         b.quickCover.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
-                outline.setRoundRect(0, 0, view.width, view.height, radius)
+                if (MusicPrefs.coverCircle(view.context)) outline.setOval(0, 0, view.width, view.height)
+                else outline.setRoundRect(0, 0, view.width, view.height, radius)
             }
         }
         b.quickVideo.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
@@ -123,6 +140,7 @@ class QuickAdapter(
         val b = h.b
         val ctx = b.root.context
 
+        b.quickCover.invalidateOutline() // picks up a cover shape changed in Settings
         b.quickTitle.text = t.title
         b.quickArtist.text = QuickFeed.cleanArtist(t.artist)
         b.quickBadge.text = ctx.getString(

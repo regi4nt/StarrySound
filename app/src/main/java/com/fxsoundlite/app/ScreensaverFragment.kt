@@ -509,6 +509,7 @@ class ScreensaverFragment : Fragment() {
         bg.style = when (ScreensaverPrefs.animatedStyle(requireContext())) {
             ScreensaverPrefs.STYLE_RAIN -> SleepBackgroundView.Style.RAIN
             ScreensaverPrefs.STYLE_STARFIELD -> SleepBackgroundView.Style.STARFIELD
+            ScreensaverPrefs.STYLE_WATER -> SleepBackgroundView.Style.WATER
             else -> SleepBackgroundView.Style.NIGHT_SKY
         }
         bg.visibility = View.VISIBLE

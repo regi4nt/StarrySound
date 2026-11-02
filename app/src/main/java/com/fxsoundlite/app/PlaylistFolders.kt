@@ -48,6 +48,43 @@ object PlaylistFolders {
         val a = JSONArray().also { arr -> folders.forEach { arr.put(JSONObject().put("id", it.id).put("name", it.name)) } }
         val m = JSONObject().also { o -> members.forEach { (k, v) -> o.put(k, v) } }
         p(c).edit().putString(KEY_FOLDERS, a.toString()).putString(KEY_MEMBERS, m.toString()).apply()
+        DriveSync.markDirty(c)
+    }
+
+    /** Folders and which playlist sits in which one, for the Drive backup. */
+    @Synchronized
+    fun exportJson(c: Context): JSONObject {
+        val a = JSONArray().also { arr -> folders(c).forEach { arr.put(JSONObject().put("id", it.id).put("name", it.name)) } }
+        val m = JSONObject().also { o -> members(c).forEach { (k, v) -> o.put(k, v) } }
+        return JSONObject().put("folders", a).put("members", m)
+    }
+
+    /**
+     * Applies the backup's folders. [merge] = false replaces; true keeps this device's folders and placements and
+     * adds the ones only the backup has. Does not mark the data as changed (applying a download never uploads).
+     */
+    @Synchronized
+    fun importJson(c: Context, o: JSONObject, merge: Boolean) {
+        val inF = ArrayList<PlaylistFolder>()
+        o.optJSONArray("folders")?.let { a ->
+            for (i in 0 until a.length()) a.optJSONObject(i)?.let {
+                val id = it.optString("id")
+                if (id.isNotBlank()) inF += PlaylistFolder(id, it.optString("name"))
+            }
+        }
+        val inM = HashMap<String, String>()
+        o.optJSONObject("members")?.let { m -> m.keys().forEach { k -> m.optString(k).takeIf { v -> v.isNotBlank() }?.let { v -> inM[k] = v } } }
+        val newFolders: List<PlaylistFolder>
+        val newMembers: Map<String, String>
+        if (!merge) { newFolders = inF; newMembers = inM }
+        else {
+            val mine = folders(c)
+            newFolders = mine + inF.filter { f -> mine.none { it.id == f.id } }
+            newMembers = inM + members(c)
+        }
+        val a = JSONArray().also { arr -> newFolders.forEach { arr.put(JSONObject().put("id", it.id).put("name", it.name)) } }
+        val m = JSONObject().also { obj -> newMembers.forEach { (k, v) -> obj.put(k, v) } }
+        p(c).edit().putString(KEY_FOLDERS, a.toString()).putString(KEY_MEMBERS, m.toString()).apply()
     }
 
     /** Id of the folder holding [playlistId], or null when it sits in the main list (or its folder is gone). */
@@ -110,11 +147,22 @@ object SpotifyLists {
     @Synchronized
     fun add(c: Context, playlistId: String) {
         p(c).edit().putStringSet(KEY, ids(c) + playlistId).apply()
+        DriveSync.markDirty(c)
+    }
+
+    /** For the Drive backup. */
+    fun exportJson(c: Context): JSONArray = JSONArray().also { a -> ids(c).forEach { a.put(it) } }
+
+    /** Applies the backup's Spotify marks (union when [merge]); never marks the data as changed. */
+    @Synchronized
+    fun importJson(c: Context, a: JSONArray, merge: Boolean) {
+        val incoming = (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }.toSet()
+        p(c).edit().putStringSet(KEY, if (merge) ids(c) + incoming else incoming).apply()
     }
 
     @Synchronized
     fun forget(c: Context, playlistId: String) {
         val s = ids(c)
-        if (playlistId in s) p(c).edit().putStringSet(KEY, s - playlistId).apply()
+        if (playlistId in s) { p(c).edit().putStringSet(KEY, s - playlistId).apply(); DriveSync.markDirty(c) }
     }
 }

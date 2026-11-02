@@ -79,6 +79,7 @@
     <string name="animated_rain">Hujan</string>
     <string name="animated_night_sky">Langit Malam</string>
     <string name="animated_starfield">Angkasa Berbintang</string>
+    <string name="animated_water">Permukaan Air Malam</string>
     <string name="animated_selected_desc">Background saat ini: %1$s (animasi)</string>
 
     <!-- Widget layar utama -->
@@ -551,7 +552,7 @@
     <!-- Akun Google + cadangan Drive (Pengaturan) -->
     <string name="settings_group_account">Akun &amp; cadangan</string>
     <string name="drive_section">Akun Google</string>
-    <string name="drive_section_subtitle">Masuk dengan Google untuk mencadangkan playlist, lagu favorit, riwayat, dan statistik dengar ke Google Drive milikmu sendiri (folder aplikasi tersembunyi; file Drive lainnya tidak disentuh) dan memulihkannya di perangkat mana pun.</string>
+    <string name="drive_section_subtitle">Masuk dengan Google untuk mencadangkan playlist, lagu favorit, folder dan pin playlist, riwayat, dan statistik dengar ke Google Drive milikmu sendiri (folder aplikasi tersembunyi; file Drive lainnya tidak disentuh) dan memulihkannya di perangkat mana pun. API key dan pengaturan aplikasi tidak ikut dicadangkan.</string>
     <string name="drive_status_signed_out">Belum masuk</string>
     <string name="drive_status_signed_in">Masuk sebagai %1$s</string>
     <string name="drive_last_sync">Terakhir disinkronkan: %1$s</string>
@@ -603,6 +604,7 @@
     <string name="get_key_youtube">Dapatkan API key YouTube Data</string>
     <string name="get_key_lastfm">Dapatkan API key Last.fm</string>
     <string name="get_key_acr">Dapatkan kredensial ACRCloud</string>
+    <string name="get_key_jamendo">Dapatkan Client ID Jamendo</string>
     <string name="ai_model_hint">Model (kosong = %1$s)</string>
     <string name="ai_err_no_key">Masukkan API key AI (Gemini, OpenAI, atau Anthropic) di Pengaturan dulu.</string>
     <string name="ai_err_no_taste">Sukai atau putar beberapa lagu dulu supaya AI tahu seleramu.</string>
@@ -619,13 +621,13 @@
 
     <!-- Impor / ekspor playlist -->
     <string name="playlist_more">Opsi lainnya</string>
-    <string name="playlist_menu_import_link">Impor dari link</string>
+    <string name="playlist_menu_import_link">Impor dari YT</string>
     <string name="playlist_menu_import_file">Impor dari file (M3U atau cadangan)</string>
     <string name="playlist_menu_backup">Cadangkan semua playlist ke file</string>
     <string name="playlist_menu_export_m3u">Ekspor ke file M3U</string>
     <string name="playlist_menu_share_link">Bagikan lewat link</string>
     <string name="playlist_import_link_hint">Tempel link di sini</string>
-    <string name="playlist_import_link_help">Link playlist YouTube atau YouTube Music, atau link yang dibagikan dari StarrySound.</string>
+    <string name="playlist_import_link_help">Link playlist YouTube, YouTube Music, atau Spotify, atau link yang dibagikan dari StarrySound.</string>
     <string name="playlist_import_fetching">Mengambil playlist…</string>
     <string name="playlist_import_name_title">Impor %1$d lagu sebagai…</string>
     <string name="playlist_import_default_name">Playlist impor</string>
@@ -679,10 +681,10 @@
     <string name="home_tv_reco">TV yang direkomendasikan</string>
     <string name="home_tv_popular">TV populer</string>
     <string name="settings_cat_general_sub">Tema, warna aksen, bahasa, kunci aplikasi, layar penuh, tetap memutar</string>
-    <string name="settings_cat_player_sub">Cover pemutar, bentuk cover</string>
-    <string name="settings_cat_screensaver_sub">Latar, jam, sapaan, lagu yang diputar, screensaver saat mengisi daya</string>
-    <string name="settings_cat_online_sub">Kunci YouTube, AI, tab pencarian, kualitas audio, hemat data, Last.fm, deteksi lagu</string>
-    <string name="settings_cat_advanced_sub">Preset otomatis, notifikasi preset, mode root, penyimpanan, tentang &amp; bantuan</string>
+    <string name="settings_cat_player_sub">Cover pemutar, bentuk cover, animasi, warna dari cover</string>
+    <string name="settings_cat_screensaver_sub">Latar, jam, efek sentuh, sapaan, lagu yang diputar, screensaver saat mengisi daya</string>
+    <string name="settings_cat_online_sub">YouTube, Spotify, AI, tab pencarian, Jamendo, hemat data, selera, Last.fm, deteksi lagu</string>
+    <string name="settings_cat_advanced_sub">Mode pribadi, mode aman volume, preset otomatis, notifikasi preset, mode root, penyimpanan, tentang &amp; bantuan</string>
     <string name="home_playlist_reco">Playlist yang direkomendasikan</string>
     <string name="home_playlist_popular">Playlist populer</string>
     <string name="home_playlist_loading">Memuat playlist…</string>
@@ -892,7 +894,7 @@
     <string name="listen_create">Buat ruang</string>
     <string name="listen_join">Gabung</string>
     <string name="listen_code_hint">Kode ruang</string>
-    <string name="listen_server">Pengaturan server</string>
+    <string name="listen_server">Pengaturan room</string>
     <string name="listen_server_title">URL database Firebase</string>
     <string name="listen_server_hint">https://proyek-anda-default-rtdb.firebaseio.com</string>
     <string name="listen_server_msg">Buat Realtime Database di Firebase, izinkan baca dan tulis pada \"rooms\" di aturannya, lalu tempel URL-nya di sini.</string>
@@ -905,7 +907,7 @@
     <string name="listen_leave">Keluar dari ruang</string>
     <string name="listen_close">Tutup ruang</string>
     <string name="listen_ended">Ruang telah ditutup</string>
-    <string name="listen_err_config">Atur server dulu (Pengaturan server)</string>
+    <string name="listen_err_config">Atur server dulu (Pengaturan room)</string>
     <string name="listen_err_network">Tidak bisa menghubungi server</string>
     <string name="listen_err_notfound">Ruang tidak ditemukan</string>
     <string name="listen_err_busy">Sudah berada di sebuah ruang</string>
@@ -969,7 +971,7 @@
     <string name="online_src_jamendo">Jamendo</string>
     <string name="jamendo_key_title">Client ID Jamendo</string>
     <string name="jamendo_key_hint">Client ID</string>
-    <string name="jamendo_key_msg">Gratis di developer.jamendo.com (buat aplikasi, salin Client ID-nya). Diperlukan untuk mencari di Jamendo, yang berisi musik Creative Commons berdurasi penuh.</string>
+    <string name="jamendo_key_msg">Gratis di devportal.jamendo.com (buat aplikasi, salin Client ID-nya). Diperlukan untuk mencari di Jamendo, yang berisi musik Creative Commons berdurasi penuh.</string>
     <string name="online_need_jamendo_key">Tambahkan Client ID Jamendo di Pengaturan untuk mencari di Jamendo.</string>
     <string name="online_no_results">Tidak ada hasil.</string>
     <string name="online_player_not_ready">Pemutar belum siap. Coba lagi.</string>
@@ -1113,7 +1115,7 @@
     <string name="storage_added">Folder ditambahkan. Membaca lagu…</string>
     <string name="storage_add_failed">Tidak bisa mengakses folder ini</string>
     <string name="external_open_failed">Tidak bisa membuka file ini.</string>
-    <string name="folder_new">Folder baru</string>
+    <string name="folder_new">Buat folder</string>
     <string name="folder_name_hint">Nama folder</string>
     <string name="folder_rename">Ganti nama folder</string>
     <string name="folder_delete">Hapus folder</string>
@@ -1121,7 +1123,7 @@
     <string name="folder_move">Pindah ke folder</string>
     <string name="folder_move_title">Pindahkan “%s” ke</string>
     <string name="folder_none">Pindah ke daftar utama</string>
-    <string name="folder_new_item">+ Folder baru</string>
+    <string name="folder_new_item">+ Buat folder</string>
     <string name="folder_moved">Dipindah ke “%s”</string>
     <string name="folder_moved_out">Dipindah ke daftar utama</string>
     <string name="folder_empty">Folder ini kosong. Ketuk + untuk membuat playlist di sini, atau tekan lama sebuah playlist lalu pilih “Pindah ke folder”.</string>
@@ -1165,13 +1167,14 @@
     <string name="screensaver_fx_off">Mati</string>
     <string name="screensaver_fx_ripple">Riak</string>
     <string name="screensaver_fx_sparkle">Percikan</string>
-    <string name="screensaver_fx_scatter">Hamburan (hujan / bintang)</string>
+    <string name="screensaver_fx_scatter">Hamburan</string>
     <string name="screensaver_fx_section">Efek sentuhan</string>
     <string name="screensaver_fx_subtitle">Cara halaman Screensaver bereaksi saat disentuh. Tidak dipakai oleh screensaver otomatis saat mengisi daya.</string>
     <string name="spotify_link_title">Impor dari tautan playlist</string>
     <string name="spotify_link_msg">Tanpa login Spotify. Di Spotify ketuk Bagikan &gt; Salin tautan pada playlist PUBLIK, lalu tempel di sini. Hanya ~100 lagu pertama yang terbaca.</string>
     <string name="spotify_link_hint">https://open.spotify.com/playlist/...</string>
     <string name="spotify_link_error">Playlist tidak bisa dibaca: %1$s</string>
+    <string name="playlist_import_spotify_account">Dari akun Spotify</string>
     <string name="spotify_import_menu">Impor dari Spotify</string>
     <string name="link_download_tile">Unduh dari link</string>
     <string name="link_download_title">Unduh dari link</string>

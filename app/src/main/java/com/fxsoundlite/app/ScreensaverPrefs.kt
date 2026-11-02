@@ -41,6 +41,7 @@ object ScreensaverPrefs {
     const val STYLE_RAIN = "rain"
     const val STYLE_NIGHT_SKY = "night_sky"
     const val STYLE_STARFIELD = "starfield"
+    const val STYLE_WATER = "water"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -61,7 +62,7 @@ object ScreensaverPrefs {
     }
 
     /** Switches the Screensaver page to one of the built-in, code-drawn
-     *  animated backgrounds (Rain / Night Sky / Starfield) instead
+     *  animated backgrounds (Rain / Night Sky / Starfield / Night Water) instead
      *  of a picked photo/video. Clears any previously picked media Uri
      *  since it no longer applies once this is active. */
     fun setAnimated(context: Context, style: String) {

@@ -329,15 +329,10 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
                 gravity = Gravity.CENTER
             }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(14) })
         }
-        content.addView(text(getString(R.string.listen_name_row, ListenTogether.myName(this).ifBlank { getString(R.string.listen_name_none) }), 13f, cMuted).apply {
-            gravity = Gravity.CENTER
-            setPadding(px(12), px(14), px(12), px(4))
-            setOnClickListener { nameDialog() }
-        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(6) })
         content.addView(text(getString(R.string.listen_server), 13f, cMuted).apply {
             gravity = Gravity.CENTER
             setPadding(px(12), px(14), px(12), px(14))
-            setOnClickListener { serverDialog() }
+            setOnClickListener { roomSettingsDialog() }
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = px(6) })
     }
 
@@ -781,23 +776,43 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
             .show()
     }
 
-    private fun serverDialog() {
-        val input = EditText(this).apply {
+    /** "Room settings": the name other people see in the room, and the Firebase database URL the rooms live on. */
+    private fun roomSettingsDialog() {
+        val nameInput = EditText(this).apply {
+            setText(ListenTogether.myName(this@ListenTogetherActivity))
+            setSelection(text.length)
+            hint = getString(R.string.listen_name_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            setSingleLine()
+            filters = arrayOf(InputFilter.LengthFilter(ListenTogether.MAX_NAME))
+        }
+        val urlInput = EditText(this).apply {
             setText(ListenTogether.dbUrl(this@ListenTogetherActivity))
             hint = getString(R.string.listen_server_hint)
             inputType = InputType.TYPE_TEXT_VARIATION_URI
             setSingleLine()
         }
+        fun label(res: Int, top: Int) = TextView(this).apply {
+            setText(res)
+            textSize = 13f
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(0, px(top), 0, 0)
+        }
         val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setPadding(px(24), px(8), px(24), 0)
-            addView(input, LinearLayout.LayoutParams(-1, -2))
+            addView(label(R.string.listen_name_title, 0))
+            addView(nameInput, LinearLayout.LayoutParams(-1, -2))
+            addView(label(R.string.listen_server_title, 16))
+            addView(TextView(this@ListenTogetherActivity).apply { setText(R.string.listen_server_msg); textSize = 12f })
+            addView(urlInput, LinearLayout.LayoutParams(-1, -2))
         }
         AlertDialog.Builder(this)
-            .setTitle(R.string.listen_server_title)
-            .setMessage(R.string.listen_server_msg)
-            .setView(wrap)
+            .setTitle(R.string.listen_server)
+            .setView(android.widget.ScrollView(this).apply { addView(wrap) })
             .setPositiveButton(R.string.listen_save) { _, _ ->
-                ListenTogether.setDbUrl(this, input.text.toString())
+                ListenTogether.setMyName(this, nameInput.text.toString())
+                ListenTogether.setDbUrl(this, urlInput.text.toString())
                 render()
             }
             .setNegativeButton(android.R.string.cancel, null)

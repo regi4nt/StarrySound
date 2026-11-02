@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Moon above the water -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M17,3a2.6,2.6 0,1 0,0.001 0z" />
+    <!-- Two wavy water lines -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M3,13c1.5,-1.6 3,-1.6 4.5,0s3,1.6 4.5,0s3,-1.6 4.5,0s3,1.6 4.5,0" />
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M3,18c1.5,-1.6 3,-1.6 4.5,0s3,1.6 4.5,0s3,-1.6 4.5,0s3,1.6 4.5,0" />
+</vector>

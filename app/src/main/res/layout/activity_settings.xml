@@ -1272,6 +1272,27 @@
                     app:iconSize="22dp"
                     app:iconTint="?attr/colorTextPrimary"
                     android:contentDescription="@string/animated_starfield" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/animatedWaterBtn"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:insetTop="0dp"
+                    android:insetBottom="0dp"
+                    android:paddingStart="0dp"
+                    android:paddingEnd="0dp"
+                    android:gravity="center"
+                    app:icon="@drawable/ic_style_water"
+                    app:iconGravity="textStart"
+                    app:iconPadding="0dp"
+                    app:iconSize="22dp"
+                    app:iconTint="?attr/colorTextPrimary"
+                    android:contentDescription="@string/animated_water" />
             </LinearLayout>
         </LinearLayout>
 
@@ -1609,6 +1630,21 @@
 
             <include layout="@layout/item_setting_search_tabs" />
             <include layout="@layout/item_setting_jamendo_key" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/jamendoGetKeyLink"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_marginStart="10dp"
+                android:layout_marginBottom="6dp"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="6dp"
+                android:textAllCaps="false"
+                android:textColor="?attr/colorAccent"
+                android:textSize="13sp" />
         </LinearLayout>
 
         <!-- Taste signals: what YouTube Music plays on this phone, and the YouTube account's likes /
@@ -2561,6 +2597,46 @@
                 android:trackTint="?attr/colorTrackBg" />
         </LinearLayout>
 
+        <!-- Safe volume mode card -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="16dp"
+            android:layout_marginTop="14dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/safe_volume_title"
+                    android:textColor="?attr/colorTextPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+                <Switch
+                    android:id="@+id/safeVolumeSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:thumbTint="?attr/colorAccent"
+                    android:trackTint="?attr/colorTrackBg" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/safe_volume_desc"
+                android:textColor="?attr/colorTextSecondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
         <!-- Auto preset per output (speaker / jack / Bluetooth) -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -2657,46 +2733,6 @@
                 android:layout_marginStart="12dp"
                 android:thumbTint="?attr/colorAccent"
                 android:trackTint="?attr/colorTrackBg" />
-        </LinearLayout>
-
-        <!-- Safe volume mode card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="@drawable/card_bg"
-            android:padding="16dp"
-            android:layout_marginTop="14dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/safe_volume_title"
-                    android:textColor="?attr/colorTextPrimary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-                <Switch
-                    android:id="@+id/safeVolumeSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:thumbTint="?attr/colorAccent"
-                    android:trackTint="?attr/colorTrackBg" />
-            </LinearLayout>
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="@string/safe_volume_desc"
-                android:textColor="?attr/colorTextSecondary"
-                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Root mode card -->

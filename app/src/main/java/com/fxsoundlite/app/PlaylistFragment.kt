@@ -713,6 +713,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     /** Order of the playlist overview (one of LSORT_*), remembered across launches. */
     private var listSort = SORT_DEFAULT
 
+    /** True inside a user folder or a source folder (Device / Drive / YouTube / Spotify): no source filter there. */
+    private fun inAnyFolder() = openFolder != null || openSource != null
+
     private fun showFilterDialog() {
         val ctx = context ?: return
         val id = openList
@@ -732,7 +735,27 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     } catch (e: Exception) { android.util.Log.d("PlaylistFragment", "ignored: " + e) }
                 }
             )
-            FilterUi.showSongFilter(ctx, tracks, songFilter, sort) { if (_binding != null) refresh() }
+            FilterUi.showSongFilter(ctx, tracks, songFilter, sort, showSource = !inAnyFolder()) { if (_binding != null) refresh() }
+            return
+        }
+        if (inAnyFolder()) {
+            // Inside a folder every playlist already has the same source: only the order is offered.
+            val folderSort = SortOption(
+                listOf(
+                    R.string.sort_default, R.string.sort_name_az, R.string.sort_name_za,
+                    R.string.sort_most_songs, R.string.sort_fewest_songs
+                ),
+                { listSort },
+                { which ->
+                    listSort = which
+                    try {
+                        ctx.getSharedPreferences(SORT_PREFS, Context.MODE_PRIVATE).edit().putInt(LIST_SORT_KEY, which).apply()
+                    } catch (e: Exception) { android.util.Log.d("PlaylistFragment", "ignored: " + e) }
+                }
+            )
+            FilterUi.showSongFilter(ctx, emptyList(), SongFilter(), folderSort, kinds = null, showSource = false) {
+                if (_binding != null) refresh()
+            }
             return
         }
         val kinds = ArrayList<Int>().apply {
@@ -871,7 +894,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         // Full strength while a filter or a non-default order is active.
         FilterUi.setButtonState(
             b.plFilterButton,
-            if (openList == null) kindFilter != 0 || listSort != SORT_DEFAULT else songFilter.active || sortMode != SORT_DEFAULT
+            if (openList == null) (!inAnyFolder() && kindFilter != 0) || listSort != SORT_DEFAULT else songFilter.active || sortMode != SORT_DEFAULT
         )
         val q = b.plSearchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         val id = openList
@@ -885,11 +908,11 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val lists = PlaylistStore.playlists(ctx)
             val rows = mutableListOf<Row>()
             // "Generate playlist" lives in the "+" button; "Convert playlist" in the "⋮" menu.
-            val want = { kind: Int -> kindFilter == 0 || kindFilter == kind }
+            val want = { kind: Int -> inAnyFolder() || kindFilter == 0 || kindFilter == kind }
             val srcView = openSource
             // Device / Drive / YouTube / Spotify playlists sit in their own folders on the main list; a search or a
             // kind filter lists everything flat instead, like the user's own folders.
-            val grouped = q.isEmpty() && kindFilter == 0
+            val grouped = q.isEmpty() && (kindFilter == 0 || inAnyFolder())
             val spotifyIds = SpotifyLists.ids(ctx)
             if (openFolder == null && srcView == null && want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
                 rows += Row(ROW_LIKED, PlaylistStore.LIKED_ID, likedName, songCount(PlaylistStore.liked(ctx).size))
@@ -1512,7 +1535,6 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             getString(R.string.convert_title),
             getString(R.string.playlist_menu_import_link),
             getString(R.string.playlist_menu_import_file),
-            getString(R.string.spotify_import_menu),
             getString(R.string.playlist_menu_backup)
         )
         AlertDialog.Builder(ctx)
@@ -1521,7 +1543,6 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     0 -> showConvertDialog()
                     1 -> promptImportLink()
                     2 -> openFile.launch(arrayOf("*/*"))
-                    3 -> activity?.let { act -> SpotifyImportUi.start(act) { if (_binding != null) refresh() } }
                     else -> createBackup.launch(PlaylistIo.backupFileName())
                 }
             }
@@ -1624,7 +1645,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             } catch (e: Exception) {
                 ""
             }
-            if (PlaylistIo.recognizes(clip)) setText(clip.trim())
+            if (PlaylistIo.recognizes(clip) || SpotifyEmbed.idFrom(clip) != null) setText(clip.trim())
         }
         val pad = (20 * ctx.resources.displayMetrics.density).toInt()
         val box = FrameLayout(ctx).apply { setPadding(pad, pad / 2, pad, 0); addView(input) }
@@ -1634,6 +1655,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             .setView(box)
             .setPositiveButton(android.R.string.ok) { _, _ -> importFromText(input.text.toString()) }
             .setNegativeButton(android.R.string.cancel, null)
+            .apply {
+                // Logged in to Spotify: the playlists of the account can be ticked instead of pasting a link.
+                if (SpotifyAuth.isConnected(ctx)) setNeutralButton(R.string.playlist_import_spotify_account) { _, _ ->
+                    activity?.let { act -> SpotifyImportUi.start(act) { if (_binding != null) refresh() } }
+                }
+            }
             .show()
     }
 
@@ -1643,6 +1670,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (PlaylistIo.isShareLink(text)) {
             val imp = PlaylistIo.decodeLink(text)
             if (imp == null) toast(ctx, R.string.playlist_import_bad_link) else confirmImport(imp)
+            return
+        }
+        if (SpotifyEmbed.idFrom(text) != null) { // a Spotify playlist link: songs are matched to YouTube
+            activity?.let { act -> SpotifyImportUi.importLink(act, text) { if (_binding != null) refresh() } }
             return
         }
         val listId = PlaylistIo.youtubePlaylistId(text)

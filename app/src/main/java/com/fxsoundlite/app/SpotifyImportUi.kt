@@ -18,6 +18,16 @@ object SpotifyImportUi {
         if (SpotifyAuth.isConnected(a)) pickFromAccount(a, onDone) else askLink(a, onDone)
     }
 
+    /** Imports the public Spotify playlist behind [link] (no login needed); songs are matched to YouTube. */
+    fun importLink(a: Activity, link: String, onDone: () -> Unit) {
+        if (SpotifyImport.running) { toast(a, a.getString(R.string.spotify_import_busy)); return }
+        val app = a.applicationContext
+        runJob(a, onDone) { progress ->
+            val pl = SpotifyEmbed.fetch(link)
+            SpotifyImport.runSongs(app, pl.name, pl.songs, progress)
+        }
+    }
+
     private fun toast(c: Context, m: String) = Toast.makeText(c.applicationContext, m, Toast.LENGTH_LONG).show()
 
     private fun pickFromAccount(a: Activity, onDone: () -> Unit) {
@@ -62,14 +72,7 @@ object SpotifyImportUi {
             .setTitle(R.string.spotify_link_title)
             .setMessage(R.string.spotify_link_msg)
             .setView(box)
-            .setPositiveButton(R.string.spotify_import_start) { _, _ ->
-                val link = input.text.toString()
-                val app = a.applicationContext
-                runJob(a, onDone) { progress ->
-                    val pl = SpotifyEmbed.fetch(link)
-                    SpotifyImport.runSongs(app, pl.name, pl.songs, progress)
-                }
-            }
+            .setPositiveButton(R.string.spotify_import_start) { _, _ -> importLink(a, input.text.toString(), onDone) }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }

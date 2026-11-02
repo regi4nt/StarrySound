@@ -183,6 +183,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             b.npBgAnimated.style = when (ScreensaverPrefs.animatedStyle(this)) {
                 ScreensaverPrefs.STYLE_RAIN -> SleepBackgroundView.Style.RAIN
                 ScreensaverPrefs.STYLE_STARFIELD -> SleepBackgroundView.Style.STARFIELD
+                ScreensaverPrefs.STYLE_WATER -> SleepBackgroundView.Style.WATER
                 else -> SleepBackgroundView.Style.NIGHT_SKY
             }
             b.npBgAnimated.visibility = View.VISIBLE
@@ -754,23 +755,23 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         val popup = PopupMenu(this, anchor, Gravity.END)
         val isRadio = MusicService.instance?.current?.source == Track.SOURCE_RADIO
         // Listen together only for songs every guest can stream too (YouTube, Online tab, radio), not for files on this device or Drive.
-        // Menu order: Listen together, Quality, Audio language, Playback speed, (Caption, PiP: video player), Sleep timer, Download, Share, Info.
+        // Menu order: Listen together, Find FLAC, Quality, Audio language, Playback speed, (Caption, PiP: video player), Sleep timer, Download, Share, Info.
         val src = MusicService.instance?.current?.source
         if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_ONLINE || src == Track.SOURCE_RADIO) {
             popup.menu.add(0, MENU_LISTEN, 0, R.string.np_listen)
         }
         if (MusicService.instance?.current?.source == Track.SOURCE_YOUTUBE) {
-            popup.menu.add(0, MENU_AUDIO, 2, R.string.np_audio_track)
+            popup.menu.add(0, MENU_AUDIO, 3, R.string.np_audio_track)
         }
         if (!isRadio && src != Track.SOURCE_SPOTIFY) { // live radio and the Spotify app cannot be sped up: no item at all
-            popup.menu.add(0, MENU_SPEED, 3, getString(R.string.np_speed_fmt, speedLabel(MusicService.instance?.playbackSpeed ?: 1f)))
+            popup.menu.add(0, MENU_SPEED, 4, getString(R.string.np_speed_fmt, speedLabel(MusicService.instance?.playbackSpeed ?: 1f)))
         }
-        if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 1, R.string.np_audio_quality)
+        if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 2, R.string.np_audio_quality)
         popup.menu.add(0, MENU_TIMER, 6, R.string.np_sleep_timer)
         if (MusicService.instance?.current?.source != Track.SOURCE_RADIO && src != Track.SOURCE_SPOTIFY) { // Spotify songs cannot be saved
             popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
         }
-        if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_SPOTIFY || src == Track.SOURCE_ONLINE) popup.menu.add(0, MENU_FLAC, 5, R.string.np_find_flac)
+        if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_SPOTIFY || src == Track.SOURCE_ONLINE) popup.menu.add(0, MENU_FLAC, 1, R.string.np_find_flac)
         // The empty Spotify player (nothing queued) has no song to open: the item just launches the Spotify app.
         val emptySpotifyMenu = emptySpotify && MusicService.instance?.current == null
         if (src == Track.SOURCE_SPOTIFY || emptySpotifyMenu) popup.menu.add(0, MENU_OPEN_SPOTIFY, 10, R.string.np_open_spotify)

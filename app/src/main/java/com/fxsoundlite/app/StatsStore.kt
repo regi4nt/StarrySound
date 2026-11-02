@@ -40,7 +40,7 @@ object StatsStore {
     private fun dayKey(): String = SimpleDateFormat("yyyyMMdd", Locale.US).format(Date())
 
     @Synchronized
-    fun addListening(c: Context, ms: Long) {
+    fun addListening(c: Context, ms: Long, t: Track? = null) {
         if (ms <= 0) return
         val prefs = p(c)
         val today = dayKey()
@@ -49,7 +49,7 @@ object StatsStore {
             .putLong(KEY_TOTAL, prefs.getLong(KEY_TOTAL, 0L) + ms)
             .putString(KEY_TODAY_KEY, today)
             .putLong(KEY_TODAY_MS, todayMs + ms)
-        addToMonth(prefs, edit, today, ms)
+        addToMonth(prefs, edit, today, ms, t)
         edit.apply()
     }
 
@@ -90,7 +90,7 @@ object StatsStore {
         for (k in keys) { if (extra-- <= 0) break; edit.remove(k) }
     }
 
-    private fun addToMonth(prefs: SharedPreferences, edit: SharedPreferences.Editor, today: String, ms: Long) {
+    private fun addToMonth(prefs: SharedPreferences, edit: SharedPreferences.Editor, today: String, ms: Long, t: Track?) {
         val mk = monthKey()
         makeRoom(prefs, edit, mk)
         val m = readMonth(prefs, mk)
@@ -100,6 +100,19 @@ object StatsStore {
         val hours = m.optJSONArray("hours") ?: JSONArray().also { a -> repeat(24) { a.put(0L) }; m.put("hours", a) }
         val h = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         hours.put(h, hours.optLong(h) + ms)
+        // Listening time per song and per artist ("ms"), next to the play counts. Radio / TV are not songs.
+        if (t != null && t.source != Track.SOURCE_RADIO) {
+            val tracks = m.optJSONObject("tracks") ?: JSONObject()
+            val cur = tracks.optJSONObject(t.key) ?: trackEntry(t)
+            cur.put("ms", cur.optLong("ms") + ms)
+            tracks.put(t.key, cur)
+            m.put("tracks", prune(tracks, MONTH_ENTRIES))
+            if (t.artist.isNotBlank()) {
+                val am = m.optJSONObject("artistMs") ?: JSONObject()
+                am.put(t.artist, am.optLong(t.artist) + ms)
+                m.put("artistMs", pruneLongs(am, MONTH_ENTRIES))
+            }
+        }
         edit.putString(MONTH_PREFIX + mk, m.toString())
     }
 
@@ -112,11 +125,10 @@ object StatsStore {
         if (t.source != Track.SOURCE_RADIO) { // stations are counted in plays / sources, but they are not "songs"
             val tracks = m.optJSONObject("tracks") ?: JSONObject()
             val cur = tracks.optJSONObject(t.key)
-            // s / r / i / u / d: enough to rebuild the song later (Wrapped -> "Create playlist").
+            // s / r / i / u / d: enough to rebuild the song later (Wrapped -> "Create playlist"); ms: time listened.
             tracks.put(
                 t.key,
-                JSONObject().put("t", t.title).put("a", artist).put("n", (cur?.optInt("n") ?: 0) + 1)
-                    .put("s", t.source).put("r", t.remoteId).put("i", t.id).put("u", t.artUrl).put("d", t.durationMs)
+                trackEntry(t).put("n", (cur?.optInt("n") ?: 0) + 1).put("ms", cur?.optLong("ms") ?: 0L)
             )
             m.put("tracks", prune(tracks, MONTH_ENTRIES))
         }
@@ -126,7 +138,13 @@ object StatsStore {
             m.put("artists", pruneInts(artists, MONTH_ENTRIES))
         }
         val src = m.optJSONObject("src") ?: JSONObject()
-        val sk = t.source.toString()
+        // A TV channel plays as the audio twin of a radio station (SOURCE_RADIO + TV album): count it as TV, not Radio.
+        val statSource = when {
+            PlayerMode.isTvAudio(t) -> Track.SOURCE_TV
+            t.source == Track.SOURCE_DRIVE_VIDEO -> Track.SOURCE_DRIVE
+            else -> t.source
+        }
+        val sk = statSource.toString()
         src.put(sk, src.optInt(sk) + 1)
         m.put("src", src)
         edit.putString(MONTH_PREFIX + mk, m.toString())
@@ -149,6 +167,7 @@ object StatsStore {
         }
         out.put("days", maxLongs("days"))
         out.put("artists", pruneInts(maxInts("artists"), MONTH_ENTRIES))
+        out.put("artistMs", pruneLongs(maxLongs("artistMs"), MONTH_ENTRIES))
         out.put("src", maxInts("src"))
         val ha = a.optJSONArray("hours"); val hb = b.optJSONArray("hours")
         val hours = JSONArray()
@@ -158,14 +177,16 @@ object StatsStore {
         val tracks = JSONObject()
         (ta.keys().asSequence() + tb.keys().asSequence()).toSet().forEach { k ->
             val x = ta.optJSONObject(k); val y = tb.optJSONObject(k)
-            tracks.put(k, if (x == null) y else if (y == null) x else if (y.optInt("n") > x.optInt("n")) y else x)
+            val pick = if (x == null) y else if (y == null) x else if (y.optInt("n") > x.optInt("n")) y else x
+            if (pick != null && x != null && y != null) pick.put("ms", maxOf(x.optLong("ms"), y.optLong("ms")))
+            tracks.put(k, pick)
         }
         out.put("tracks", prune(tracks, MONTH_ENTRIES))
         return out
     }
 
     /** [track] is the playable song (null when the stored entry is too incomplete to rebuild it). */
-    class TrackStat(val title: String, val artist: String, val plays: Int, val track: Track? = null)
+    class TrackStat(val title: String, val artist: String, val plays: Int, val track: Track? = null, val ms: Long = 0L)
 
     /** What the Wrapped screen shows for one month or one year. */
     class Recap(
@@ -180,6 +201,8 @@ object StatsStore {
         /** Listening time per hour of the day (24 values, ms). */
         val hours: List<Long>,
         val artists: List<Pair<String, Int>>,
+        /** Listening time per artist (ms), for the artists in [artists]. */
+        val artistMs: Map<String, Long>,
         val artistCount: Int,
         val tracks: List<TrackStat>,
         val trackCount: Int,
@@ -200,6 +223,7 @@ object StatsStore {
         val days = HashMap<String, Long>()
         val hours = LongArray(24)
         val artists = HashMap<String, Int>()
+        val artistMs = HashMap<String, Long>()
         val tracks = HashMap<String, TrackStat>()
         val sources = HashMap<Int, Int>()
         var topMonth: String? = null
@@ -212,9 +236,11 @@ object StatsStore {
             m.optJSONObject("days")?.let { d -> d.keys().forEach { k -> days[k] = (days[k] ?: 0L) + d.optLong(k) } }
             m.optJSONArray("hours")?.let { h -> for (i in 0 until minOf(24, h.length())) hours[i] += h.optLong(i) }
             m.optJSONObject("artists")?.let { a -> a.keys().forEach { k -> artists[k] = (artists[k] ?: 0) + a.optInt(k) } }
+            m.optJSONObject("artistMs")?.let { a -> a.keys().forEach { k -> artistMs[k] = (artistMs[k] ?: 0L) + a.optLong(k) } }
             m.optJSONObject("tracks")?.let { tr ->
                 tr.keys().forEach { k ->
                     val o = tr.optJSONObject(k) ?: return@forEach
+                    if (o.optInt("n") <= 0) return@forEach // listened to, but skipped before it counted as a play
                     val local = k.startsWith("L")
                     val src = o.optInt("s", if (local) Track.SOURCE_LOCAL else k.substringBefore(':').toIntOrNull() ?: Track.SOURCE_LOCAL)
                     if (src == Track.SOURCE_RADIO) return@forEach
@@ -226,12 +252,12 @@ object StatsStore {
                         durationMs = o.optLong("d"), source = src, remoteId = rid, artUrl = o.optString("u")
                     )
                     val old = tracks[k]
-                    tracks[k] = TrackStat(o.optString("t"), o.optString("a"), (old?.plays ?: 0) + o.optInt("n"), song ?: old?.track)
+                    tracks[k] = TrackStat(o.optString("t"), o.optString("a"), (old?.plays ?: 0) + o.optInt("n"), song ?: old?.track, (old?.ms ?: 0L) + o.optLong("ms"))
                 }
             }
             m.optJSONObject("src")?.let { sr -> sr.keys().forEach { k -> k.toIntOrNull()?.let { s -> sources[s] = (sources[s] ?: 0) + sr.optInt(k) } } }
         }
-        val rankedTracks = tracks.values.sortedWith(compareByDescending<TrackStat> { it.plays }.thenBy { it.title })
+        val rankedTracks = tracks.values.sortedWith(compareByDescending<TrackStat> { it.plays }.thenByDescending { it.ms }.thenBy { it.title })
         val best = days.entries.maxByOrNull { it.value }
         val peak = hours.indices.maxByOrNull { hours[it] }?.takeIf { hours[it] > 0L } ?: -1
         return Recap(
@@ -242,8 +268,10 @@ object StatsStore {
             bestDayMs = best?.value ?: 0L,
             peakHour = peak,
             hours = hours.toList(),
-            artists = artists.entries.sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
-                .take(5).map { it.key to it.value },
+            artists = artists.entries.sortedWith(
+                compareByDescending<Map.Entry<String, Int>> { it.value }.thenByDescending { artistMs[it.key] ?: 0L }.thenBy { it.key }
+            ).take(5).map { it.key to it.value },
+            artistMs = artistMs,
             artistCount = artists.size,
             tracks = rankedTracks.take(5),
             trackCount = tracks.size,
@@ -329,9 +357,24 @@ object StatsStore {
     private fun readJson(raw: String?): JSONObject = try { JSONObject(raw ?: "{}") } catch (e: Exception) { JSONObject() }
 
     /** Keeps the storage small: drops the least played entries once there are too many. */
+    /** The stored form of a song (play count [n] and listening time [ms] start at 0). */
+    private fun trackEntry(t: Track): JSONObject =
+        JSONObject().put("t", t.title).put("a", if (t.source != Track.SOURCE_RADIO) t.artist else "").put("n", 0)
+            .put("s", t.source).put("r", t.remoteId).put("i", t.id).put("u", t.artUrl).put("d", t.durationMs).put("ms", 0L)
+
+    private fun pruneLongs(o: JSONObject, max: Int = MAX_ENTRIES): JSONObject {
+        if (o.length() <= max) return o
+        val out = JSONObject()
+        o.keys().asSequence().map { it to o.optLong(it) }.sortedByDescending { it.second }.take(max).forEach { (k, n) -> out.put(k, n) }
+        return out
+    }
+
     private fun prune(o: JSONObject, max: Int = MAX_ENTRIES): JSONObject {
         if (o.length() <= max) return o
-        val entries = o.keys().asSequence().map { it to (o.optJSONObject(it)?.optInt("n") ?: 0) }.sortedByDescending { it.second }
+        val entries = o.keys().asSequence()
+            .map { Triple(it, o.optJSONObject(it)?.optInt("n") ?: 0, o.optJSONObject(it)?.optLong("ms") ?: 0L) }
+            .sortedWith(compareByDescending<Triple<String, Int, Long>> { it.second }.thenByDescending { it.third })
+            .map { it.first to it.second }
         val out = JSONObject()
         entries.take(max).forEach { (k, _) -> out.put(k, o.getJSONObject(k)) }
         return out

@@ -24,7 +24,7 @@ import java.util.concurrent.Executors
 /**
  * Google sign-in + backup/sync of the user's data to Google Drive.
  *
- * What is synced: playlists, liked songs, YouTube play history and listening statistics
+ * What is synced: playlists, liked songs, playlist folders / pins / Spotify marks, YouTube play history and listening statistics
  * (see [buildSnapshot]). API keys are deliberately NOT uploaded.
  *
  * Two things that make merging safe:
@@ -263,6 +263,9 @@ object DriveSync {
         .put("history", MusicPrefs.exportHistory(c))
         .put("online_history", MusicPrefs.exportOnlineHistory(c))
         .put("stats", StatsStore.exportJson(c))
+        .put("folders", PlaylistFolders.exportJson(c))
+        .put("pins", PlaylistPins.exportJson(c))
+        .put("spotify_ids", SpotifyLists.exportJson(c))
 
     private fun isLocalTrack(o: JSONObject) = o.optInt("src", Track.SOURCE_LOCAL) == Track.SOURCE_LOCAL
 
@@ -319,6 +322,10 @@ object DriveSync {
         snap.optJSONArray("history")?.let { MusicPrefs.importHistory(c, it, merge) }
         snap.optJSONArray("online_history")?.let { MusicPrefs.importOnlineHistory(c, it, merge) }
         snap.optJSONObject("stats")?.let { StatsStore.importJson(c, it, merge) }
+        // Folders, pins and Spotify marks are absent from older backups: then this device's own are left alone.
+        snap.optJSONObject("folders")?.let { PlaylistFolders.importJson(c, it, merge) }
+        snap.optJSONArray("pins")?.let { PlaylistPins.importJson(c, it, merge) }
+        snap.optJSONArray("spotify_ids")?.let { SpotifyLists.importJson(c, it, merge) }
         // Songs from another phone are matched to this phone's files by title + artist (see LocalMatcher);
         // refresh its file index here, on the sync thread, rather than on the first screen that reads a playlist.
         try { LocalMatcher.refresh(c) } catch (e: Exception) { android.util.Log.d("DriveSync", "ignored: " + e) }

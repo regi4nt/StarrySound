@@ -225,6 +225,7 @@ class QuickFragment : Fragment(), QuickActions {
     override fun onResume() {
         super.onResume()
         visible = true
+        for (d in -1..1) holderAt(currentPos + d)?.b?.quickCover?.invalidateOutline() // cover shape may have changed in Settings
         handler.removeCallbacks(ticker)
         handler.post(ticker)
         when {

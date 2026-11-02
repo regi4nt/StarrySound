@@ -557,6 +557,7 @@ class SettingsActivity : AppCompatActivity() {
         binding.animatedRainBtn.setOnClickListener { selectAnimated(ScreensaverPrefs.STYLE_RAIN) }
         binding.animatedNightSkyBtn.setOnClickListener { selectAnimated(ScreensaverPrefs.STYLE_NIGHT_SKY) }
         binding.animatedStarfieldBtn.setOnClickListener { selectAnimated(ScreensaverPrefs.STYLE_STARFIELD) }
+        binding.animatedWaterBtn.setOnClickListener { selectAnimated(ScreensaverPrefs.STYLE_WATER) }
     }
 
     private fun selectAnimated(style: String) {
@@ -633,7 +634,8 @@ class SettingsActivity : AppCompatActivity() {
         val buttons = mapOf(
             ScreensaverPrefs.STYLE_RAIN to binding.animatedRainBtn,
             ScreensaverPrefs.STYLE_NIGHT_SKY to binding.animatedNightSkyBtn,
-            ScreensaverPrefs.STYLE_STARFIELD to binding.animatedStarfieldBtn
+            ScreensaverPrefs.STYLE_STARFIELD to binding.animatedStarfieldBtn,
+            ScreensaverPrefs.STYLE_WATER to binding.animatedWaterBtn
         )
         val selected = if (mediaType == ScreensaverPrefs.TYPE_ANIMATED) style else null
         val accentColor = MaterialColors.getColor(binding.root, com.google.android.material.R.attr.colorAccent)
@@ -653,6 +655,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun animatedStyleLabel(style: String) = when (style) {
         ScreensaverPrefs.STYLE_RAIN -> getString(R.string.animated_rain)
         ScreensaverPrefs.STYLE_STARFIELD -> getString(R.string.animated_starfield)
+        ScreensaverPrefs.STYLE_WATER -> getString(R.string.animated_water)
         else -> getString(R.string.animated_night_sky)
     }
 
@@ -788,6 +791,8 @@ class SettingsActivity : AppCompatActivity() {
         binding.lastfmGetKeyLink.setOnClickListener { openLink("https://www.last.fm/api/account/create") }
         binding.acrGetKeyLink.text = getString(R.string.get_key_acr)
         binding.acrGetKeyLink.setOnClickListener { openLink("https://console.acrcloud.com") }
+        binding.jamendoGetKeyLink.text = getString(R.string.get_key_jamendo)
+        binding.jamendoGetKeyLink.setOnClickListener { openLink("https://devportal.jamendo.com") }
     }
 
     // ------------------------------------------------------------------ Spotify
