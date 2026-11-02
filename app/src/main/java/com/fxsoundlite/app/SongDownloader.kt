@@ -43,13 +43,13 @@ object SongDownloader {
     private const val FOLDER = "StarrySound"
     private const val CHANNEL_ID = "starrysound_download_channel"
     private const val CHUNK = 1024L * 1024L
-    private const val REQ_STORAGE = 4711
+    internal const val REQ_STORAGE = 4711
     private const val USER_AGENT =
         "Mozilla/5.0 (Windows NT 10.0; rv:128.0) Gecko/20100101 Firefox/128.0"
     // Two at a time; the rest wait in line.
-    private val io = Executors.newFixedThreadPool(2)
+    internal val io = Executors.newFixedThreadPool(2)
     private val main = Handler(Looper.getMainLooper())
-    private val notifIds = AtomicInteger(5000)
+    internal val notifIds = AtomicInteger(5000)
 
     fun canDownload(t: Track) = t.source == Track.SOURCE_YOUTUBE && t.remoteId.isNotBlank()
 
@@ -118,7 +118,7 @@ object SongDownloader {
     }
 
     /** Copies [url] into [out] in 1 MB ranged requests (falls back to one plain request). */
-    private fun fetch(app: Context, url: String, out: OutputStream, notifId: Int, title: String) {
+    internal fun fetch(app: Context, url: String, out: OutputStream, notifId: Int, title: String, referer: String = "") {
         var start = 0L
         var total = -1L
         var lastPercent = -1
@@ -131,6 +131,7 @@ object SongDownloader {
                 conn.readTimeout = 30_000
                 conn.instanceFollowRedirects = true
                 conn.setRequestProperty("User-Agent", USER_AGENT)
+                if (referer.isNotBlank()) conn.setRequestProperty("Referer", referer) // some sites refuse files asked for without the page
                 conn.setRequestProperty("Range", "bytes=$start-$end")
                 val code = conn.responseCode
                 when (code) {
@@ -174,7 +175,7 @@ object SongDownloader {
 
     // ------------------------------------------------------------------ storage
 
-    private class Sink(val out: OutputStream, val commit: () -> Unit, val abort: () -> Unit)
+    internal class Sink(val out: OutputStream, val commit: () -> Unit, val abort: () -> Unit)
 
     private fun openSink(app: Context, name: String, mime: String, t: Track): Sink {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -216,6 +217,58 @@ object SongDownloader {
         )
     }
 
+    /**
+     * Sink for a downloaded VIDEO (link download): Movies/StarrySound through MediaStore (Android 10+), else a file in the
+     * public Movies folder that the media scanner picks up. The Device tab (video mode) lists it afterwards.
+     */
+    internal fun openVideoSink(app: Context, name: String, mime: String, title: String): Sink {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.Video.Media.DISPLAY_NAME, name)
+                put(MediaStore.Video.Media.MIME_TYPE, mime)
+                put(MediaStore.Video.Media.TITLE, title)
+                put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/$FOLDER")
+                put(MediaStore.Video.Media.IS_PENDING, 1)
+            }
+            val resolver = app.contentResolver
+            val uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
+                ?: throw IOException("MediaStore insert failed")
+            val out = resolver.openOutputStream(uri) ?: throw IOException("cannot open $uri")
+            return Sink(
+                out,
+                commit = {
+                    resolver.update(uri, ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0) }, null, null)
+                    MusicLibrary.notifyChanged()
+                },
+                abort = { try { resolver.delete(uri, null, null) } catch (e: Exception) { Log.d(TAG, "ignored: $e") } }
+            )
+        }
+        @Suppress("DEPRECATION")
+        val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), FOLDER)
+        if (!dir.isDirectory && !dir.mkdirs()) throw IOException("cannot create $dir")
+        val file = File(dir, name)
+        return Sink(
+            file.outputStream(),
+            commit = { MediaScannerConnection.scanFile(app, arrayOf(file.absolutePath), arrayOf(mime)) { _, _ -> MusicLibrary.notifyChanged() } },
+            abort = { file.delete() }
+        )
+    }
+
+    /** Same sink for a downloaded SONG without a [Track] (link download): Music/StarrySound. */
+    internal fun openAudioSink(app: Context, name: String, mime: String, title: String, artist: String): Sink =
+        openSink(app, name, mime, Track(0L, title, artist, "", 0L))
+
+    /** Android 8-9 only: true when files may be written to the shared folders; otherwise asks and returns false. */
+    internal fun storageAllowed(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) return true
+        if (ContextCompat.checkSelfPermission(context.applicationContext, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) return true
+        findActivity(context)?.let { ActivityCompat.requestPermissions(it, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQ_STORAGE) }
+        return false
+    }
+
+    internal fun safeName(raw: String, fallback: String): String =
+        raw.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim().take(100).ifBlank { fallback }
+
     // ------------------------------------------------------------------ notification
 
     private fun nm(app: Context): NotificationManager? {
@@ -228,7 +281,7 @@ object SongDownloader {
         return m
     }
 
-    private fun showProgress(app: Context, id: Int, title: String, percent: Int, indeterminate: Boolean) {
+    internal fun showProgress(app: Context, id: Int, title: String, percent: Int, indeterminate: Boolean) {
         try {
             val n = NotificationCompat.Builder(app, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_download)
@@ -242,7 +295,7 @@ object SongDownloader {
         } catch (e: Exception) { android.util.Log.d("SongDownloader", "ignored: " + e) } // notifications may be blocked; the download itself carries on
     }
 
-    private fun finishNotification(app: Context, id: Int, title: String, success: Boolean) {
+    internal fun finishNotification(app: Context, id: Int, title: String, success: Boolean) {
         try {
             val n = NotificationCompat.Builder(app, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_download)
@@ -256,7 +309,7 @@ object SongDownloader {
 
     // ------------------------------------------------------------------ helpers
 
-    private fun findActivity(c: Context): Activity? {
+    internal fun findActivity(c: Context): Activity? {
         var ctx: Context? = c
         while (ctx is ContextWrapper) {
             if (ctx is Activity) return ctx
@@ -271,7 +324,7 @@ object SongDownloader {
         return clean.take(100).ifBlank { "song_${t.remoteId}" }
     }
 
-    private fun toast(context: Context, res: Int) {
+    internal fun toast(context: Context, res: Int) {
         main.post { Toast.makeText(context, res, Toast.LENGTH_LONG).show() }
     }
 }

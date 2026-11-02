@@ -762,7 +762,9 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
         }
         if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_SPOTIFY || src == Track.SOURCE_ONLINE) popup.menu.add(0, MENU_FLAC, 5, R.string.np_find_flac)
-        if (src == Track.SOURCE_SPOTIFY) popup.menu.add(0, MENU_OPEN_SPOTIFY, 10, R.string.np_open_spotify)
+        // The empty Spotify player (nothing queued) has no song to open: the item just launches the Spotify app.
+        val emptySpotifyMenu = emptySpotify && MusicService.instance?.current == null
+        if (src == Track.SOURCE_SPOTIFY || emptySpotifyMenu) popup.menu.add(0, MENU_OPEN_SPOTIFY, 10, R.string.np_open_spotify)
         if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_OPEN_YOUTUBE, 10, R.string.np_open_youtube)
         popup.menu.add(0, MENU_SHARE, 8, R.string.np_share)
         popup.menu.add(0, MENU_INFO, 9, R.string.np_info)
@@ -773,7 +775,11 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 MENU_LISTEN -> ListenTogetherUi.show(this)
                 MENU_DOWNLOAD -> MusicService.instance?.current?.let { t -> SongDownloader.download(this, t) }
                 MENU_INFO -> showSongInfo()
-                MENU_OPEN_SPOTIFY -> MusicService.instance?.current?.let { t -> openInSpotify(t) }
+                MENU_OPEN_SPOTIFY -> {
+                    val t = MusicService.instance?.current
+                    if (t != null) openInSpotify(t)
+                    else if (!SpotifyRemote.open(this)) Toast.makeText(this, R.string.np_open_failed, Toast.LENGTH_SHORT).show()
+                }
                 MENU_OPEN_YOUTUBE -> MusicService.instance?.current?.let { t -> openInYouTube(t) }
                 MENU_FLAC -> findFlacVersion()
                 MENU_SPEED -> showSpeedDialog()

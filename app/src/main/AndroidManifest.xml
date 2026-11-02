@@ -174,7 +174,20 @@
         <activity
             android:name=".BedtimeActivity"
             android:exported="false"
+            android:launchMode="singleTop"
             android:label="@string/bedtime_title" />
+
+        <!-- Download a song or video from a pasted link (also receives links shared from other apps). -->
+        <activity
+            android:name=".LinkDownloadActivity"
+            android:exported="true"
+            android:label="@string/link_download_title">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
 
         <!-- Wake-up alarm with a song: settings screen + the screen shown over the lock screen when it rings. -->
         <activity

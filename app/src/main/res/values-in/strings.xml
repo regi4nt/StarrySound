@@ -1174,4 +1174,20 @@
     <string name="spotify_link_hint">https://open.spotify.com/playlist/...</string>
     <string name="spotify_link_error">Playlist tidak bisa dibaca: %1$s</string>
     <string name="spotify_import_menu">Impor dari Spotify</string>
+    <string name="link_download_tile">Unduh dari link</string>
+    <string name="link_download_title">Unduh dari link</string>
+    <string name="link_download_subtitle">Tempel link lagu atau video (YouTube, TikTok, Instagram, Facebook, SoundCloud, Bandcamp, atau halaman web / link langsung .mp3 / .mp4). Hanya postingan publik yang bisa. Lagu disimpan di Music/StarrySound, video di Movies/StarrySound.</string>
+    <string name="link_download_hint">https://…</string>
+    <string name="link_download_paste">Tempel</string>
+    <string name="link_download_check">Periksa link</string>
+    <string name="link_download_choose">SIMPAN SEBAGAI</string>
+    <string name="link_download_song">Lagu</string>
+    <string name="link_download_video">Video</string>
+    <string name="link_download_invalid">Itu bukan link web. Tempel alamat yang diawali http.</string>
+    <string name="link_download_unreadable">Link ini tidak bisa dibaca. Pastikan link bersifat publik dan Anda sedang online.</string>
+    <string name="link_download_nothing">Tidak ada yang bisa diunduh dari link ini.</string>
+    <string name="link_download_clipboard_empty">Papan klip kosong.</string>
+    <string name="link_download_started_video">Mengunduh video ke Movies/StarrySound. Progres ada di notifikasi.</string>
+    <string name="link_download_done_video">Unduhan selesai: Movies/StarrySound</string>
+    <string name="sleepwake_title">Tidur &amp; bangun</string>
 </resources>

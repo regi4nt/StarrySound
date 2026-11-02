@@ -73,15 +73,12 @@ class HomeFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // Does not need the effect engine, so it is wired right away.
-        val openSleep = View.OnClickListener {
-            startActivity(Intent(requireContext(), BedtimeActivity::class.java))
-        }
-        binding.sleepCard.setOnClickListener(openSleep)
+        binding.tileLink.setOnClickListener { startActivity(Intent(requireContext(), LinkDownloadActivity::class.java)) }
         binding.statsWrapped.setOnClickListener {
             startActivity(Intent(requireContext(), WrappedActivity::class.java))
         }
         binding.tileDetect.setOnClickListener { startActivity(Intent(requireContext(), SongDetectActivity::class.java)) }
-        binding.tileAlarm.setOnClickListener { startActivity(Intent(requireContext(), AlarmActivity::class.java)) }
+        binding.tileAlarm.setOnClickListener { startActivity(Intent(requireContext(), BedtimeActivity::class.java)) } // sleep sounds + wake-up alarm: one screen, two tabs
 
         // These do not need the effect engine either: they must work even if EffectService binds slowly.
         setupSettingsButton()

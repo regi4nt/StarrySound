@@ -1181,4 +1181,20 @@
     <string name="spotify_link_hint">https://open.spotify.com/playlist/...</string>
     <string name="spotify_link_error">Could not read the playlist: %1$s</string>
     <string name="spotify_import_menu">Import from Spotify</string>
+    <string name="link_download_tile">Download from link</string>
+    <string name="link_download_title">Download from link</string>
+    <string name="link_download_subtitle">Paste a link to a song or video (YouTube, TikTok, Instagram, Facebook, SoundCloud, Bandcamp, or any web page / direct .mp3 / .mp4 link). Only public posts work. Songs are saved to Music/StarrySound, videos to Movies/StarrySound.</string>
+    <string name="link_download_hint">https://…</string>
+    <string name="link_download_paste">Paste</string>
+    <string name="link_download_check">Check link</string>
+    <string name="link_download_choose">SAVE AS</string>
+    <string name="link_download_song">Song</string>
+    <string name="link_download_video">Video</string>
+    <string name="link_download_invalid">That is not a web link. Paste an address that starts with http.</string>
+    <string name="link_download_unreadable">Could not read this link. Check that it is public and that you are online.</string>
+    <string name="link_download_nothing">Nothing can be downloaded from this link.</string>
+    <string name="link_download_clipboard_empty">The clipboard is empty.</string>
+    <string name="link_download_started_video">Downloading the video to Movies/StarrySound. Progress is in the notification.</string>
+    <string name="link_download_done_video">Download complete: Movies/StarrySound</string>
+    <string name="sleepwake_title">Sleep &amp; wake-up</string>
 </resources>

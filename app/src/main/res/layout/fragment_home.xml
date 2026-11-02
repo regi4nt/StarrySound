@@ -341,7 +341,7 @@
                     android:orientation="horizontal">
 
                 <LinearLayout
-                    android:id="@+id/sleepCard"
+                    android:id="@+id/tileLink"
                     android:layout_width="0dp"
                     android:layout_height="56dp"
                     android:layout_weight="1"
@@ -358,7 +358,7 @@
                         android:background="@drawable/tile_icon_bg"
                         android:importantForAccessibility="no"
                         android:padding="16dp"
-                        android:src="@drawable/ic_style_night_sky"
+                        android:src="@drawable/ic_download"
                         android:tint="?attr/colorAccent" />
 
                     <LinearLayout
@@ -373,7 +373,7 @@
                             android:layout_height="wrap_content"
                             android:ellipsize="end"
                             android:maxLines="2"
-                            android:text="@string/bedtime_title"
+                            android:text="@string/link_download_tile"
                             android:textColor="?attr/colorTextPrimary"
                             android:textSize="13sp"
                             android:textStyle="bold" />
@@ -417,7 +417,7 @@
                             android:layout_height="wrap_content"
                             android:ellipsize="end"
                             android:maxLines="1"
-                            android:text="@string/alarm_tile_title"
+                            android:text="@string/sleepwake_title"
                             android:textColor="?attr/colorTextPrimary"
                             android:textSize="13sp"
                             android:textStyle="bold" />

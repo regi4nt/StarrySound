@@ -55,6 +55,11 @@ class BedtimeActivity : AppCompatActivity() {
         private const val PREFS = "bedtime_prefs"
         private const val KEY_MINUTES = "timer_minutes"
         private const val KEY_SOURCE = "source"
+        private const val KEY_TAB = "tab"
+        /** Intent extra: which tab opens ([TAB_SLEEP] / [TAB_WAKE]); without it the last used one. */
+        const val EXTRA_TAB = "tab"
+        const val TAB_SLEEP = 0
+        const val TAB_WAKE = 1
         private const val SOURCE_DEVICE = 0
         private const val SOURCE_YOUTUBE = 1
         private const val SOURCE_DRIVE = 3 // 2 was Radio (removed); an old saved value falls back to Device
@@ -130,6 +135,9 @@ class BedtimeActivity : AppCompatActivity() {
         setContentView(R.layout.activity_bedtime)
         minutes = prefs.getInt(KEY_MINUTES, 30)
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
+        alarmPanel = AlarmPanel(this, findViewById(R.id.alarmPanel))
+        buildTabs()
+        showTab(if (intent.hasExtra(EXTRA_TAB)) intent.getIntExtra(EXTRA_TAB, TAB_SLEEP) else prefs.getInt(KEY_TAB, TAB_SLEEP))
 
         bound = applicationContext.bindService(
             Intent(applicationContext, MusicService::class.java), connection, Context.BIND_AUTO_CREATE
@@ -146,6 +154,43 @@ class BedtimeActivity : AppCompatActivity() {
         }
         countdown.run()
         load()
+    }
+
+    // ---- two tabs: Sleep sounds | Wake-up alarm (one screen for going to sleep and waking up)
+    private var alarmPanel: AlarmPanel? = null
+    private var tab = TAB_SLEEP
+
+    private fun buildTabs() {
+        val box = findViewById<LinearLayout>(R.id.bedtimeTabs)
+        box.removeAllViews()
+        val gap = (8 * resources.displayMetrics.density).toInt()
+        val labels = intArrayOf(R.string.bedtime_title, R.string.alarm_title) // index == TAB_*
+        for ((i, res) in labels.withIndex()) {
+            val chip = LayoutInflater.from(this).inflate(R.layout.item_preset_chip, box, false) as TextView
+            chip.layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = if (i == labels.lastIndex) 0 else gap
+            }
+            chip.gravity = android.view.Gravity.CENTER
+            chip.setText(res)
+            chip.setOnClickListener { showTab(i) }
+            box.addView(chip)
+        }
+    }
+
+    private fun showTab(t: Int) {
+        tab = if (t == TAB_WAKE) TAB_WAKE else TAB_SLEEP
+        prefs.edit().putInt(KEY_TAB, tab).apply()
+        val box = findViewById<LinearLayout>(R.id.bedtimeTabs)
+        for (i in 0 until box.childCount) box.getChildAt(i).isSelected = i == tab
+        findViewById<View>(R.id.sleepScroll).visibility = if (tab == TAB_SLEEP) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.wakeScroll).visibility = if (tab == TAB_WAKE) View.VISIBLE else View.GONE
+        if (tab == TAB_WAKE) alarmPanel?.refresh()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.hasExtra(EXTRA_TAB)) showTab(intent.getIntExtra(EXTRA_TAB, TAB_SLEEP))
     }
 
     override fun onResume() {
@@ -167,6 +212,7 @@ class BedtimeActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        alarmPanel?.destroy()
         MusicLibrary.removeChangeListener(libraryChanged)
         dismissed = true
         loadToken++
