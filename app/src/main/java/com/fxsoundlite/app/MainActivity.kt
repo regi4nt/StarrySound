@@ -175,10 +175,11 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             if (cur == null) { // empty Spotify mini player: start the last song and open the player on it
                 spotifyTabFragment()?.playFromMini(openPlayer = true) { open ->
-                    if (open) {
-                        startActivity(Intent(this, NowPlayingActivity::class.java))
-                        overridePendingTransition(R.anim.slide_up, R.anim.stay)
-                    }
+                    // Nothing could be started: still open our full player (empty Spotify one), not the Spotify app.
+                    val i = Intent(this, NowPlayingActivity::class.java)
+                    if (!open) i.putExtra(NowPlayingActivity.EXTRA_EMPTY_SPOTIFY, true)
+                    startActivity(i)
+                    overridePendingTransition(R.anim.slide_up, R.anim.stay)
                 }
                 return@setOnClickListener
             }

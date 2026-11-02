@@ -259,6 +259,9 @@
     <string name="bedtime_section_suggest">SUGGESTIONS</string>
     <string name="np_more">More options</string>
     <string name="np_sleep_timer">Sleep timer</string>
+    <string name="np_open_spotify">Open in Spotify</string>
+    <string name="np_open_youtube">Open in YouTube</string>
+    <string name="np_open_failed">Could not open the link</string>
     <string name="np_share">Share song</string>
     <string name="np_find_flac">Find FLAC version</string>
     <string name="np_find_flac_searching">Looking for a FLAC copy…</string>

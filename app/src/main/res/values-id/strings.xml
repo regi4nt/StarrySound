@@ -248,6 +248,9 @@
     <string name="bedtime_section_suggest">SARAN</string>
     <string name="np_more">Opsi lainnya</string>
     <string name="np_sleep_timer">Timer tidur</string>
+    <string name="np_open_spotify">Buka di Spotify</string>
+    <string name="np_open_youtube">Buka di YouTube</string>
+    <string name="np_open_failed">Tautan tidak bisa dibuka</string>
     <string name="np_share">Bagikan lagu</string>
     <string name="np_find_flac">Cari versi FLAC</string>
     <string name="np_find_flac_searching">Mencari salinan FLAC…</string>

@@ -875,9 +875,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
                     else svc.setQueueAndPlay(history, 0, fromYoutubeSearch = true)
                     onStarted(openPlayer && svc.current != null)
                 } else {
-                    // Nothing to adopt: drive the Spotify app itself (open it if it has no media session yet).
-                    if (!SpotifyRemote.hasSession(app)) SpotifyRemote.open(app)
-                    SpotifyRemote.playPause(app)
+                    // Nothing to adopt. A tap on the bar (openPlayer) opens our own full player (empty Spotify player),
+                    // never the Spotify app; the play button drives the Spotify app (opened if it has no media session yet).
+                    if (!openPlayer) {
+                        if (!SpotifyRemote.hasSession(app)) SpotifyRemote.open(app)
+                        SpotifyRemote.playPause(app)
+                    }
                     onStarted(false)
                 }
             }

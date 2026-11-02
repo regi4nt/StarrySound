@@ -762,6 +762,8 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
         }
         if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_SPOTIFY || src == Track.SOURCE_ONLINE) popup.menu.add(0, MENU_FLAC, 5, R.string.np_find_flac)
+        if (src == Track.SOURCE_SPOTIFY) popup.menu.add(0, MENU_OPEN_SPOTIFY, 10, R.string.np_open_spotify)
+        if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_OPEN_YOUTUBE, 10, R.string.np_open_youtube)
         popup.menu.add(0, MENU_SHARE, 8, R.string.np_share)
         popup.menu.add(0, MENU_INFO, 9, R.string.np_info)
         popup.setOnMenuItemClickListener {
@@ -771,6 +773,8 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 MENU_LISTEN -> ListenTogetherUi.show(this)
                 MENU_DOWNLOAD -> MusicService.instance?.current?.let { t -> SongDownloader.download(this, t) }
                 MENU_INFO -> showSongInfo()
+                MENU_OPEN_SPOTIFY -> MusicService.instance?.current?.let { t -> openInSpotify(t) }
+                MENU_OPEN_YOUTUBE -> MusicService.instance?.current?.let { t -> openInYouTube(t) }
                 MENU_FLAC -> findFlacVersion()
                 MENU_SPEED -> showSpeedDialog()
                 MENU_AUDIO -> showAudioTrackDialog()
@@ -779,6 +783,31 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             true
         }
         popup.show()
+    }
+
+    /** Three-dot menu: this song in the Spotify app (deep link), else Spotify's web player. */
+    private fun openInSpotify(t: Track) {
+        if (t.remoteId.isBlank()) return
+        if (SpotifyRemote.openTrack(this, t.remoteId)) return
+        openLink("https://open.spotify.com/track/" + t.remoteId.substringAfterLast(':'))
+    }
+
+    /** Three-dot menu: this video in the YouTube app, else in the browser. */
+    private fun openInYouTube(t: Track) {
+        if (t.remoteId.isBlank()) return
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("vnd.youtube:" + t.remoteId)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            openLink("https://www.youtube.com/watch?v=" + t.remoteId)
+        }
+    }
+
+    private fun openLink(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } catch (e: Exception) {
+            Toast.makeText(this, R.string.np_open_failed, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun speedLabel(s: Float): String =
@@ -985,6 +1014,8 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         private const val MENU_AUDIO = 6
         private const val MENU_QUALITY = 7
         private const val MENU_FLAC = 8
+        private const val MENU_OPEN_SPOTIFY = 10
+        private const val MENU_OPEN_YOUTUBE = 11
     }
 
     // ------------------------------------------------------------------ audio -> video

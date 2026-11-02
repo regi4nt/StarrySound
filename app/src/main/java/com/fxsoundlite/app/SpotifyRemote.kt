@@ -34,6 +34,13 @@ object SpotifyRemote {
         true
     } catch (e: Exception) { android.util.Log.d("SpotifyRemote", "ignored: $e"); false }
 
+    /** Opens one song in the Spotify app through its deep link ([uri] = "spotify:track:..."). False when Spotify is not installed. */
+    fun openTrack(c: Context, uri: String): Boolean = try {
+        c.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(uri))
+            .setPackage(SpotifyAuth.PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) { android.util.Log.d("SpotifyRemote", "ignored: $e"); false }
+
     private fun controller(c: Context): MediaController? = try {
         c.getSystemService(MediaSessionManager::class.java)
             ?.getActiveSessions(ComponentName(c, NowPlayingListenerService::class.java))
