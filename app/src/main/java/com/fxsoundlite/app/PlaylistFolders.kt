@@ -93,3 +93,28 @@ object PlaylistFolders {
         if (playlistId in m) save(c, folders(c), m - playlistId)
     }
 }
+
+/**
+ * Remembers which own playlists came from a Spotify import, so the Playlist page can group them in the "Spotify"
+ * source folder. Only a marker: the playlists themselves are ordinary ones. Stored on this device only.
+ */
+object SpotifyLists {
+    private const val PREFS = "playlist_spotify_ids"
+    private const val KEY = "ids"
+
+    private fun p(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    @Synchronized
+    fun ids(c: Context): Set<String> = HashSet(p(c).getStringSet(KEY, emptySet()) ?: emptySet())
+
+    @Synchronized
+    fun add(c: Context, playlistId: String) {
+        p(c).edit().putStringSet(KEY, ids(c) + playlistId).apply()
+    }
+
+    @Synchronized
+    fun forget(c: Context, playlistId: String) {
+        val s = ids(c)
+        if (playlistId in s) p(c).edit().putStringSet(KEY, s - playlistId).apply()
+    }
+}

@@ -62,7 +62,7 @@ object SpotifyImport {
                     val t = cache.getOrPut(key) { match(s) }
                     if (t != null) tracks += t else missed++
                 }
-                if (tracks.isNotEmpty()) { PlaylistStore.createWith(app, name, tracks); made++; added += tracks.size }
+                if (tracks.isNotEmpty()) { SpotifyLists.add(app, PlaylistStore.createWith(app, name, tracks).id); made++; added += tracks.size }
             }
             return Result(made, added, missed)
     }

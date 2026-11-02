@@ -261,6 +261,7 @@ object PlaylistStore {
         coverFile(c, id).delete()
         PlaylistPins.unpin(c, id)
         PlaylistFolders.forget(c, id)
+        SpotifyLists.forget(c, id)
         saveTombs(c, loadTombs(c).also { it[listTomb(id)] = System.currentTimeMillis() })
         saveLists(c, rawPlaylists(c).filter { it.id != id })
     }

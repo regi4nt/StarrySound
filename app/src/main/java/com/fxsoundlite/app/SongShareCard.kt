@@ -58,7 +58,7 @@ object SongShareCard {
                 } else {
                     send.setType("text/plain")
                 }
-                activity.startActivity(Intent.createChooser(send, chooserTitle))
+                activity.startActivity(CopyLink.withCopyTarget(activity, Intent.createChooser(send, chooserTitle), link))
             }
         }.start()
     }

@@ -1417,6 +1417,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun onEngineReady() {
         setupOutputPresets()
         setupRootModeSwitch()
+        setupSafeVolumeSwitch()
     }
 
     // --- Auto preset per output (speaker / jack / Bluetooth): moved here from the Equalizer screen ---
@@ -1468,6 +1469,11 @@ class SettingsActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun setupSafeVolumeSwitch() {
+        binding.safeVolumeSwitch.isChecked = em().safeVolume
+        binding.safeVolumeSwitch.setOnCheckedChangeListener { _, checked -> em().setSafeVolume(checked) }
+    }
+
     private fun setupRootModeSwitch() {
         binding.rootSwitch.isChecked = em().isRootMode
         binding.rootStatusText.text = if (RootUtils.isDeviceRooted())
@@ -1514,6 +1520,7 @@ class SettingsActivity : AppCompatActivity() {
                         AudioEffectManager.Diagnosis.NOT_IN_SERVER -> R.string.diag_not_in_server
                         AudioEffectManager.Diagnosis.NO_DUMP -> R.string.diag_no_dump
                         AudioEffectManager.Diagnosis.OK -> R.string.diag_ok
+                        AudioEffectManager.Diagnosis.SAFE_IDLE -> R.string.diag_safe_idle
                     }) + "\n\n" + getString(
                         R.string.diag_details_fmt, r.session,
                         getString(if (r.enabled) R.string.diag_on else R.string.diag_off), r.serverInstances

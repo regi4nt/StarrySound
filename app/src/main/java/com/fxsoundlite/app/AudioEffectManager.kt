@@ -18,6 +18,12 @@ import kotlin.math.max
  * Central controller for all audio effects.
  *
  * Design notes (read this before assuming it does more than it does):
+ * - "Safe volume mode" ([safeVolume], default on from Android 13): global session-0 effects are deprecated
+ *   there and on MIUI/HyperOS they clash with the ROM's own audio effects, which can make the volume keys
+ *   seem dead while the EQ is on. In this mode nothing is attached to session 0: the chain lives only on the
+ *   app player's own session (see [rebind]) and is released when nothing plays. It also keeps headroom:
+ *   the EQ curve is shifted down by its highest boost (a preamp) so the sum of gains does not clip, and the
+ *   limiter stays on while Loudness is used. The curve the user sees / saves is never changed.
  * - We attach every effect to the GLOBAL output mix by using audioSessionId = 0.
  *   On stock / AOSP-based Android 7+ this makes the effect apply system-wide
  *   (music apps, YouTube, games, etc.) WITHOUT root — this is the same trick
@@ -77,31 +83,92 @@ class AudioEffectManager(private val context: Context) {
         get() = prefs.getBoolean("root_mode", false)
         set(value) = prefs.edit().putBoolean("root_mode", value).apply()
 
+    /** See the class doc. Default: on from Android 13 (API 33), where the problem shows up. */
+    var safeVolume: Boolean
+        get() = prefs.getBoolean("safe_volume", Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        private set(value) = prefs.edit().putBoolean("safe_volume", value).apply()
+
+    /** Switches safe volume mode and rebuilds the chain at once so the change is heard right away. */
+    fun setSafeVolume(on: Boolean) {
+        safeVolume = on
+        reapply()
+    }
+
+    /** True while the chain would sit on the global mix but safe volume mode keeps it off session 0. */
+    private val skipGlobal: Boolean get() = safeVolume && boundSession == GLOBAL_SESSION
+
     var isEnabled: Boolean
         get() = prefs.getBoolean("enabled", true)
         set(value) = prefs.edit().putBoolean("enabled", value).apply()
 
     /** Number of EQ bands available on this device (varies, usually 5). */
-    fun bandCount(): Short = equalizer?.numberOfBands ?: 5
+    // While the chain is not attached (safe volume mode, nothing playing) the band layout comes from the last
+    // time it was: cached in prefs by rememberBands(). Typical 5-band values stand in on a fresh install.
+    private val defaultFreqHz = intArrayOf(60, 230, 910, 3600, 14000)
+
+    fun bandCount(): Short = equalizer?.numberOfBands ?: prefs.getInt("eq_bands", 5).toShort()
 
     fun bandLevelRangeMb(): IntArray {
         val range = equalizer?.bandLevelRange
-        return intArrayOf(range?.get(0)?.toInt() ?: -1500, range?.get(1)?.toInt() ?: 1500)
+        return intArrayOf(
+            range?.get(0)?.toInt() ?: prefs.getInt("eq_min_mb", -1500),
+            range?.get(1)?.toInt() ?: prefs.getInt("eq_max_mb", 1500)
+        )
     }
 
     fun bandFrequencyHz(band: Short): Int =
-        (equalizer?.getCenterFreq(band) ?: 0) / 1000
+        equalizer?.getCenterFreq(band)?.div(1000)
+            ?: prefs.getInt("eq_freq_$band", defaultFreqHz.getOrElse(band.toInt()) { 0 })
+
+    private fun rememberBands(eq: Equalizer) {
+        try {
+            val ed = prefs.edit()
+            ed.putInt("eq_bands", eq.numberOfBands.toInt())
+            ed.putInt("eq_min_mb", eq.bandLevelRange[0].toInt())
+            ed.putInt("eq_max_mb", eq.bandLevelRange[1].toInt())
+            for (i in 0 until eq.numberOfBands) ed.putInt("eq_freq_$i", eq.getCenterFreq(i.toShort()) / 1000)
+            ed.apply()
+        } catch (e: Exception) { Log.d(TAG, "ignored: $e") }
+    }
+
+    /** Preamp for safe volume mode: how far the curve is shifted down so its highest boost lands at 0 dB. */
+    private fun headroomMb(): Int {
+        if (!safeVolume) return 0
+        var peak = 0
+        for (i in 0 until bandCount()) peak = max(peak, prefs.getInt("band_$i", 0))
+        return peak
+    }
+
+    /** Writes the stored (heard-before-preamp) band levels to the engine, minus the headroom. */
+    private fun pushBands() {
+        val eq = equalizer ?: return
+        val hr = headroomMb()
+        val range = bandLevelRangeMb()
+        for (i in 0 until bandCount()) {
+            try { eq.setBandLevel(i.toShort(), (prefs.getInt("band_$i", 0) - hr).coerceIn(range[0], range[1]).toShort()) }
+            catch (e: Exception) { Log.d(TAG, "ignored: $e") }
+        }
+    }
+
+    /** The limiter (DynamicsProcessing) runs for Volume Leveling, and in safe volume mode also under Loudness. */
+    private fun dynamicsWanted(levelingStrength: Int): Boolean =
+        isEnabled && (levelingStrength > 0 || (safeVolume && prefs.getInt("loudness_mb", 0) > 0))
 
     /** Call once, e.g. from the foreground service, so effects survive app UI being closed. */
     fun initialize() {
+        if (skipGlobal) {
+            Log.i(TAG, "Safe volume mode: no effects on the global mix (they live on the player's own session)")
+            return
+        }
         try {
             equalizer = Equalizer(0, boundSession).apply { enabled = isEnabled }
+            equalizer?.let { rememberBands(it) }
             bassBoost = BassBoost(0, boundSession).apply { enabled = isEnabled }
             virtualizer = Virtualizer(0, boundSession).apply { enabled = isEnabled }
             loudness = LoudnessEnhancer(boundSession).apply { enabled = false }
             // EnvironmentalReverb is an auxiliary effect: it always stays on the global mix
             // and is created only once, so it survives rebind().
-            if (reverb == null) {
+            if (reverb == null && !safeVolume) { // an auxiliary effect always sits on session 0: skipped in safe volume mode
                 try {
                     reverb = EnvironmentalReverb(0, GLOBAL_SESSION).apply { enabled = false }
                 } catch (e: Exception) {
@@ -136,7 +203,7 @@ class AudioEffectManager(private val context: Context) {
      * another app took control of them. Main thread only.
      */
     fun isHealthy(): Boolean {
-        val eq = equalizer ?: return false
+        val eq = equalizer ?: return skipGlobal // nothing attached on purpose in safe volume mode
         return try {
             eq.hasControl() && eq.enabled == isEnabled && (bassBoost?.enabled ?: isEnabled) == isEnabled
         } catch (e: Exception) {
@@ -155,7 +222,7 @@ class AudioEffectManager(private val context: Context) {
     }
 
     /** What [diagnose] concluded; the UI turns each into a message. */
-    enum class Diagnosis { NOT_CREATED, UNHEALTHY_FIXED, NOT_IN_SERVER, OK, NO_DUMP }
+    enum class Diagnosis { NOT_CREATED, UNHEALTHY_FIXED, NOT_IN_SERVER, OK, NO_DUMP, SAFE_IDLE }
 
     class DiagnosisResult(val verdict: Diagnosis, val session: Int, val enabled: Boolean, val serverInstances: Int)
 
@@ -168,6 +235,7 @@ class AudioEffectManager(private val context: Context) {
         val instances = if (dump == null) 0 else
             Regex("0bed4300-ddd6-11db-8f34-0002a5d5c51b|0634f220-ddd4-11db-a0fc-0002a5d5c51b", RegexOption.IGNORE_CASE)
                 .findAll(dump).count()
+        if (equalizer == null && skipGlobal) return DiagnosisResult(Diagnosis.SAFE_IDLE, boundSession, isEnabled, instances)
         var fixed = false
         if (equalizer == null || !isHealthy()) {
             if (!reapply()) return DiagnosisResult(Diagnosis.NOT_CREATED, boundSession, isEnabled, instances)
@@ -227,7 +295,7 @@ class AudioEffectManager(private val context: Context) {
         virtualizer?.enabled = on
         loudness?.enabled = on && (prefs.getInt("loudness_mb", 0) > 0)
         reverb?.enabled = on && (prefs.getInt("ambience", 0) > 0)
-        dynamicsProcessing?.enabled = on && (prefs.getInt("volume_leveling", 0) > 0)
+        try { dynamicsProcessing?.enabled = on && dynamicsWanted(prefs.getInt("volume_leveling", 0)) } catch (e: Exception) { Log.d(TAG, "ignored: $e") }
         notifyWidgets()
     }
 
@@ -257,8 +325,8 @@ class AudioEffectManager(private val context: Context) {
         try {
             val range = bandLevelRangeMb()
             val v = levelMb.coerceIn(range[0], range[1])
-            equalizer?.setBandLevel(band, v.toShort())
             prefs.edit().putInt("band_$band", v).apply()
+            pushBands() // stored level minus the safe-volume headroom
         } catch (e: Exception) {
             Log.e(TAG, "setBandLevel failed: ${e.message}")
         }
@@ -295,6 +363,7 @@ class AudioEffectManager(private val context: Context) {
         try {
             loudness?.setTargetGain(applied)
             loudness?.enabled = applied > 0 && isEnabled
+            dynamicsProcessing?.enabled = dynamicsWanted(prefs.getInt("volume_leveling", 0))
         } catch (e: Exception) { Log.e(TAG, "loudness failed: ${e.message}") }
     }
 
@@ -369,7 +438,7 @@ class AudioEffectManager(private val context: Context) {
                         mbc.postGain = makeupDb
                         dp.setMbcBandByChannelIndex(ch, 0, mbc)
                     }
-                    dp.enabled = s > 0 && isEnabled
+                    dp.enabled = dynamicsWanted(s.toInt())
                 }
             } catch (e: Exception) { Log.e(TAG, "volumeLeveling failed: ${e.message}") }
         }
@@ -577,11 +646,7 @@ class AudioEffectManager(private val context: Context) {
     }
 
     private fun restoreSavedState() {
-        val bands = bandCount()
-        for (i in 0 until bands) {
-            val saved = prefs.getInt("band_$i", 0)
-            try { equalizer?.setBandLevel(i.toShort(), saved.toShort()) } catch (e: Exception) { android.util.Log.d("AudioEffectManager", "ignored: " + e) }
-        }
+        pushBands()
         setBassBoost(prefs.getInt("bass", 0).toShort())
         setVirtualizer(prefs.getInt("virtualizer", 0).toShort())
         setLoudness(prefs.getInt("loudness_mb", 0))

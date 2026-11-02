@@ -49,6 +49,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private var openList: String? = null
     /** Id of the folder whose playlists the overview shows; null = main list. */
     private var openFolder: String? = null
+    /** One of SRC_*: the source folder (Device / Drive / YouTube / Spotify) whose playlists the overview shows; null = main list. */
+    private var openSource: String? = null
     /** True while a generated playlist is being built (the top row shows "Picking songs..."). */
     private var generating = false
     private var shown: List<Track> = emptyList()
@@ -507,7 +509,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         binding.plMoreButton.setOnClickListener { showMoreMenu() }
         binding.plFilterButton.setOnClickListener { showFilterDialog() }
         // "‹ Name · N songs" doubles as a back button while a list is open.
-        binding.plBackButton.setOnClickListener { if (openList != null || openFolder != null) goBack() }
+        binding.plBackButton.setOnClickListener { if (openList != null || openFolder != null || openSource != null) goBack() }
         binding.plPlayBtn.setOnClickListener { if (openList == null) openFolder?.let { playFolder(it, false) } else playOpenList() }
         binding.plEditBtn.setOnClickListener { showEditDialog() }
         binding.plSelectBtn.setOnClickListener { startSelection(null) }
@@ -570,14 +572,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     /** Back pressed while this page is shown: closes the open list and returns true; false when none is open. */
     fun consumeBack(): Boolean {
-        if ((openList == null && openFolder == null) || _binding == null) return false
+        if ((openList == null && openFolder == null && openSource == null) || _binding == null) return false
         goBack()
         return true
     }
 
     private fun goBack() {
         if (selecting) { exitSelection(); refresh(); return } // Back first leaves selection mode
-        if (openList != null) openList = null else openFolder = null // a list closes to its folder, a folder to the main list
+        if (openList != null) openList = null else if (openFolder != null) openFolder = null else openSource = null // a list closes to its folder, a folder to the main list
         if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
     }
 
@@ -843,17 +845,17 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val b = _binding ?: return
         val ctx = context ?: return
         if (openList == null && openFolder != null && PlaylistFolders.get(ctx, openFolder!!) == null) openFolder = null // deleted meanwhile
-        backCallback?.isEnabled = isResumed && (openList != null || openFolder != null)
+        backCallback?.isEnabled = isResumed && (openList != null || openFolder != null || openSource != null)
         if (openList == null) { listAccent = null; applyCoverBg() }
         // Create (+) and the three-dot menu show on the overview only, not inside an opened list.
         // Inside a folder only (+) stays: it creates a playlist right there.
         val headerButtons = if (openList == null) View.VISIBLE else View.GONE
-        b.plAddButton.visibility = headerButtons
-        b.plMoreButton.visibility = if (openList == null && openFolder == null) View.VISIBLE else View.GONE
-        b.plPlayBtn.visibility = if (openList == null && openFolder == null) View.GONE else View.VISIBLE
+        b.plAddButton.visibility = if (openSource != null) View.GONE else headerButtons
+        b.plMoreButton.visibility = if (openList == null && openFolder == null && openSource == null) View.VISIBLE else View.GONE
+        b.plPlayBtn.visibility = if (openList == null && (openFolder == null || openSource != null)) View.GONE else View.VISIBLE
         if (openList == null) { b.plPlayBtn.isEnabled = true; b.plPlayBtn.alpha = 1f }
         if (openList == null) b.plEditBtn.visibility = View.GONE // inside a list bindDetail decides
-        b.plBackButton.visibility = if (openList == null && openFolder == null) View.GONE else View.VISIBLE
+        b.plBackButton.visibility = if (openList == null && openFolder == null && openSource == null) View.GONE else View.VISIBLE
         // Full strength while a filter or a non-default order is active.
         FilterUi.setButtonState(
             b.plFilterButton,
@@ -872,13 +874,18 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val rows = mutableListOf<Row>()
             // "Generate playlist" lives in the "+" button; "Convert playlist" in the "⋮" menu.
             val want = { kind: Int -> kindFilter == 0 || kindFilter == kind }
-            if (openFolder == null && want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
+            val srcView = openSource
+            // Device / Drive / YouTube / Spotify playlists sit in their own folders on the main list; a search or a
+            // kind filter lists everything flat instead, like the user's own folders.
+            val grouped = q.isEmpty() && kindFilter == 0
+            val spotifyIds = SpotifyLists.ids(ctx)
+            if (openFolder == null && srcView == null && want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
                 rows += Row(ROW_LIKED, PlaylistStore.LIKED_ID, likedName, songCount(PlaylistStore.liked(ctx).size))
             }
             val folderId = openFolder
             val pinSet = PlaylistPins.ids(ctx).toSet()
             // Folders sit on the main list only (they do not nest); a search also matches their names.
-            if (folderId == null && want(F_MINE)) {
+            if (folderId == null && srcView == null && want(F_MINE)) {
                 val ownIds = lists.map { it.id }.toSet()
                 PlaylistFolders.folders(ctx).filter { q.isEmpty() || it.name.lowercase(Locale.getDefault()).contains(q) }.forEach { f ->
                     val n = PlaylistFolders.playlistIds(ctx, f.id).count { it in ownIds }
@@ -895,7 +902,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 .forEach {
                     // artUrl: fallback cover = artwork of the first song that has one
                     val art = it.tracks.firstOrNull { t -> t.artUrl.isNotBlank() }?.artUrl.orEmpty()
-                    rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size)
+                    val fromSpotify = it.id in spotifyIds && PlaylistFolders.folderOf(ctx, it.id) == null
+                    rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size, src = if (fromSpotify) SRC_SPOTIFY else null)
                 }
             var ytCount = 0
             // Playlists of the signed-in YouTube account, read live (label "YouTube").
@@ -906,7 +914,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     if (want(F_YT) && (q.isEmpty() || it.title.lowercase(Locale.getDefault()).contains(q))) {
                         rows += Row(
                             ROW_YT, YouTubeAccount.ID_PREFIX + it.id, it.title,
-                            "\u25B6 " + getString(R.string.source_youtube) + " \u00B7 " + songCount(it.count), it.thumb, count = it.count
+                            "\u25B6 " + getString(R.string.source_youtube) + " \u00B7 " + songCount(it.count), it.thumb, count = it.count,
+                            src = SRC_YT
                         )
                     }
                 }
@@ -920,7 +929,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                         rows += Row(
                             ROW_DEVICE, DEVICE_PREFIX + it.id, it.name,
                             "\uD83D\uDCC1 " + getString(StorageKind.labelRes(it.kind)) + " \u00B7 " + songCount(it.tracks.size),
-                            count = it.tracks.size
+                            count = it.tracks.size, src = SRC_DEVICE
                         )
                     }
                 }
@@ -934,7 +943,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                         rows += Row(
                             ROW_DRIVE, DRIVE_PREFIX + it.id, it.name,
                             "\u2601 " + getString(R.string.source_drive) + " \u00B7 " + songCount(it.tracks.size),
-                            count = it.tracks.size
+                            count = it.tracks.size, src = SRC_DRIVE
                         )
                     }
                 }
@@ -943,17 +952,35 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             // "Liked songs" is always on top (no pin needed), then the pinned rows (max 4, in pin order),
             // then the playlist played last, then the rest.
             val pinIds = PlaylistPins.ids(ctx)
+            // Source folders: on the main list a source's playlists are hidden behind its folder row (unless pinned or
+            // last played); inside a source folder only that source's playlists show.
+            val allRows = rows.toList()
+            if (srcView != null) rows.retainAll { it.src == srcView }
+            else if (grouped && openFolder == null) {
+                val lastPlayed = MusicPrefs.lastPlayedList(ctx)
+                rows.removeAll { it.src != null && it.id !in pinIds && it.id != lastPlayed }
+                fun srcRow(src: String, name: Int, show: Boolean) {
+                    if (!show) return
+                    val n = allRows.count { it.src == src }
+                    rows += Row(ROW_SOURCE, SRC_PREFIX + src, getString(name), resources.getString(R.string.playlist_overview_count, n), count = n, src = null)
+                }
+                srcRow(SRC_DEVICE, R.string.source_local, deviceFoldersAvailable(ctx))
+                srcRow(SRC_DRIVE, R.string.source_drive, DriveMusic.isSignedIn(ctx))
+                srcRow(SRC_YT, R.string.source_youtube, YouTubeAccount.isSignedIn(ctx))
+                srcRow(SRC_SPOTIFY, R.string.source_spotify, allRows.any { it.src == SRC_SPOTIFY })
+            }
             val likedRows = rows.filter { it.kind == ROW_LIKED }
             val pinnedRows = pinIds.mapNotNull { pid -> rows.firstOrNull { it.id == pid && it.kind != ROW_LIKED } }
                 .onEach { it.pinned = true }
             val lastId = MusicPrefs.lastPlayedList(ctx)
             val playing = rows.firstOrNull { it.id == lastId && it.kind != ROW_LIKED && it.id !in pinIds }
-            val pinned = likedRows + pinnedRows + listOfNotNull(playing)
-            val rest = rows.filter { it.kind != ROW_LIKED && it.id !in pinIds && it !== playing }
+            val pinned = if (srcView != null) emptyList() else likedRows + pinnedRows + listOfNotNull(playing)
+            val rest = rows.filter { srcView != null || (it.kind != ROW_LIKED && it.id !in pinIds && it !== playing) }
+            val sourceRows = rest.filter { it.kind == ROW_SOURCE }
             val folderRows = rest.filter { it.kind == ROW_FOLDER }.sortedWith { a, b -> java.text.Collator.getInstance().compare(a.name.trim(), b.name.trim()) }
             val collator = java.text.Collator.getInstance()
-            val others = rest.filter { it.kind != ROW_FOLDER }
-            val ordered = folderRows + when (listSort) {
+            val others = rest.filter { it.kind != ROW_FOLDER && it.kind != ROW_SOURCE }
+            val ordered = sourceRows + folderRows + when (listSort) {
                 LSORT_NAME_AZ -> others.sortedWith { a, b -> collator.compare(a.name.trim(), b.name.trim()) }
                 LSORT_NAME_ZA -> others.sortedWith { a, b -> collator.compare(b.name.trim(), a.name.trim()) }
                 LSORT_MOST -> others.sortedByDescending { it.count }
@@ -962,7 +989,11 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             }
             rowAdapter.submit(pinned + ordered)
             shown = emptyList()
-            if (folderId != null) {
+            if (srcView != null) {
+                b.plTitle.text = getString(srcName(srcView))
+                b.plCount.text = getString(R.string.playlist_overview_count, ordered.size)
+                if (ordered.isEmpty() && q.isEmpty()) { showEmpty(R.string.source_folder_empty); return }
+            } else if (folderId != null) {
                 val inside = ordered.size + pinned.size
                 b.plTitle.text = PlaylistFolders.get(ctx, folderId)?.name.orEmpty()
                 b.plCount.text = getString(R.string.playlist_overview_count, inside)
@@ -1074,6 +1105,11 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (row.kind == ROW_CONVERT) { showConvertDialog(); return }
         if (row.kind == ROW_FOLDER) {
             openFolder = row.id
+            if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
+            return
+        }
+        if (row.kind == ROW_SOURCE) {
+            openSource = row.id.removePrefix(SRC_PREFIX)
             if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
             return
         }
@@ -1262,7 +1298,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     private fun onRowLongClicked(row: Row) {
         val ctx = requireContext()
-        if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT) return
+        if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT || row.kind == ROW_SOURCE) return
         if (row.kind == ROW_FOLDER) {
             val f = PlaylistFolders.get(ctx, row.id) ?: return
             val label = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
@@ -1557,7 +1593,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             putExtra(Intent.EXTRA_SUBJECT, name)
             putExtra(Intent.EXTRA_TEXT, getString(R.string.playlist_share_text, name, share.shared, share.link))
         }
-        startActivity(Intent.createChooser(send, getString(R.string.playlist_share_chooser)))
+        startActivity(CopyLink.withCopyTarget(ctx, Intent.createChooser(send, getString(R.string.playlist_share_chooser)), share.link))
         if (share.omitted > 0) toast(ctx, ctx.getString(R.string.playlist_share_partial, share.omitted))
     }
 
@@ -1712,7 +1748,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private class Row(
         val kind: Int, val id: String, val name: String, val subtitle: String, val artUrl: String = "",
         /** Number of songs, for sorting the overview. */
-        val count: Int = 0
+        val count: Int = 0,
+        /** SRC_* of the source folder this row belongs to (Device / Drive / YouTube / Spotify), or null. */
+        val src: String? = null
     ) {
         /** Set by refresh(): the row is one of the pinned playlists (shows the pin icon). */
         var pinned: Boolean = false
@@ -1808,14 +1846,14 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     ROW_LIKED -> R.drawable.ic_heart
                     ROW_GENERATE -> R.drawable.ic_sparkle
                     ROW_CONVERT -> R.drawable.ic_playlist
-                    ROW_FOLDER, ROW_DEVICE -> R.drawable.ic_folder
+                    ROW_FOLDER, ROW_DEVICE, ROW_SOURCE -> R.drawable.ic_folder
                     else -> R.drawable.ic_playlist
                 }
             )
             holder.art.imageTintList = ColorStateList.valueOf(
                 attrColor(
                     ctx,
-                    if (row.kind == ROW_LIST || row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_DEVICE || row.kind == ROW_FOLDER) R.attr.colorTextSecondary else androidx.appcompat.R.attr.colorAccent
+                    if (row.kind == ROW_LIST || row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_DEVICE || row.kind == ROW_FOLDER || row.kind == ROW_SOURCE) R.attr.colorTextSecondary else androidx.appcompat.R.attr.colorAccent
                 )
             )
             holder.art.tag = null
@@ -1874,6 +1912,18 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         private const val MAX_CONVERT_SONGS = 150
         private const val ROW_DRIVE = 5
         private const val ROW_DEVICE = 8
+        private const val ROW_SOURCE = 9
+        private const val SRC_PREFIX = "src:"
+        private const val SRC_DEVICE = "device"
+        private const val SRC_DRIVE = "drive"
+        private const val SRC_YT = "youtube"
+        private const val SRC_SPOTIFY = "spotify"
+        private fun srcName(src: String) = when (src) {
+            SRC_DEVICE -> R.string.source_local
+            SRC_DRIVE -> R.string.source_drive
+            SRC_YT -> R.string.source_youtube
+            else -> R.string.source_spotify
+        }
         private const val DEVICE_PREFIX = "dev:"
         private const val DRIVE_PREFIX = "drv:"
         private const val GENERATE_ID = "__generate__"

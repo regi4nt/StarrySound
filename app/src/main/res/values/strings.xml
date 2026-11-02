@@ -1197,4 +1197,10 @@
     <string name="link_download_started_video">Downloading the video to Movies/StarrySound. Progress is in the notification.</string>
     <string name="link_download_done_video">Download complete: Movies/StarrySound</string>
     <string name="sleepwake_title">Sleep &amp; wake-up</string>
+    <string name="source_folder_empty">Nothing here yet.</string>
+    <string name="safe_volume_title">Safe volume mode</string>
+    <string name="safe_volume_desc">Keeps the volume keys working while the EQ is on (Android 13+, Xiaomi / MIUI). The EQ is applied only to this app\'s own player (not to other apps or the whole phone), the curve gets automatic headroom so it does not clip, and Ambience is off. Turn it off to apply the EQ to the whole phone again.</string>
+    <string name="diag_safe_idle">Safe volume mode is on: no effect is attached while nothing plays. The EQ attaches to the player when a song starts.</string>
+    <string name="link_copied">Link copied</string>
+    <string name="copy_link_target">Copy link</string>
 </resources>

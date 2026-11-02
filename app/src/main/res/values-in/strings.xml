@@ -1190,4 +1190,10 @@
     <string name="link_download_started_video">Mengunduh video ke Movies/StarrySound. Progres ada di notifikasi.</string>
     <string name="link_download_done_video">Unduhan selesai: Movies/StarrySound</string>
     <string name="sleepwake_title">Tidur &amp; bangun</string>
+    <string name="source_folder_empty">Belum ada isinya.</string>
+    <string name="safe_volume_title">Mode aman volume</string>
+    <string name="safe_volume_desc">Menjaga tombol volume tetap berfungsi saat EQ aktif (Android 13+, Xiaomi / MIUI). EQ hanya dipasang ke pemutar aplikasi ini (bukan aplikasi lain atau seluruh ponsel), kurva EQ diberi headroom otomatis agar tidak pecah, dan Ambience dimatikan. Matikan untuk memasang EQ ke seluruh ponsel seperti sebelumnya.</string>
+    <string name="diag_safe_idle">Mode aman volume aktif: tidak ada efek yang terpasang saat tidak ada lagu diputar. EQ terpasang ke pemutar begitu lagu mulai.</string>
+    <string name="link_copied">Link disalin</string>
+    <string name="copy_link_target">Salin link</string>
 </resources>
