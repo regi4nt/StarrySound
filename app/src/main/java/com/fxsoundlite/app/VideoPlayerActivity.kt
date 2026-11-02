@@ -1031,6 +1031,30 @@ class VideoPlayerActivity : AppCompatActivity() {
             finish()
             return
         }
+        if (t.isVideoFile) {
+            // A video file (device / Drive): its sound plays as a song through its audio twin, from the same second.
+            val svc = MusicService.instance
+            if (svc == null) {
+                Toast.makeText(this, R.string.video_music_not_ready, Toast.LENGTH_LONG).show()
+                return
+            }
+            val pos = fileView?.currentPosition?.toLong() ?: posMs
+            val twin = PlayerMode.videoToAudio(t)
+            PlayerMode.setMusic() // the mini bar opens the music player again
+            pausePlayback() // the video must let go of the sound (and audio focus) before the music starts
+            if (fromPlayer && svc.current?.key == twin.key) {
+                toMusic = true // opened from the music player that already has this file: its caller seeks and resumes
+                resultPos = pos
+            } else {
+                val songs = queue.filter { it.isVideoFile }.map { PlayerMode.videoToAudio(it) }
+                svc.setQueueAndPlay(songs, songs.indexOfFirst { it.key == twin.key }.coerceAtLeast(0))
+                seekWhenReady(svc, twin.key, pos)
+                resultPos = -1L // nothing for the caller to seek
+            }
+            if (!fromPlayer) openMusicPlayer()
+            finish()
+            return
+        }
         if (t.source != Track.SOURCE_YOUTUBE) {
             Toast.makeText(this, R.string.video_music_unavailable, Toast.LENGTH_LONG).show()
             return

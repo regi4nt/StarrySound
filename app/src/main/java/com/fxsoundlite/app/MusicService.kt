@@ -89,6 +89,8 @@ class MusicService : MediaBrowserService() {
         private const val KEY_REPEAT = "repeat"
 
         private const val RADIO_CONNECT_TIMEOUT_MS = 60_000L
+        /** Same browser identity as the video player (VideoPlayerActivity.TV_UA), for live TV played as audio. */
+        private const val TV_USER_AGENT = "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36"
         private const val RADIO_RESOLVE_TIMEOUT_MS = 35_000L // playlist download + redirects, before connecting
         private const val RADIO_STALL_TIMEOUT_MS = 45_000L
         private const val RADIO_STABLE_MS = 30_000L
@@ -453,7 +455,8 @@ class MusicService : MediaBrowserService() {
 
     /** "Play next": inserts [t] right after the current song (after earlier "play next" songs,
      *  so they play in the order they were added). With an empty queue it just starts playing. */
-    fun playNext(t: Track) {
+    fun playNext(raw: Track) {
+        val t = PlayerMode.normalize(raw)
         if (queue.isEmpty() || index !in queue.indices) {
             setQueueAndPlay(listOf(t), 0)
             return
@@ -472,7 +475,8 @@ class MusicService : MediaBrowserService() {
      *  only come up after dozens of songs. A song that is already waiting further down is moved up instead.
      *  Returns false when it is the current song or already in the "queued next" block. With nothing playing
      *  the song just sits in the queue until [next] is called. */
-    fun addToQueue(t: Track): Boolean {
+    fun addToQueue(raw: Track): Boolean {
+        val t = PlayerMode.normalize(raw)
         if (t.isVideoFile) return false // plays in the video player only
         if (index !in queue.indices) {
             if (queue.any { it.key == t.key }) return false
@@ -836,8 +840,10 @@ class MusicService : MediaBrowserService() {
     var playingFrom: String? = null
         private set
 
-    fun setQueueAndPlay(allTracks: List<Track>, startIndex: Int, fromYoutubeSearch: Boolean = false, fromPlaylist: String? = null) {
-        if (allTracks.isEmpty() || startIndex !in allTracks.indices) return
+    fun setQueueAndPlay(rawTracks: List<Track>, startIndex: Int, fromYoutubeSearch: Boolean = false, fromPlaylist: String? = null) {
+        if (rawTracks.isEmpty() || startIndex !in rawTracks.indices) return
+        // A live TV channel plays here as its audio twin (so the video button / mini bar can bring its video back).
+        val allTracks = if (rawTracks.any { it.source == Track.SOURCE_TV }) rawTracks.map { PlayerMode.normalize(it) } else rawTracks
         // Songs of a synced playlist that are not on this device cannot play: leave them out.
         // Video files (device / Drive) belong to the video player: they never enter the audio queue.
         val tracks = if (allTracks.any { it.missing || it.isVideoFile }) allTracks.filter { !it.missing && !it.isVideoFile } else allTracks
@@ -1353,14 +1359,19 @@ class MusicService : MediaBrowserService() {
         // The first try plays the stream URL as is. Every second try (2nd, 4th, ...) sends explicit
         // headers instead: some servers/CDNs refuse the framework player's identity or choke on the
         // interleaved ICY metadata. Waiting until the very last try cost minutes of timeouts.
-        val withHeaders = attempt % 2 == 1
+        // A TV channel playing as audio (saved in a playlist / music mode) always sends the same browser identity
+        // the video player uses: IPTV servers commonly refuse the framework player's bare request, which left the
+        // channel silent in music mode while its video played fine.
+        val tvAudio = PlayerMode.isTvAudio(current)
+        val withHeaders = tvAudio || attempt % 2 == 1
         val host = try { java.net.URI(url).host.orEmpty() } catch (_: Exception) { "" }
         val mp = try {
             createPlayer().also {
                 if (withHeaders) {
                     it.setDataSource(
                         applicationContext, android.net.Uri.parse(url),
-                        mapOf("User-Agent" to "Mozilla/5.0 (Linux; Android) StarrySound/1.0", "Icy-MetaData" to "0")
+                        if (tvAudio) mapOf("User-Agent" to TV_USER_AGENT)
+                        else mapOf("User-Agent" to "Mozilla/5.0 (Linux; Android) StarrySound/1.0", "Icy-MetaData" to "0")
                     )
                 } else {
                     it.setDataSource(url) // live stream URL

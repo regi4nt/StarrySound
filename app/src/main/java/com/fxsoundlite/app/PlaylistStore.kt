@@ -40,11 +40,11 @@ object PlaylistStore {
         val lid = o.optLong("lid")
         if (src != Track.SOURCE_LOCAL && rid.isBlank()) return null // YouTube id / radio stream URL
         if (src == Track.SOURCE_LOCAL && lid <= 0L) return null
-        return Track(
+        return PlayerMode.normalize(Track(
             id = lid, title = o.optString("title"), artist = o.optString("artist"),
             album = o.optString("album"), durationMs = o.optLong("dur"),
             source = src, remoteId = rid, artUrl = o.optString("art"), addedAt = o.optLong("added")
-        )
+        )) // a TV channel saved raw plays as audio (music mode) and can switch to its video
     }
 
     private fun tracksToJson(list: List<Track>) = JSONArray().also { a -> list.forEach { a.put(trackToJson(it)) } }

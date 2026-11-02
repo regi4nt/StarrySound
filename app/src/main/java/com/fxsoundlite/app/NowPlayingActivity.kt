@@ -1074,7 +1074,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         val t = svc.current ?: return
         PlayerMode.init(this)
         val tvAudio = PlayerMode.isTvAudio(t) // a live TV channel playing as audio: back to its video
-        if (t.source != Track.SOURCE_YOUTUBE && !tvAudio) {
+        if (t.source != Track.SOURCE_YOUTUBE && !tvAudio && !PlayerMode.isVideoAudio(t)) {
             android.widget.Toast.makeText(this, R.string.video_not_available, android.widget.Toast.LENGTH_LONG).show()
             return
         }

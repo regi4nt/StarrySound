@@ -14,6 +14,7 @@ val Track.isVideoPlayable: Boolean
     get() = (source == Track.SOURCE_YOUTUBE && remoteId.isNotBlank() && !YouTubeApi.isListRow(this)) ||
         source == Track.SOURCE_VIDEO || source == Track.SOURCE_DRIVE_VIDEO ||
         (source == Track.SOURCE_TV && remoteId.isNotBlank()) ||
+        PlayerMode.isVideoAudio(this) || // a video file playing as audio: its video is the file itself
         (PlayerMode.isTvAudio(this) && remoteId.isNotBlank()) // a TV channel saved as audio (playlist, mini bar): its video is the live channel
 
 /** A video FILE (device or Drive): can be liked / put in playlists, but never goes into the audio queue. */

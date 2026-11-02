@@ -15,6 +15,9 @@ object PlayerMode {
     /** Album of a TV channel that plays as audio: tells it apart from a real radio station. */
     const val TV_ALBUM = "\u200BTV"
 
+    /** Album of the audio twin of a video FILE (device / Drive): tells it apart from a real song. */
+    const val VIDEO_ALBUM = "\u200BVID"
+
     private const val PREFS = "player_mode"
     @Volatile private var video = false
     @Volatile private var loaded = false
@@ -42,8 +45,25 @@ object PlayerMode {
     /** The audio twin of a TV channel: played by the service like a radio station. */
     fun tvToAudio(t: Track): Track = t.copy(source = Track.SOURCE_RADIO, durationMs = 0L, album = TV_ALBUM)
 
-    /** True when the mini bar should open the video of [t]: a YouTube song, or a TV channel playing as audio. */
-    fun isVideo(t: Track?): Boolean = video && t != null && (t.source == Track.SOURCE_YOUTUBE || isTvAudio(t))
+    /** A raw live TV channel (SOURCE_TV, e.g. saved in a playlist by an older version) becomes its audio twin; others stay as they are. */
+    fun normalize(t: Track): Track = if (t.source == Track.SOURCE_TV && t.remoteId.isNotBlank()) tvToAudio(t) else t
+
+    /** True for the audio twin of a video file (made by [videoToAudio]). */
+    fun isVideoAudio(t: Track?): Boolean = t != null && t.album == VIDEO_ALBUM &&
+        ((t.source == Track.SOURCE_LOCAL && t.remoteId.isNotBlank() && t.id < 0L) || t.source == Track.SOURCE_DRIVE)
+
+    /**
+     * The audio twin of a video file: a device video becomes a local song read from the same content uri, a Drive video a
+     * Drive song with the same file id. The id is negated so it never collides with a real song; [videoTrack] undoes it.
+     */
+    fun videoToAudio(t: Track): Track = when (t.source) {
+        Track.SOURCE_VIDEO -> t.copy(source = Track.SOURCE_LOCAL, id = -t.id - 1L, album = VIDEO_ALBUM)
+        Track.SOURCE_DRIVE_VIDEO -> t.copy(source = Track.SOURCE_DRIVE, album = VIDEO_ALBUM)
+        else -> t
+    }
+
+    /** True when the mini bar should open the video of [t]: a YouTube song, a TV channel or a video file playing as audio. */
+    fun isVideo(t: Track?): Boolean = video && t != null && (t.source == Track.SOURCE_YOUTUBE || isTvAudio(t) || isVideoAudio(t))
 
     /**
      * Intent for the video player of the playing song [cur]. A TV channel playing as audio takes the other channels of the
@@ -59,5 +79,10 @@ object PlayerMode {
     }
 
     /** The track to hand to the video player: the TV channel for its audio twin, else [t] itself. */
-    fun videoTrack(t: Track): Track = if (isTvAudio(t)) t.copy(source = Track.SOURCE_TV, album = "") else t
+    fun videoTrack(t: Track): Track = when {
+        isTvAudio(t) -> t.copy(source = Track.SOURCE_TV, album = "")
+        isVideoAudio(t) && t.source == Track.SOURCE_LOCAL -> t.copy(source = Track.SOURCE_VIDEO, id = -t.id - 1L, album = "")
+        isVideoAudio(t) -> t.copy(source = Track.SOURCE_DRIVE_VIDEO, album = "")
+        else -> t
+    }
 }

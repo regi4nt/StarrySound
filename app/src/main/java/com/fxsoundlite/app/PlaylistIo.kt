@@ -88,6 +88,7 @@ object PlaylistIo {
             val label = if (t.artist.isBlank() || t.source == Track.SOURCE_RADIO) oneLine(t.title)
             else oneLine(t.artist) + " - " + oneLine(t.title)
             val secs = if (t.durationMs > 0) t.durationMs / 1000 else -1L
+            if (PlayerMode.isTvAudio(t)) sb.append("#STARRYTV\n") // a live TV channel: imports back with its video
             sb.append("#EXTINF:").append(secs).append(',').append(label).append('\n')
             if (t.artUrl.isNotBlank()) sb.append("#EXTIMG:").append(oneLine(t.artUrl)).append('\n')
             sb.append(oneLine(target)).append('\n')
@@ -112,6 +113,7 @@ object PlaylistIo {
         var artist = ""
         var durSec = -1L
         var art = ""
+        var tv = false
         val out = ArrayList<Track>()
         var skipped = 0
         for (raw in text.removePrefix("\uFEFF").lineSequence()) {
@@ -138,12 +140,13 @@ object PlaylistIo {
                         }
                     }
                     line.startsWith("#EXTIMG:", ignoreCase = true) -> art = line.substring(8).trim()
+                    line.equals("#STARRYTV", ignoreCase = true) -> tv = true
                 }
                 continue
             }
-            val t = trackFromEntry(line, title, artist, durSec, art)
+            val t = trackFromEntry(line, title, artist, durSec, art)?.let { if (tv && it.source == Track.SOURCE_RADIO) PlayerMode.tvToAudio(it) else it }
             if (t != null) out.add(t) else skipped++
-            title = ""; artist = ""; durSec = -1L; art = ""
+            title = ""; artist = ""; durSec = -1L; art = ""; tv = false
         }
         return Imported(name, out.distinctBy { it.key }.take(MAX_IMPORT_TRACKS), skipped)
     }
