@@ -402,7 +402,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpTitle.text = t.title
         binding.vpLandTitle.text = t.title
         binding.vpArtist.text = t.artist
-        binding.vpArtist.visibility = if (t.artist.isBlank()) View.GONE else View.VISIBLE
+        binding.vpArtist.visibility = if (t.artist.isBlank()) View.INVISIBLE else View.VISIBLE
         showQuality(null)
         val id = t.remoteId
         when (t.source) {
