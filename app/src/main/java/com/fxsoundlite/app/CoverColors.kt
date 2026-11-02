@@ -27,9 +27,9 @@ object CoverColors {
      * usable colour (grey, black&white...). A custom player cover (CoverUi) wins over the song's artwork, so
      * the colours then stay steady and match the picture shown -- and need no artwork, so data saver is fine.
      */
-    fun accentFor(c: Context, songArt: Bitmap?): Int? {
+    fun accentFor(c: Context, songArt: Bitmap?, thumb: Boolean = CoverUi.showThumb): Int? {
         if (!MusicPrefs.coverTheme(c)) return null
-        val bmp = CoverUi.custom(c) ?: (if (MusicPrefs.saver(c)) null else songArt)
+        val bmp = CoverUi.pick(c, songArt, MusicPrefs.saver(c), thumb)
         if (bmp == null || bmp.isRecycled) return null
         val raw: Int? = synchronized(this) {
             if (lastBmp?.get() === bmp) lastRaw

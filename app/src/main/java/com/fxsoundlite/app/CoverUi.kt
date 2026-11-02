@@ -68,8 +68,21 @@ object CoverUi {
         cachedStamp = -1L
     }
 
-    fun apply(view: ImageView, art: Bitmap?, saver: Boolean, placeholderPadDp: Int) {
-        val shown = custom(view.context) ?: if (!saver) art else null
+    /** True while the song's own thumbnail is shown instead of the custom cover (toggled by tapping the
+     *  cover in the full player). Shared by the full player and the mini player; in memory, so it
+     *  resets to the custom cover when the app process restarts. */
+    @Volatile var showThumb = false
+
+    /** True when tapping the cover can switch to the thumbnail: a custom cover is set and a thumbnail exists. */
+    fun canToggle(c: Context, songArt: Bitmap?): Boolean = hasCustom(c) && songArt != null && !MusicPrefs.saver(c)
+
+    /** The picture to show: the thumbnail while [thumb] is on (and one is available), else custom, else artwork. */
+    fun pick(c: Context, art: Bitmap?, saver: Boolean, thumb: Boolean): Bitmap? =
+        if (thumb && !saver && art != null && hasCustom(c)) art
+        else custom(c) ?: if (!saver) art else null
+
+    fun apply(view: ImageView, art: Bitmap?, saver: Boolean, placeholderPadDp: Int, thumb: Boolean = showThumb) {
+        val shown = pick(view.context, art, saver, thumb)
         if (shown != null) {
             view.setPadding(0, 0, 0, 0)
             view.imageTintList = null

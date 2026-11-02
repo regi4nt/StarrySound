@@ -264,7 +264,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         binding.npSeek.max = s.duration.coerceAtLeast(0)
         binding.npSeek.isEnabled = !live
         binding.npPlay.setImageResource(if (s.isPlaying) R.drawable.ic_pause else R.drawable.ic_play)
-        CoverUi.apply(binding.npArt, s.artwork, MusicPrefs.saver(this), 80)
+        CoverUi.apply(binding.npArt, s.artwork, MusicPrefs.saver(this), 80, CoverUi.showThumb)
         applyCoverTheme(s.artwork)
         updateCoverFx()
 
@@ -573,6 +573,15 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             }
         }
         art.clipToOutline = true
+        // Tap the cover: swap between the custom cover and the song's thumbnail (only when a custom cover is set).
+        art.setOnClickListener {
+            val s = MusicService.instance
+            if (s?.current != null && CoverUi.canToggle(this, s.artwork)) {
+                CoverUi.showThumb = !CoverUi.showThumb
+                CoverUi.apply(art, s.artwork, MusicPrefs.saver(this), 80, CoverUi.showThumb)
+                applyCoverTheme(s.artwork)
+            }
+        }
         binding.npWaves.target = art
         // Let the waves spill outside the frame around the (full-size) cover.
         var v: View? = art.parent as? View
@@ -961,7 +970,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
     private fun accentColor(): Int = coverAccent ?: color(androidx.appcompat.R.attr.colorAccent)
 
     private fun applyCoverTheme(art: android.graphics.Bitmap?) {
-        val target = CoverColors.accentFor(this, art)
+        val target = CoverColors.accentFor(this, art, CoverUi.showThumb)
         coverAccent = target
         val to = target ?: color(androidx.appcompat.R.attr.colorAccent)
         if (shownAccent == 0 || shownAccent == to) { paintAccent(to, target != null); shownAccent = to; return }
