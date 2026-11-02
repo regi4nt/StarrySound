@@ -173,7 +173,6 @@ class ScreensaverFragment : Fragment() {
             videoHiddenByPause = true
         }
         binding.screensaverTouchFx.reset()
-        trembleAnim?.cancel(); resetTremble()
         warpTouching = false
         binding.screensaverWarp.setBitmap(null)
         binding.screensaverWarp.visibility = View.GONE
@@ -182,7 +181,6 @@ class ScreensaverFragment : Fragment() {
     }
     override fun onDestroyView() {
         super.onDestroyView()
-        trembleAnim?.cancel(); trembleAnim = null
         loadToken++ // invalidate any in-flight photo decode
         tickHandler.removeCallbacks(tickRunnable)
         binding.screensaverVideo.stopPlayback()
@@ -194,7 +192,7 @@ class ScreensaverFragment : Fragment() {
     // ------------------------------------------------------------------ touch effect (temporary)
 
     /**
-     * Touch effect of this page: ripples / tremble / shake / sparkles on any background, or "Scatter" which also pushes the
+     * Touch effect of this page: ripples / sparkles on any background, or "Scatter" which also pushes the
      * rain / stars of the animated background away from the finger. It is chosen in Settings > Screensaver
      * ([ScreensaverPrefs.touchFx]) and only runs on the main screen: the charging screensaver closes on any touch by design.
      */
@@ -218,70 +216,17 @@ class ScreensaverFragment : Fragment() {
         }
     }
 
-    /** Sends one touch event to the touch effect (ripple / tremble / sparkle / scatter). Shared by the normal page
+    /** Sends one touch event to the touch effect (ripple / sparkle / scatter). Shared by the normal page
      *  and by the lock shield, so the effect keeps working while swipe is locked. */
     private fun feedTouchFx(ev: android.view.MotionEvent, mode: ScreensaverTouchFx.Mode) {
         if (_binding == null || mode == ScreensaverTouchFx.Mode.OFF) return
         binding.screensaverTouchFx.onTouch(ev)
-        if (mode == ScreensaverTouchFx.Mode.TREMBLE || mode == ScreensaverTouchFx.Mode.SHAKE) trembleOnTouch(ev, mode)
-        if (mode == ScreensaverTouchFx.Mode.SHAKE) shakeMedia(ev)
         if (mode == ScreensaverTouchFx.Mode.SCATTER && binding.screensaverAnimatedBg.visibility == View.VISIBLE) {
             val up = ev.actionMasked == android.view.MotionEvent.ACTION_UP || ev.actionMasked == android.view.MotionEvent.ACTION_CANCEL
             binding.screensaverAnimatedBg.setPush(ev.x, ev.y, !up)
         } else if (mode == ScreensaverTouchFx.Mode.SCATTER) {
             scatterMedia(ev)
         }
-    }
-
-    // ------------------------------------------------------------------ tremble (touch effect "Tremble")
-
-    private var trembleAnim: android.animation.ValueAnimator? = null
-    private var lastTrembleAt = 0L
-
-    /** A touch knocks the page: the clock / info block and the bottom block shake and settle (damped vibration).
-     *  Full strength on the first touch, softer while the finger keeps dragging. */
-    private fun trembleOnTouch(ev: android.view.MotionEvent, mode: ScreensaverTouchFx.Mode) {
-        val quick = mode == ScreensaverTouchFx.Mode.SHAKE // "Shake": faster, tighter vibration, no ripples
-        val now = android.os.SystemClock.uptimeMillis()
-        val strength = when (ev.actionMasked) {
-            android.view.MotionEvent.ACTION_DOWN -> 1f
-            android.view.MotionEvent.ACTION_MOVE ->
-                if (quick) { if (now - lastTrembleAt > 90L) 0.7f else return }
-                else if (now - lastTrembleAt > 180L) 0.45f else return
-            else -> return
-        }
-        lastTrembleAt = now
-        val d = resources.displayMetrics.density
-        val amp = (if (quick) 5f else 7f) * d * strength
-        trembleAnim?.cancel()
-        trembleAnim = android.animation.ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = if (quick) 600L else 720L
-            interpolator = android.view.animation.LinearInterpolator()
-            addUpdateListener { a ->
-                val b = _binding ?: return@addUpdateListener
-                val t = a.animatedValue as Float
-                val decay = if (quick) (1f - t) * kotlin.math.sqrt(1f - t) else (1f - t) * (1f - t)
-                val f1 = if (quick) 13f else 7f
-                val f2 = if (quick) 17f else 9f
-                val ox = kotlin.math.sin(t * 2f * Math.PI.toFloat() * f1) * amp * decay
-                val oy = kotlin.math.sin(t * 2f * Math.PI.toFloat() * f2 + 1.3f) * amp * 0.6f * decay
-                b.screensaverTopBlock.translationX = ox
-                b.screensaverTopBlock.translationY = oy
-                b.screensaverBottomBlock.translationX = -ox * 0.7f
-                b.screensaverBottomBlock.translationY = -oy * 0.7f
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) { resetTremble() }
-                override fun onAnimationCancel(animation: android.animation.Animator) { /* restarted or reset */ }
-            })
-            start()
-        }
-    }
-
-    private fun resetTremble() {
-        val b = _binding ?: return
-        b.screensaverTopBlock.translationX = 0f; b.screensaverTopBlock.translationY = 0f
-        b.screensaverBottomBlock.translationX = 0f; b.screensaverBottomBlock.translationY = 0f
     }
 
     // Same direction rule as Quick (NestedVerticalHost): the page pager is held back until the finger has moved past
@@ -322,27 +267,6 @@ class ScreensaverFragment : Fragment() {
                 if (warp.hasBitmap()) warp.setPush(ev.x, ev.y, false)
             }
         }
-    }
-
-    // Shake on a photo background: the texture itself vibrates too (ScatterWarpView.shake). Same rhythm as the text blocks.
-    private var lastMediaShakeAt = 0L
-
-    private fun shakeMedia(ev: android.view.MotionEvent) {
-        val now = android.os.SystemClock.uptimeMillis()
-        val strength = when (ev.actionMasked) {
-            android.view.MotionEvent.ACTION_DOWN -> 1f
-            android.view.MotionEvent.ACTION_MOVE -> if (now - lastMediaShakeAt > 90L) 0.7f else return
-            else -> return
-        }
-        if (binding.screensaverImage.visibility != View.VISIBLE) return // video / animated backgrounds: only the blocks shake
-        val warp = binding.screensaverWarp
-        if (!warp.hasBitmap()) {
-            val bmp = (binding.screensaverImage.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return
-            warp.setBitmap(bmp)
-            warp.visibility = View.VISIBLE
-        }
-        lastMediaShakeAt = now
-        warp.shake(ev.x, ev.y, strength)
     }
 
     private fun startMediaWarp() {

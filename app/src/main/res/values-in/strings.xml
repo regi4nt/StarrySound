@@ -1164,8 +1164,6 @@
     <string name="web_cd_save">Simpan situs ini</string>
     <string name="screensaver_fx_off">Mati</string>
     <string name="screensaver_fx_ripple">Riak</string>
-    <string name="screensaver_fx_tremble">Getar (air + bergetar)</string>
-    <string name="screensaver_fx_shake">Getar cepat (tanpa riak)</string>
     <string name="screensaver_fx_sparkle">Percikan</string>
     <string name="screensaver_fx_scatter">Hamburan (hujan / bintang)</string>
     <string name="screensaver_fx_section">Efek sentuhan</string>

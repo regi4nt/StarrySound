@@ -9,15 +9,12 @@ import android.util.AttributeSet
 import android.view.View
 import kotlin.math.hypot
 import kotlin.math.min
-import kotlin.math.sin
 
 /**
  * "Scatter" for a photo / video background: while the finger is down the picture's texture is pushed away from it
  * (a mesh warp, the same push as the particles of the animated backgrounds) and eases back after release.
  * It draws a center-cropped copy of the background over it and hides itself again once everything is back in place.
  * Feed it with [setBitmap] (the still / a video frame) and [setPush]; it never takes touches.
- * [shake] is the "Shake" touch effect: the whole texture vibrates for a moment (a damped, position-dependent wobble
- * of the mesh, strongest around the finger) and then settles.
  */
 class ScatterWarpView @JvmOverloads constructor(
     context: Context,
@@ -25,7 +22,6 @@ class ScatterWarpView @JvmOverloads constructor(
 ) : View(context, attrs) {
 
     private companion object {
-        const val SHAKE_MS = 600f
         const val COLS = 22
         const val ROWS = 34
     }
@@ -42,11 +38,6 @@ class ScatterWarpView @JvmOverloads constructor(
     private var target = 0f   // 1 while touching
     private var lastFrame = 0L
 
-    private var shakeAt = 0L        // uptime of the last shake trigger, 0 = none
-    private var shakeStrength = 0f
-    private var shakeX = 0f
-    private var shakeY = 0f
-
     fun hasBitmap(): Boolean = source != null
 
     fun setBitmap(b: Bitmap?) {
@@ -54,17 +45,7 @@ class ScatterWarpView @JvmOverloads constructor(
         cropped = null
         now = 0f
         lastFrame = 0L
-        shakeAt = 0L
         rebuild()
-    }
-
-    /** Vibrates the texture (needs a bitmap). [strength] 0..1; (x, y) = where the finger is, the wobble is strongest there. */
-    fun shake(x: Float, y: Float, strength: Float) {
-        if (source == null) return
-        shakeAt = SystemClock.uptimeMillis()
-        shakeStrength = strength
-        shakeX = x; shakeY = y
-        invalidate()
     }
 
     fun setPush(x: Float, y: Float, active: Boolean) {
@@ -112,14 +93,7 @@ class ScatterWarpView @JvmOverloads constructor(
         lastFrame = t
         // In quickly under the finger, back out slower after release.
         now += (target - now) * (dt / (if (target > 0f) 80f else 170f)).coerceAtMost(1f)
-        val shakeT = if (shakeAt == 0L) 2f else (t - shakeAt) / SHAKE_MS
-        val shaking = shakeT in 0f..1f
-        if (target == 0f && now < 0.01f && !shaking) { finish(); return }
-        val dens = resources.displayMetrics.density
-        val tau = (2.0 * Math.PI).toFloat()
-        val shakeK = if (shaking) shakeStrength * (1f - shakeT) * kotlin.math.sqrt(1f - shakeT) else 0f
-        val amp = 6f * dens * shakeK
-        val wr = min(width, height) * 0.6f
+        if (target == 0f && now < 0.01f) { finish(); return }
 
         val r = min(width, height) * 0.3f
         var i = 0
@@ -133,16 +107,6 @@ class ScatterWarpView @JvmOverloads constructor(
                 val k = f * f * r * 0.6f * now
                 verts[i] = x + dx / d * k
                 verts[i + 1] = y + dy / d * k
-            }
-            if (shaking) {
-                val idx = i / 2
-                val c = idx % (COLS + 1); val rw = idx / (COLS + 1)
-                if (c != 0 && c != COLS && rw != 0 && rw != ROWS) { // the border stays put so no gaps show
-                    val near = 1f - (hypot((x - shakeX).toDouble(), (y - shakeY).toDouble()).toFloat() / wr).coerceIn(0f, 1f)
-                    val a = amp * (0.45f + 0.55f * near)
-                    verts[i] += sin(shakeT * tau * 13f + y * 0.025f) * a
-                    verts[i + 1] += sin(shakeT * tau * 17f + x * 0.025f + 1.3f) * a * 0.75f
-                }
             }
             i += 2
         }

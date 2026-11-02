@@ -1171,8 +1171,6 @@
     <string name="web_cd_save">Save this site</string>
     <string name="screensaver_fx_off">Off</string>
     <string name="screensaver_fx_ripple">Ripples</string>
-    <string name="screensaver_fx_tremble">Tremble (water + shake)</string>
-    <string name="screensaver_fx_shake">Shake (vibrate, no ripples; also the photo)</string>
     <string name="screensaver_fx_sparkle">Sparkles</string>
     <string name="screensaver_fx_scatter">Scatter (rain / stars)</string>
     <string name="screensaver_fx_section">Touch effect</string>

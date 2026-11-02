@@ -1086,7 +1086,7 @@ class MusicService : MediaBrowserService() {
         val track = queue.getOrNull(newIndex) ?: return
         index = newIndex
         noteSmartPlayed(track)
-        if (!PlayerMode.isTvAudio(track)) { // a TV channel playing as audio is not a song for "Recently played"
+        if (!PlayerMode.isTvAudio(track) && track.source != Track.SOURCE_RADIO) { // radio stations and TV channels (as audio) are not songs for "Recently played"
             try { MusicPrefs.addRecent(this, track) } catch (e: Exception) { android.util.Log.d("MusicService", "ignored: " + e) } // Home "Recently played"
         }
         statsListened = 0L

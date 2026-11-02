@@ -20,10 +20,6 @@ object ScreensaverTouchFx {
     enum class Mode(val labelRes: Int) {
         OFF(R.string.screensaver_fx_off),
         RIPPLE(R.string.screensaver_fx_ripple),
-        /** Water ripples + the clock / info on the page tremble for a moment, like the surface was knocked. */
-        TREMBLE(R.string.screensaver_fx_tremble),
-        /** No ripples: only the clock / info on the page vibrate quickly (and keep vibrating while the finger stays down). */
-        SHAKE(R.string.screensaver_fx_shake),
         SPARKLE(R.string.screensaver_fx_sparkle),
         /** Pushes the particles of the animated background (rain / stars) away from the finger. */
         SCATTER(R.string.screensaver_fx_scatter)
@@ -61,8 +57,7 @@ class TouchFxView @JvmOverloads constructor(
     private val density = resources.displayMetrics.density
     private var fxMode = ScreensaverTouchFx.Mode.RIPPLE
 
-    private fun ScreensaverTouchFx.Mode.hasRipple() =
-        this == ScreensaverTouchFx.Mode.RIPPLE || this == ScreensaverTouchFx.Mode.TREMBLE
+    private fun ScreensaverTouchFx.Mode.hasRipple() = this == ScreensaverTouchFx.Mode.RIPPLE
 
     fun setAccent(color: Int) { accent = color }
 

@@ -366,12 +366,16 @@ object MusicPrefs {
                     album = o.optString("album"), durationMs = o.optLong("dur"),
                     source = o.optInt("src"), remoteId = o.optString("rid"), artUrl = o.optString("art")
                 )
-            }
+            }.filter { !isLive(it) } // entries saved by older versions: radio / TV no longer show up
         } catch (e: Exception) { emptyList() }
     }
 
+    /** Live radio stations and TV channels (also a TV channel playing as audio) are never part of "Recently played". */
+    private fun isLive(t: Track): Boolean =
+        t.source == Track.SOURCE_RADIO || t.source == Track.SOURCE_TV || PlayerMode.isTvAudio(t)
+
     fun addRecent(c: Context, t: Track) {
-        if (privateMode(c) || t.title.isBlank()) return
+        if (privateMode(c) || t.title.isBlank() || isLive(t)) return
         val list = (listOf(t) + recentPlayed(c).filter { it.key != t.key }).take(RECENT_MAX)
         val arr = org.json.JSONArray()
         list.forEach {
