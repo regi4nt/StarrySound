@@ -89,7 +89,7 @@ class AudioEffectManager(private val context: Context) {
         private set(value) = prefs.edit().putBoolean("safe_volume", value).apply()
 
     /** Switches safe volume mode and rebuilds the chain at once so the change is heard right away. */
-    fun setSafeVolume(on: Boolean) {
+    fun applySafeVolume(on: Boolean) {
         safeVolume = on
         reapply()
     }

@@ -1471,7 +1471,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupSafeVolumeSwitch() {
         binding.safeVolumeSwitch.isChecked = em().safeVolume
-        binding.safeVolumeSwitch.setOnCheckedChangeListener { _, checked -> em().setSafeVolume(checked) }
+        binding.safeVolumeSwitch.setOnCheckedChangeListener { _, checked -> em().applySafeVolume(checked) }
     }
 
     private fun setupRootModeSwitch() {
