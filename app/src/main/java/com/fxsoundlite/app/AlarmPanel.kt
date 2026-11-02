@@ -259,8 +259,8 @@ class AlarmPanel(private val act: AppCompatActivity, private val root: View) {
             override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
                 val v = super.getView(position, convertView, parent)
                 val e = getItem(position)!!
-                v.root.findViewById<TextView>(android.R.id.text1).apply { text = e.label; setTextColor(themeColor(R.attr.colorTextPrimary)) }
-                v.root.findViewById<TextView>(android.R.id.text2).apply { text = e.sub; setTextColor(themeColor(R.attr.colorTextSecondary)) }
+                v.findViewById<TextView>(android.R.id.text1).apply { text = e.label; setTextColor(themeColor(R.attr.colorTextPrimary)) }
+                v.findViewById<TextView>(android.R.id.text2).apply { text = e.sub; setTextColor(themeColor(R.attr.colorTextSecondary)) }
                 return v
             }
         }
