@@ -87,6 +87,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private var ytLists: List<YouTubeAccount.Pl>? = null
     private var ytLoading = false
     private var ytLoadedAt = 0L
+    /** Time of the last failed fetch (offline, ...): no retry for [RETRY_AFTER_FAIL_MS], else a failing load
+     *  would call refresh() -> load -> fail -> refresh() in a tight loop and the list could never be tapped. */
+    private var ytFailedAt = 0L
     private var ytEmail = ""
     private var ytConsentAsked = false
     private val ytTracks = HashMap<String, List<Track>>()
@@ -97,6 +100,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (_binding == null) return@registerForActivityResult
         if (res.resultCode == android.app.Activity.RESULT_OK) {
             ytLoadedAt = 0L
+            ytFailedAt = 0L
             loadYtLists()
         }
     }
@@ -108,6 +112,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val email = DriveSync.email(app)
         if (email != ytEmail) { ytEmail = email; ytLists = null; ytTracks.clear(); ytTracksFailed.clear() }
         if (ytLists != null && System.currentTimeMillis() - ytLoadedAt < 5 * 60_000L) return
+        if (System.currentTimeMillis() - ytFailedAt < RETRY_AFTER_FAIL_MS) return
         ytLoading = true
         ytExecutor.execute {
             var consent: Intent? = null
@@ -125,9 +130,11 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 result.onSuccess {
                     ytLists = it
                     ytLoadedAt = System.currentTimeMillis()
+                    ytFailedAt = 0L
                     ytConsentAsked = false
                     ytTracks.keys.retainAll(it.map { p -> YouTubeAccount.ID_PREFIX + p.id }.toSet())
                 }.onFailure {
+                    ytFailedAt = System.currentTimeMillis()
                     val c = consent
                     if (c != null && !ytConsentAsked) {
                         ytConsentAsked = true
@@ -163,6 +170,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     private var drvFolders: List<DriveMusic.Folder>? = null
     private var drvLoading = false
     private var drvLoadedAt = 0L
+    private var drvFailedAt = 0L // see ytFailedAt
     private var drvEmail = ""
     private var drvVideo = false // which kind of files drvFolders holds: audio (music mode) or video (video mode)
     private var drvConsentAsked = false
@@ -171,6 +179,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (_binding == null) return@registerForActivityResult
         if (res.resultCode == android.app.Activity.RESULT_OK) {
             drvLoadedAt = 0L
+            drvFailedAt = 0L
             loadDriveFolders()
         }
     }
@@ -182,6 +191,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val video = MusicPrefs.videoMode(app)
         if (email != drvEmail || video != drvVideo) { drvEmail = email; drvVideo = video; drvFolders = null }
         if (drvFolders != null && System.currentTimeMillis() - drvLoadedAt < 5 * 60_000L) return
+        if (System.currentTimeMillis() - drvFailedAt < RETRY_AFTER_FAIL_MS) return
         drvLoading = true
         ytExecutor.execute {
             var consent: Intent? = null
@@ -200,8 +210,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 result.onSuccess {
                     drvFolders = it
                     drvLoadedAt = System.currentTimeMillis()
+                    drvFailedAt = 0L
                     drvConsentAsked = false
                 }.onFailure {
+                    drvFailedAt = System.currentTimeMillis()
                     val c = consent
                     if (c != null && !drvConsentAsked) {
                         drvConsentAsked = true
@@ -903,7 +915,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     // artUrl: fallback cover = artwork of the first song that has one
                     val art = it.tracks.firstOrNull { t -> t.artUrl.isNotBlank() }?.artUrl.orEmpty()
                     val fromSpotify = it.id in spotifyIds && PlaylistFolders.folderOf(ctx, it.id) == null
-                    rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size, src = if (fromSpotify) SRC_SPOTIFY else null)
+                    rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size, src = if (fromSpotify) SRC_SPOTIFY else null,
+                        coverStamp = PlaylistStore.coverFile(ctx, it.id).let { f -> if (f.exists()) f.lastModified() else 0L })
                 }
             var ytCount = 0
             // Playlists of the signed-in YouTube account, read live (label "YouTube").
@@ -1750,10 +1763,16 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         /** Number of songs, for sorting the overview. */
         val count: Int = 0,
         /** SRC_* of the source folder this row belongs to (Device / Drive / YouTube / Spotify), or null. */
-        val src: String? = null
+        val src: String? = null,
+        /** lastModified of the custom cover file (0 = none), so a changed cover is not mistaken for an unchanged row. */
+        val coverStamp: Long = 0L
     ) {
         /** Set by refresh(): the row is one of the pinned playlists (shows the pin icon). */
         var pinned: Boolean = false
+
+        /** Same row as [o] as far as the list shows it (so rebinding it would change nothing). */
+        fun sameAs(o: Row) = kind == o.kind && id == o.id && name == o.name && subtitle == o.subtitle &&
+            artUrl == o.artUrl && count == o.count && src == o.src && pinned == o.pinned && coverStamp == o.coverStamp
     }
 
     private class RowAdapter(
@@ -1800,6 +1819,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
 
         fun submit(list: List<Row>) {
+            // refresh() runs often (resume, network loads, ...). Rebinding an unchanged list would cancel a tap or a
+            // long press in progress, so an identical list is left alone.
+            if (list.size == items.size && list.indices.all { list[it].sameAs(items[it]) }) {
+                items = list
+                return
+            }
             items = list
             notifyDataSetChanged()
         }
@@ -1880,6 +1905,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         /** Id of a list to open as soon as the Playlist page is shown. */
         @Volatile
         var pendingOpen: String? = null
+
+        /** After a failed YouTube / Drive fetch (e.g. offline) wait this long before trying again. */
+        private const val RETRY_AFTER_FAIL_MS = 30_000L
 
         private const val STATE_EXPORT_ID = "export_id"
         private const val SORT_PREFS = "playlist_sort"

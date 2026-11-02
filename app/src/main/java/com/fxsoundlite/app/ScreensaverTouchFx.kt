@@ -4,8 +4,6 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.RadialGradient
-import android.graphics.Shader
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -22,8 +20,11 @@ object ScreensaverTouchFx {
     enum class Mode(val labelRes: Int) {
         OFF(R.string.screensaver_fx_off),
         RIPPLE(R.string.screensaver_fx_ripple),
+        /** Water ripples + the clock / info on the page tremble for a moment, like the surface was knocked. */
+        TREMBLE(R.string.screensaver_fx_tremble),
+        /** No ripples: only the clock / info on the page vibrate quickly (and keep vibrating while the finger stays down). */
+        SHAKE(R.string.screensaver_fx_shake),
         SPARKLE(R.string.screensaver_fx_sparkle),
-        GLOW(R.string.screensaver_fx_glow),
         /** Pushes the particles of the animated background (rain / stars) away from the finger. */
         SCATTER(R.string.screensaver_fx_scatter)
     }
@@ -38,7 +39,8 @@ class TouchFxView @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : View(context, attrs) {
 
-    private class Ripple(val x: Float, val y: Float, val born: Long)
+    /** [scale] 1 = tap, smaller = the little wavelets left behind by a dragging finger. */
+    private class Ripple(val x: Float, val y: Float, val born: Long, val scale: Float = 1f)
     private class Spark(
         var x: Float, var y: Float, val vx: Float, val vy: Float,
         val born: Long, val life: Long, val size: Float, val white: Boolean
@@ -48,23 +50,25 @@ class TouchFxView @JvmOverloads constructor(
     private val sparks = ArrayList<Spark>()
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     private var accent = Color.WHITE
     private var fingerX = 0f
     private var fingerY = 0f
     private var down = false
-    private var glow = 0f // 0..1, eased in while touching and out after release
     private var lastSparkAt = 0L
-    private var lastFrame = 0L
+    private var lastRippleAt = 0L
     private val density = resources.displayMetrics.density
     private var fxMode = ScreensaverTouchFx.Mode.RIPPLE
+
+    private fun ScreensaverTouchFx.Mode.hasRipple() =
+        this == ScreensaverTouchFx.Mode.RIPPLE || this == ScreensaverTouchFx.Mode.TREMBLE
 
     fun setAccent(color: Int) { accent = color }
 
     /** Clears everything on screen (mode switched off / page left). */
     fun reset() {
-        ripples.clear(); sparks.clear(); down = false; glow = 0f
+        ripples.clear(); sparks.clear(); down = false
         invalidate()
     }
 
@@ -77,8 +81,9 @@ class TouchFxView @JvmOverloads constructor(
                 down = true
                 fingerX = ev.x; fingerY = ev.y
                 // Scatter draws nothing here (no ring): it only pushes the background particles away from the finger.
-                if (mode == ScreensaverTouchFx.Mode.RIPPLE) {
+                if (mode.hasRipple()) {
                     ripples += Ripple(ev.x, ev.y, now)
+                    lastRippleAt = now
                 }
             }
             MotionEvent.ACTION_MOVE -> {
@@ -87,8 +92,10 @@ class TouchFxView @JvmOverloads constructor(
                     lastSparkAt = now
                     emitSparks(ev.x, ev.y, now, 2)
                 }
-                if (mode == ScreensaverTouchFx.Mode.RIPPLE && ripples.lastOrNull()?.let { now - it.born > 260L } != false) {
-                    ripples += Ripple(ev.x, ev.y, now)
+                // A finger dragged through water leaves a trail of smaller, softer wavelets.
+                if (mode.hasRipple() && now - lastRippleAt > 130L) {
+                    lastRippleAt = now
+                    ripples += Ripple(ev.x, ev.y, now, 0.55f)
                 }
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -97,7 +104,7 @@ class TouchFxView @JvmOverloads constructor(
             }
         }
         if (ev.actionMasked == MotionEvent.ACTION_DOWN && mode == ScreensaverTouchFx.Mode.SPARKLE) emitSparks(ev.x, ev.y, now, 6)
-        if (ripples.size > 14) ripples.removeAt(0)
+        if (ripples.size > 10) ripples.removeAt(0)
         if (sparks.size > 160) repeat(sparks.size - 160) { sparks.removeAt(0) }
         invalidate()
     }
@@ -113,28 +120,68 @@ class TouchFxView @JvmOverloads constructor(
         }
     }
 
+    private fun mix(a: Int, b: Int, t: Float): Int {
+        val u = 1f - t
+        return Color.rgb(
+            (Color.red(a) * u + Color.red(b) * t).toInt(),
+            (Color.green(a) * u + Color.green(b) * t).toInt(),
+            (Color.blue(a) * u + Color.blue(b) * t).toInt()
+        )
+    }
+
     override fun onDraw(canvas: Canvas) {
         val now = SystemClock.uptimeMillis()
-        val dt = if (lastFrame == 0L) 16L else (now - lastFrame).coerceIn(0L, 64L)
-        lastFrame = now
-        val mode = fxMode
         var alive = false
 
-        // Ripples: a ring that grows and fades.
+        // Water ripples: a drop touches the surface and a few concentric wave rings spread out one after another.
+        // Each ring is a soft wide body + a bright crest + a dark trough just inside it (that is what makes the
+        // surface look like it is bending light), and it widens, slows down and fades as it travels.
+        val crest = mix(accent, Color.WHITE, 0.6f)
+        val ringCount = 3
+        val ringDelay = 190f
+        val duration = 1900f
         val it = ripples.iterator()
-        val maxR = 120f * density
         while (it.hasNext()) {
             val r = it.next()
-            val t = (now - r.born) / 1100f
-            if (t >= 1f) { it.remove(); continue }
+            val age = (now - r.born).toFloat()
+            if (age >= duration + ringDelay * (ringCount - 1)) { it.remove(); continue }
             alive = true
-            val eased = 1f - (1f - t) * (1f - t)
-            ringPaint.color = accent
-            ringPaint.alpha = ((1f - t) * 200).toInt().coerceIn(0, 255)
-            ringPaint.strokeWidth = (3.5f - 2.2f * t) * density
-            canvas.drawCircle(r.x, r.y, maxR * eased, ringPaint)
-            ringPaint.alpha = ((1f - t) * 90).toInt().coerceIn(0, 255)
-            canvas.drawCircle(r.x, r.y, maxR * 0.55f * eased, ringPaint)
+            val maxR = 130f * density * r.scale
+
+            // The first instant: a small dimple right where the finger landed.
+            val tp = age / 320f
+            if (tp in 0f..1f) {
+                fillPaint.color = crest
+                fillPaint.alpha = ((1f - tp) * 70 * r.scale).toInt().coerceIn(0, 255)
+                canvas.drawCircle(r.x, r.y, (4f + 14f * tp) * density * r.scale, fillPaint)
+            }
+
+            for (k in 0 until ringCount) {
+                val t = (age - k * ringDelay) / duration
+                if (t <= 0f || t >= 1f) continue
+                val eased = 1f - (1f - t) * (1f - t) * (1f - t) // fast at first, then drifts to a stop
+                val radius = maxR * (0.12f + 0.88f * eased) * (1f - 0.12f * k)
+                val fade = (1f - t) * (1f - t) * (1f - 0.28f * k) * (if (k == 0) 1f else 0.85f)
+                val w = (2.2f + 5f * t) * density * (0.7f + 0.3f * r.scale)
+
+                // soft body of the wave
+                ringPaint.color = accent
+                ringPaint.alpha = (fade * 55).toInt().coerceIn(0, 255)
+                ringPaint.strokeWidth = w * 3.2f
+                canvas.drawCircle(r.x, r.y, radius, ringPaint)
+
+                // dark trough just inside the crest
+                ringPaint.color = Color.BLACK
+                ringPaint.alpha = (fade * 70).toInt().coerceIn(0, 255)
+                ringPaint.strokeWidth = w * 1.1f
+                canvas.drawCircle(r.x, r.y, (radius - w * 0.9f).coerceAtLeast(0f), ringPaint)
+
+                // bright crest
+                ringPaint.color = crest
+                ringPaint.alpha = (fade * 190).toInt().coerceIn(0, 255)
+                ringPaint.strokeWidth = w * 0.7f
+                canvas.drawCircle(r.x, r.y, radius, ringPaint)
+            }
         }
 
         // Sparkles: little dots flying out and fading.
@@ -152,22 +199,6 @@ class TouchFxView @JvmOverloads constructor(
             canvas.drawCircle(px, py, s.size * (1f - 0.5f * t), dotPaint)
         }
 
-        // Glow: a soft light under the finger.
-        val glowOn = mode == ScreensaverTouchFx.Mode.GLOW && down
-        val target = if (glowOn) 1f else 0f
-        glow += (target - glow) * (dt / 120f).coerceAtMost(1f)
-        if (glow < 0.01f && !glowOn) glow = 0f
-        if (glow > 0f) {
-            alive = true
-            val r = 90f * density
-            glowPaint.shader = RadialGradient(
-                fingerX, fingerY, r,
-                (accent and 0x00FFFFFF) or ((glow * 170).toInt().coerceIn(0, 255) shl 24),
-                Color.TRANSPARENT, Shader.TileMode.CLAMP
-            )
-            canvas.drawCircle(fingerX, fingerY, r, glowPaint)
-        }
-
-        if (alive || down) postInvalidateOnAnimation() else lastFrame = 0L
+        if (alive || down) postInvalidateOnAnimation()
     }
 }
