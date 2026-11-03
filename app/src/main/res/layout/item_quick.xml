@@ -96,22 +96,23 @@
         app:layout_constraintStart_toStartOf="@id/quickCover"
         app:layout_constraintTop_toTopOf="@id/quickCover" />
 
-    <!-- Lyrics: directly under the cover, centred in the free band between the cover's bottom edge and the title block, and
-         from the title's left edge (18dp, same as the title block) to the action rail's left edge (so the buttons never cover them); previous / current / next line, centred text, filled by QuickFragment.applyLyrics -->
+    <!-- Lyrics: directly under the cover, as wide as the cover (left edge to right edge of the cover) and as tall as the free band
+         between the cover's bottom edge and the title block; previous / current / next line, centred text, filled by QuickFragment.applyLyrics.
+         When the band runs beside the action rail, QuickAdapter narrows it evenly on both sides so it stays centred under the cover and never covers the buttons -->
     <LinearLayout
         android:id="@+id/quickLyrics"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginStart="18dp"
+        android:layout_marginStart="0dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="0dp"
         android:layout_marginBottom="8dp"
-        android:gravity="center_vertical|start"
+        android:gravity="center_vertical|center_horizontal"
         android:orientation="vertical"
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/quickInfo"
-        app:layout_constraintEnd_toStartOf="@id/quickRail"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/quickCover"
+        app:layout_constraintStart_toStartOf="@id/quickCover"
         app:layout_constraintTop_toBottomOf="@id/quickCover">
 
         <TextView
@@ -119,8 +120,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:gravity="start"
-            android:textAlignment="viewStart"
+            android:gravity="center_horizontal"
+            android:textAlignment="center"
             android:maxLines="1"
             android:minLines="1"
             android:shadowColor="#99000000"
@@ -135,8 +136,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:gravity="start"
-            android:textAlignment="viewStart"
+            android:gravity="center_horizontal"
+            android:textAlignment="center"
             android:maxLines="2"
             android:shadowColor="#99000000"
             android:shadowDx="0"
@@ -153,8 +154,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:ellipsize="end"
-            android:gravity="start"
-            android:textAlignment="viewStart"
+            android:gravity="center_horizontal"
+            android:textAlignment="center"
             android:maxLines="1"
             android:minLines="1"
             android:shadowColor="#99000000"

@@ -197,7 +197,28 @@ class QuickAdapter(
         b.quickInfo.addOnLayoutChangeListener { _, _, t, _, bt, _, ot, _, ob ->
             if (bt - t != ob - ot) b.quickLyrics.post { fitLyrics(b) }
         }
+        // Lyrics are as wide as the cover. Where that would put them under the action rail, both sides are narrowed by the
+        // same amount: the lines stay centred under the cover and the buttons are never covered.
+        val insetLyrics = fun() {
+            val box = b.quickLyrics
+            val rail = b.quickRail
+            val cover = b.quickCover
+            if (rail.width <= 0 || cover.width <= 0 || box.height <= 0) return
+            val lp = box.layoutParams as ViewGroup.MarginLayoutParams
+            val railLeft = rail.right - rail.width * rail.scaleX // the rail may be scaled towards its bottom-right corner
+            val railTop = rail.bottom - rail.height * rail.scaleY
+            val gap = 8 * dens
+            val want = if (railTop < box.bottom) (cover.right - (railLeft - gap)).coerceAtLeast(0f) else 0f
+            val inset = want.coerceAtMost(((cover.width - 120 * dens) / 2f).coerceAtLeast(0f)).toInt()
+            if (lp.marginStart != inset || lp.marginEnd != inset) {
+                lp.marginStart = inset
+                lp.marginEnd = inset
+                box.post { box.layoutParams = lp; fitLyrics(b) }
+            }
+        }
+        b.quickCover.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> insetLyrics() }
         b.quickRoot.addOnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
+            insetLyrics()
             if (syncGeo(v)) return@addOnLayoutChangeListener
             val top = ((62 + 8) * dens).toInt()
             val bottom = b.quickRail.top - (8 * dens).toInt()

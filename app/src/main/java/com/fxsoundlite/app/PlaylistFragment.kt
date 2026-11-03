@@ -933,7 +933,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             b.plSearchInput.setHint(R.string.playlist_search_hint)
             if (b.plList.adapter !== rowAdapter) b.plList.adapter = rowAdapter
             val likedName = getString(R.string.playlist_liked)
-            val lists = PlaylistStore.playlists(ctx)
+            // Video mode: playlists imported from Spotify (audio only) are hidden everywhere on this page.
+            val lists = PlaylistStore.playlists(ctx).let { all ->
+                if (MusicPrefs.videoMode(ctx)) { val sp = SpotifyLists.ids(ctx); all.filter { it.id !in sp } } else all
+            }
             val rows = mutableListOf<Row>()
             // "Generate playlist" lives in the "+" button; "Convert playlist" in the "⋮" menu.
             val want = { kind: Int -> inAnyFolder() || kindFilter == 0 || kindFilter == kind }
@@ -954,10 +957,16 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     rows += Row(ROW_FOLDER, f.id, f.name, resources.getString(R.string.playlist_overview_count, n), count = n)
                 }
             }
-            // Connected to Spotify: the playlists imported from it get their own automatic folder (below YouTube).
-            // Not connected: no folder, so they stay on the main list as ordinary playlists.
-            val spotifyFolder = SpotifyAuth.isConnected(ctx)
+            // The automatic "Spotify" folder (below YouTube) exists only in music mode, and only when the app is
+            // connected to a Spotify account OR at least one playlist was imported from Spotify (which still exists).
+            // Otherwise (video mode, or nothing from Spotify) there is no folder and no Spotify row; in video mode the
+            // imported playlists are filtered out of [lists] above, so they do not show at all.
+            val ownPlaylistIds = lists.map { it.id }.toSet()
+            val importedFromSpotify = SpotifyLists.ids(ctx).any { it in ownPlaylistIds }
+            val spotifyFolder = !MusicPrefs.videoMode(ctx) && (SpotifyAuth.isConnected(ctx) || importedFromSpotify)
             val spotifyIds = if (spotifyFolder) SpotifyLists.ids(ctx) else emptySet()
+            // The Spotify folder was open and is gone now (e.g. switched to video mode): back to the main list.
+            if (!spotifyFolder && openSource == SRC_SPOTIFY) { openSource = null; refresh(); return }
             // Playlists in a folder show only inside it (a pinned one also stays on top of the main list).
             // A search looks through every playlist, folder or not.
             lists.filter { pl ->
