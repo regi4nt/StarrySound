@@ -19,6 +19,7 @@ internal class HomeCardAdapter(
 ) : RecyclerView.Adapter<HomeCardAdapter.VH>() {
 
     private var items: List<HomeCard> = emptyList()
+    private var shownSaver: Boolean? = null // saver state the covers were last bound with
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val art: ImageView = v.findViewById(R.id.cardArt)
@@ -26,9 +27,19 @@ internal class HomeCardAdapter(
         val subtitle: TextView = v.findViewById(R.id.cardSubtitle)
     }
 
-    fun submit(list: List<HomeCard>) {
-        if (list == items) return // the Home page re-checks every few seconds; skip no-op redraws
+    fun submit(list: List<HomeCard>, saver: Boolean) {
+        // The Home page re-checks every few seconds; skip no-op redraws -- but not when Data saver was switched
+        // (Music tab button, or automatically on mobile data): the covers must then appear / disappear.
+        if (list == items && saver == shownSaver) return
         items = list
+        shownSaver = saver
+        notifyDataSetChanged()
+    }
+
+    /** Data saver was switched (Music tab button or automatic on mobile data): rebind so the covers appear / disappear. */
+    fun syncSaver(saver: Boolean) {
+        if (saver == shownSaver) return
+        shownSaver = saver
         notifyDataSetChanged()
     }
 

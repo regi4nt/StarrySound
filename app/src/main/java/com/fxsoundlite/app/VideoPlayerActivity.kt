@@ -459,6 +459,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val t = queue[i]
         binding.vpTitle.text = t.title
         binding.vpLandTitle.text = t.title
+        loadCoverAccent(t)
         binding.vpArtist.text = t.artist
         binding.vpArtist.visibility = if (t.artist.isBlank()) View.INVISIBLE else View.VISIBLE
         showQuality(null)
@@ -836,6 +837,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         val wantsAnimated = showBg && type == ScreensaverPrefs.TYPE_ANIMATED
         val wantsImage = showBg && type == ScreensaverPrefs.TYPE_IMAGE && !uri.isNullOrBlank()
         val wantsVideo = showBg && type == ScreensaverPrefs.TYPE_VIDEO && !uri.isNullOrBlank()
+        screensaverBgShown = wantsAnimated || wantsImage || wantsVideo
+        paintRootBackground()
 
         if (!wantsImage) {
             b.vpBgImage.visibility = View.GONE
@@ -873,10 +876,64 @@ class VideoPlayerActivity : AppCompatActivity() {
             val bmp = decodeBackground(app, Uri.parse(uri), dm.widthPixels, dm.heightPixels)
             handler.post {
                 if (isDestroyed || token != bgToken) return@post
-                if (bmp == null) { bgImageUri = null; return@post }
+                if (bmp == null) { bgImageUri = null; screensaverBgShown = false; paintRootBackground(); return@post }
                 b.vpBgImage.setImageBitmap(bmp)
                 b.vpBgImage.visibility = View.VISIBLE
             }
+        }
+    }
+
+    /** True while the Screensaver's animated style / photo / video covers the page background. */
+    private var screensaverBgShown = false
+    private var coverAccent: Int? = null // accent colour of the current video's thumbnail (null = none / feature off)
+    private var accentToken = 0
+
+    /**
+     * Same as the music player when the Screensaver background is off: the page is the plain theme colour with a soft
+     * wash of the cover colour (gradient). Only in portrait; landscape / full screen / PiP keep their black screen.
+     */
+    private fun paintRootBackground() {
+        if (!::binding.isInitialized) return
+        val immersive = inPip || full || resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        if (immersive) return
+        val base = color(R.attr.colorBg)
+        val c = coverAccent
+        if (c != null && !screensaverBgShown) {
+            val top = CoverColors.pageBg(this, c)
+            val bottom = CoverColors.wash(base, c, if (CoverColors.isNight(this)) 0.12f else 0.08f)
+            binding.vpRoot.background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(top, bottom)
+            )
+        } else {
+            binding.vpRoot.setBackgroundColor(base)
+        }
+    }
+
+    /** Tints the page with the cover colour exactly like the music player: the custom player cover (Settings) wins over the video's thumbnail. */
+    private fun loadCoverAccent(t: Track) {
+        val token = ++accentToken
+        coverAccent = null
+        paintRootBackground()
+        if (!MusicPrefs.coverTheme(this)) return
+        val app = applicationContext
+        try {
+            bgExecutor.execute {
+                val bmp = if (MusicPrefs.saver(app)) null else try { // saver: no thumbnail fetch (a custom cover still counts)
+                    if (t.source != Track.SOURCE_LOCAL) {
+                        if (t.artUrl.isBlank()) null else Http.bitmap(t.artUrl)
+                    } else if (Build.VERSION.SDK_INT >= 29) {
+                        app.contentResolver.loadThumbnail(t.uri, android.util.Size(384, 384), null)
+                    } else null
+                } catch (e: Exception) { null }
+                val accent = CoverColors.accentFor(app, bmp, CoverUi.showThumb) // same rule as the music player: custom cover wins
+                handler.post {
+                    if (isDestroyed || token != accentToken) return@post
+                    coverAccent = accent
+                    paintRootBackground()
+                }
+            }
+        } catch (e: Exception) {
+            // Executor shut down: the screen is closing.
         }
     }
 
@@ -899,6 +956,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         v.setOnErrorListener { _, _, _ ->
             stopBgVideo()
+            screensaverBgShown = false
+            paintRootBackground()
             Toast.makeText(this, R.string.background_load_failed, Toast.LENGTH_LONG).show()
             true
         }

@@ -130,7 +130,7 @@ class HomeFragment : Fragment() {
         aiStatusAction = null
         b.aiStatus.visibility = View.GONE
         b.aiList.visibility = View.VISIBLE
-        aiAdapter.submit(aiTracks.map { HomeCard("a:" + it.key, it.title, it.artist, it.artUrl) })
+        aiAdapter.submit(aiTracks.map { HomeCard("a:" + it.key, it.title, it.artist, it.artUrl) }, saverNow())
         // Picks that came from the non-AI fallback (AI quota used up...) are titled without "AI".
         b.aiPicksTitle.setText(
             if (AiRecommender.cachedIsFallback(requireContext())) R.string.home_picks else R.string.home_ai_picks
@@ -268,7 +268,7 @@ class HomeFragment : Fragment() {
     private fun restoreOnlineShelves() {
         fun fill(shelf: Shelf, cards: List<HomeCard>) {
             shelf.root.visibility = if (cards.isEmpty()) View.GONE else View.VISIBLE
-            shelf.adapter.submit(cards)
+            shelf.adapter.submit(cards, saverNow())
         }
         fill(topShelf, songCards("t:", topSongs))
         fill(newShelf, songCards("n:", newSongs))
@@ -399,35 +399,35 @@ class HomeFragment : Fragment() {
         }
         job({ HomeFeeds.topSongs(app) }) {
             topSongs = it; topShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            topShelf.adapter.submit(songCards("t:", it))
+            topShelf.adapter.submit(songCards("t:", it), saverNow())
         }
         job({ HomeFeeds.newReleases(app) }) {
             newSongs = it; newShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            newShelf.adapter.submit(songCards("n:", it))
+            newShelf.adapter.submit(songCards("n:", it), saverNow())
         }
         job({ RadioApi.recommended(app) }) {
             radioReco = it; radioRecoShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            radioRecoShelf.adapter.submit(stationCards("rr:", it))
+            radioRecoShelf.adapter.submit(stationCards("rr:", it), saverNow())
         }
         job({ RadioApi.popularMixed(app) }) {
             radioPopular = it; radioPopularShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            radioPopularShelf.adapter.submit(stationCards("rp:", it))
+            radioPopularShelf.adapter.submit(stationCards("rp:", it), saverNow())
         }
         job({ TvChannels.recommended(app) }) {
             tvReco = it; tvRecoShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            tvRecoShelf.adapter.submit(stationCards("tr:", it))
+            tvRecoShelf.adapter.submit(stationCards("tr:", it), saverNow())
         }
         job({ TvChannels.popularMixed(app) }) {
             tvPopular = it; tvPopularShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            tvPopularShelf.adapter.submit(stationCards("tp:", it))
+            tvPopularShelf.adapter.submit(stationCards("tp:", it), saverNow())
         }
         job({ HomePlaylists.recommended(app) }) {
             playlistReco = it; playlistRecoShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            playlistRecoShelf.adapter.submit(playlistCards("pr:", it))
+            playlistRecoShelf.adapter.submit(playlistCards("pr:", it), saverNow())
         }
         job({ HomePlaylists.popular(app) }) {
             playlistPopular = it; playlistPopularShelf.root.visibility = if (it.isEmpty()) View.GONE else View.VISIBLE
-            playlistPopularShelf.adapter.submit(playlistCards("pp:", it))
+            playlistPopularShelf.adapter.submit(playlistCards("pp:", it), saverNow())
         }
     }
 
@@ -447,8 +447,21 @@ class HomeFragment : Fragment() {
         if (_binding == null) return
         recent = MusicPrefs.recentPlayed(ctx).take(10)
         recentShelf.root.visibility = if (recent.isEmpty()) View.GONE else View.VISIBLE
-        recentShelf.adapter.submit(recent.map { HomeCard("r:" + it.key, it.title, it.artist, it.artUrl) })
+        recentShelf.adapter.submit(recent.map { HomeCard("r:" + it.key, it.title, it.artist, it.artUrl) }, saverNow())
+        // The other shelves reload only every 30 min: when Data saver changed, redraw their covers right away.
+        val saver = saverNow()
+        aiAdapter.syncSaver(saver)
+        if (::topShelf.isInitialized) topShelf.adapter.syncSaver(saver)
+        if (::newShelf.isInitialized) newShelf.adapter.syncSaver(saver)
+        if (::radioRecoShelf.isInitialized) radioRecoShelf.adapter.syncSaver(saver)
+        if (::radioPopularShelf.isInitialized) radioPopularShelf.adapter.syncSaver(saver)
+        if (::tvRecoShelf.isInitialized) tvRecoShelf.adapter.syncSaver(saver)
+        if (::tvPopularShelf.isInitialized) tvPopularShelf.adapter.syncSaver(saver)
+        if (::playlistRecoShelf.isInitialized) playlistRecoShelf.adapter.syncSaver(saver)
+        if (::playlistPopularShelf.isInitialized) playlistPopularShelf.adapter.syncSaver(saver)
     }
+
+    private fun saverNow(): Boolean = context?.let { MusicPrefs.saver(it) } ?: false
 
     override fun onDestroyView() {
         super.onDestroyView()
