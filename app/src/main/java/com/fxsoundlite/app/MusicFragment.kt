@@ -1930,7 +1930,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun updateVideoButton() {
         val b = _binding ?: return
         val on = MusicPrefs.videoMode(requireContext())
-        val color = resolveAttrColor(if (on) androidx.appcompat.R.attr.colorAccent else R.attr.colorTextSecondary)
+        val color = resolveAttrColor(if (on) androidx.appcompat.R.attr.colorAccent else R.attr.colorHeaderIcon)
         b.videoModeButton.setImageResource(if (on) R.drawable.ic_videocam else R.drawable.ic_music)
         b.videoModeButton.imageTintList = ColorStateList.valueOf(color)
     }
@@ -1939,7 +1939,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private fun updateSaverButton() {
         val b = _binding ?: return
         val on = MusicPrefs.saver(requireContext())
-        val color = resolveAttrColor(if (on) androidx.appcompat.R.attr.colorAccent else R.attr.colorTextSecondary)
+        val color = resolveAttrColor(if (on) androidx.appcompat.R.attr.colorAccent else R.attr.colorHeaderIcon)
         b.saverButton.imageTintList = ColorStateList.valueOf(color)
         b.saverButton.isSelected = on
     }

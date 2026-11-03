@@ -4,11 +4,13 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.sin
 import kotlin.random.Random
 
@@ -17,12 +19,17 @@ import kotlin.random.Random
  * The effect is picked in Settings > Screensaver ([ScreensaverPrefs.touchFx]); each touch only shows it for a moment.
  */
 object ScreensaverTouchFx {
+    /** Order here is the order of the list in Settings > Touch effect (choices are saved by name, so it is safe to reorder). */
     enum class Mode(val labelRes: Int) {
         OFF(R.string.screensaver_fx_off),
-        RIPPLE(R.string.screensaver_fx_ripple),
+        /** Default: the effect that suits the chosen background (see [ScreensaverPrefs.touchFx]); the user can override it. */
+        AUTO(R.string.screensaver_fx_auto),
         SPARKLE(R.string.screensaver_fx_sparkle),
+        /** Made for the night-sky background: twinkling star glints under the finger, a shooting star on release. */
+        METEOR(R.string.screensaver_fx_meteor),
         /** Pushes the particles of the animated background (rain / stars) away from the finger. */
-        SCATTER(R.string.screensaver_fx_scatter)
+        SCATTER(R.string.screensaver_fx_scatter),
+        RIPPLE(R.string.screensaver_fx_ripple)
     }
 }
 
@@ -42,6 +49,24 @@ class TouchFxView @JvmOverloads constructor(
         val born: Long, val life: Long, val size: Float, val white: Boolean
     )
 
+    /** A four-point twinkling star that hangs in the air for a moment and drifts slowly. */
+    private class Glint(
+        val x: Float, val y: Float, val vx: Float, val vy: Float,
+        val born: Long, val life: Long, val size: Float, val phase: Float
+    )
+    /** A shooting star: bright head, tapering tail, travels along (dx, dy) (unit vector) at [speed] px/ms. */
+    private class Meteor(
+        val x: Float, val y: Float, val dx: Float, val dy: Float,
+        val speed: Float, val born: Long, val life: Long, val len: Float
+    )
+
+    private val glints = ArrayList<Glint>()
+    private val meteors = ArrayList<Meteor>()
+    private val starPath = Path()
+    private var lastGlintAt = 0L
+    private var lastMoveAt = 0L
+    private var velX = 0f // finger velocity, px/ms (smoothed)
+    private var velY = 0f
     private val ripples = ArrayList<Ripple>()
     private val sparks = ArrayList<Spark>()
     private val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
@@ -63,7 +88,7 @@ class TouchFxView @JvmOverloads constructor(
 
     /** Clears everything on screen (mode switched off / page left). */
     fun reset() {
-        ripples.clear(); sparks.clear(); down = false
+        ripples.clear(); sparks.clear(); glints.clear(); meteors.clear(); velX = 0f; velY = 0f; down = false
         invalidate()
     }
 
@@ -71,6 +96,7 @@ class TouchFxView @JvmOverloads constructor(
         val mode = ScreensaverPrefs.touchFx(context)
         fxMode = mode
         val now = SystemClock.uptimeMillis()
+        if (mode == ScreensaverTouchFx.Mode.METEOR) onMeteorTouch(ev, now)
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 down = true
@@ -102,6 +128,66 @@ class TouchFxView @JvmOverloads constructor(
         if (ripples.size > 10) ripples.removeAt(0)
         if (sparks.size > 160) repeat(sparks.size - 160) { sparks.removeAt(0) }
         invalidate()
+    }
+
+    private fun onMeteorTouch(ev: MotionEvent, now: Long) {
+        when (ev.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                velX = 0f; velY = 0f; lastMoveAt = now
+                glints += Glint(ev.x, ev.y, 0f, 0f, now, 1100L, 15f * density, Random.nextFloat() * 6f)
+                repeat(4) { addGlint(ev.x, ev.y, now, 18f) }
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val dt = (now - lastMoveAt).coerceAtLeast(1L)
+                velX = velX * 0.6f + (ev.x - fingerX) / dt * 0.4f
+                velY = velY * 0.6f + (ev.y - fingerY) / dt * 0.4f
+                lastMoveAt = now
+                if (now - lastGlintAt > 40L) {
+                    lastGlintAt = now
+                    addGlint(ev.x, ev.y, now, 8f)
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                // Fly off the way the finger was going; a plain tap sends it down and to the right.
+                var dx = velX; var dy = velY
+                var len = hypot(dx, dy)
+                val tap = len < 0.08f * density
+                if (tap) { dx = 0.8f; dy = 0.6f; len = 1f }
+                dx /= len; dy /= len
+                val speed = if (tap) 0.5f * density else hypot(velX, velY).coerceIn(0.35f * density, 0.8f * density)
+                meteors += Meteor(ev.x, ev.y, dx, dy, speed, now, 1000L, 110f * density)
+                glints += Glint(ev.x, ev.y, 0f, 0f, now, 700L, 12f * density, Random.nextFloat() * 6f)
+                velX = 0f; velY = 0f
+            }
+        }
+        if (glints.size > 120) repeat(glints.size - 120) { glints.removeAt(0) }
+        if (meteors.size > 4) meteors.removeAt(0)
+    }
+
+    /** A little twinkle near (x, y): up to [spread] dp away, slowly drifting, living 0.7 - 1.4 s. */
+    private fun addGlint(x: Float, y: Float, now: Long, spread: Float) {
+        val a = Random.nextFloat() * (Math.PI * 2).toFloat()
+        val d = Random.nextFloat() * spread * density
+        val drift = 0.012f * density
+        glints += Glint(
+            x + cos(a) * d, y + sin(a) * d,
+            (Random.nextFloat() - 0.5f) * drift, (Random.nextFloat() - 0.7f) * drift,
+            now, 700L + Random.nextLong(700L), (3f + Random.nextFloat() * 5f) * density, Random.nextFloat() * 6f
+        )
+    }
+
+    /** Four-point star with a thin waist, [r] = distance from the centre to a tip. */
+    private fun drawStar(canvas: Canvas, cx: Float, cy: Float, r: Float, color: Int, alpha: Int) {
+        val w = r * 0.16f
+        starPath.reset()
+        starPath.moveTo(cx, cy - r); starPath.lineTo(cx + w, cy - w)
+        starPath.lineTo(cx + r, cy); starPath.lineTo(cx + w, cy + w)
+        starPath.lineTo(cx, cy + r); starPath.lineTo(cx - w, cy + w)
+        starPath.lineTo(cx - r, cy); starPath.lineTo(cx - w, cy - w)
+        starPath.close()
+        fillPaint.color = color
+        fillPaint.alpha = alpha.coerceIn(0, 255)
+        canvas.drawPath(starPath, fillPaint)
     }
 
     private fun emitSparks(x: Float, y: Float, now: Long, n: Int) {
@@ -192,6 +278,56 @@ class TouchFxView @JvmOverloads constructor(
             dotPaint.color = if (s.white) Color.WHITE else accent
             dotPaint.alpha = ((1f - t) * 230).toInt().coerceIn(0, 255)
             canvas.drawCircle(px, py, s.size * (1f - 0.5f * t), dotPaint)
+        }
+
+        // Night sky: twinkling star glints (they shimmer while they fade).
+        val starColor = mix(accent, Color.WHITE, 0.85f)
+        val gi = glints.iterator()
+        while (gi.hasNext()) {
+            val g = gi.next()
+            val age = now - g.born
+            if (age >= g.life) { gi.remove(); continue }
+            alive = true
+            val t = age / g.life.toFloat()
+            val twinkle = 0.65f + 0.35f * sin(age / 70f + g.phase)
+            val cx = g.x + g.vx * age
+            val cy = g.y + g.vy * age
+            val grow = if (t < 0.15f) t / 0.15f else 1f - 0.35f * (t - 0.15f) // pops in, then slowly shrinks
+            val r = g.size * grow
+            dotPaint.color = starColor
+            dotPaint.alpha = ((1f - t) * 60 * twinkle).toInt().coerceIn(0, 255)
+            canvas.drawCircle(cx, cy, r * 0.55f, dotPaint) // soft glow
+            drawStar(canvas, cx, cy, r, starColor, ((1f - t) * 255 * twinkle).toInt())
+        }
+
+        // Night sky: shooting stars, a bright head with a tail that tapers off behind it.
+        val mi = meteors.iterator()
+        while (mi.hasNext()) {
+            val m = mi.next()
+            val age = now - m.born
+            if (age >= m.life) { mi.remove(); continue }
+            alive = true
+            val t = age / m.life.toFloat()
+            val fade = 1f - t * t
+            val dist = m.speed * age * (1f - 0.25f * t)
+            val hx = m.x + m.dx * dist
+            val hy = m.y + m.dy * dist
+            val segs = 16
+            ringPaint.strokeCap = Paint.Cap.ROUND
+            for (i in 0 until segs) {
+                val a0 = i / segs.toFloat()
+                val a1 = (i + 1) / segs.toFloat()
+                val tail = m.len * (0.4f + 0.6f * (1f - t)) // the tail shortens as the star burns out
+                ringPaint.color = if (i < 3) Color.WHITE else starColor
+                ringPaint.alpha = ((1f - a0) * (1f - a0) * fade * 235).toInt().coerceIn(0, 255)
+                ringPaint.strokeWidth = (3.4f * (1f - a0) + 0.6f) * density
+                canvas.drawLine(hx - m.dx * tail * a0, hy - m.dy * tail * a0, hx - m.dx * tail * a1, hy - m.dy * tail * a1, ringPaint)
+            }
+            ringPaint.strokeCap = Paint.Cap.BUTT
+            dotPaint.color = starColor
+            dotPaint.alpha = (fade * 70).toInt().coerceIn(0, 255)
+            canvas.drawCircle(hx, hy, 9f * density, dotPaint)
+            drawStar(canvas, hx, hy, 6f * density, Color.WHITE, (fade * 255).toInt())
         }
 
         if (alive || down) postInvalidateOnAnimation()

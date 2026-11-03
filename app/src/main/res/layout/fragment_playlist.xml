@@ -74,7 +74,7 @@
                 android:contentDescription="@string/playlist_create"
                 android:padding="10dp"
                 android:src="@drawable/ic_add"
-                android:tint="?attr/colorTextSecondary" />
+                android:tint="?attr/colorHeaderIcon" />
 
             <!-- Import / export / backup menu (see PlaylistFragment.showMoreMenu). -->
             <ImageButton
@@ -86,7 +86,7 @@
                 android:contentDescription="@string/playlist_more"
                 android:padding="10dp"
                 android:src="@drawable/ic_more_vert"
-                android:tint="?attr/colorTextSecondary" />
+                android:tint="?attr/colorHeaderIcon" />
 
             <!-- Inside an opened list: pick several songs to remove / move. -->
             <ImageButton
@@ -97,7 +97,7 @@
                 android:contentDescription="@string/select_songs"
                 android:padding="10dp"
                 android:src="@drawable/ic_select_all"
-                android:tint="?attr/colorTextSecondary"
+                android:tint="?attr/colorHeaderIcon"
                 android:visibility="gone" />
 
             <!-- Inside an opened list: play it, and edit its name / description / cover. -->
@@ -109,7 +109,7 @@
                 android:contentDescription="@string/playlist_edit"
                 android:padding="10dp"
                 android:src="@drawable/ic_edit"
-                android:tint="?attr/colorTextSecondary"
+                android:tint="?attr/colorHeaderIcon"
                 android:visibility="gone" />
 
             <ImageButton

@@ -75,8 +75,12 @@ tombol volume terasa tidak berfungsi saat EQ menyala. Pada mode ini:
 - tidak ada efek di mix global; efek hanya hidup di sesi pemutar StarrySound dan dilepas saat tidak
   ada lagu diputar (audio aplikasi lain tidak kena EQ);
 - Ambience dimatikan (efek reverb selalu menempel di session 0);
-- kurva EQ diberi headroom otomatis (preamp sebesar boost tertingginya) agar tidak pecah, dan
-  limiter tetap menyala saat Loudness dipakai. Nilai slider yang tersimpan tidak berubah.
+- kurva EQ diberi headroom otomatis (preamp sebesar boost tertingginya) agar tidak pecah. Nilai
+  slider yang tersimpan tidak berubah;
+- **Loudness tidak dipakai** (slider diredupkan) begitu juga limiter yang dulu ikut menyala bersamanya.
+  Di HP seperti Redmi Note 11 (Android 13, MIUI) keduanya diduga membuat tombol volume tidak
+  berfungsi saat EQ menyala. Limiter hanya menyala untuk Volume Leveling. Nilai Loudness tetap
+  tersimpan dan kembali aktif bila saklar dimatikan.
 
 Matikan saklar untuk memasang EQ ke seluruh ponsel seperti sebelumnya.
 

@@ -24,7 +24,7 @@ object CollabUi {
         CollabPlaylist.Fail.ALREADY -> R.string.collab_already
     }
 
-    /** Entry point from the open playlist's "⋮" menu. */
+    /** Entry point from the long-press menu of a playlist row (Playlist tab). */
     fun manage(c: Context, pl: Playlist, onChanged: () -> Unit) {
         if (CollabPlaylist.isShared(c, pl.id)) {
             // Fresh numbers first (people, who added what), then show them.

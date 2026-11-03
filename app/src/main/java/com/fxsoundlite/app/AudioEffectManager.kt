@@ -22,8 +22,8 @@ import kotlin.math.max
  *   there and on MIUI/HyperOS they clash with the ROM's own audio effects, which can make the volume keys
  *   seem dead while the EQ is on. In this mode nothing is attached to session 0: the chain lives only on the
  *   app player's own session (see [rebind]) and is released when nothing plays. It also keeps headroom:
- *   the EQ curve is shifted down by its highest boost (a preamp) so the sum of gains does not clip, and the
- *   limiter stays on while Loudness is used. The curve the user sees / saves is never changed.
+ *   the EQ curve is shifted down by its highest boost (a preamp) so the sum of gains does not clip. Loudness (and
+ *   the limiter it needed) is not used in this mode. The curve the user sees / saves is never changed.
  * - We attach every effect to the GLOBAL output mix by using audioSessionId = 0.
  *   On stock / AOSP-based Android 7+ this makes the effect apply system-wide
  *   (music apps, YouTube, games, etc.) WITHOUT root — this is the same trick
@@ -150,9 +150,10 @@ class AudioEffectManager(private val context: Context) {
         }
     }
 
-    /** The limiter (DynamicsProcessing) runs for Volume Leveling, and in safe volume mode also under Loudness. */
+    /** The limiter (DynamicsProcessing) only runs for Volume Leveling. In safe volume mode Loudness is not used at all
+     *  (see [syncOptional]), so it no longer pulls the limiter in with it. */
     private fun dynamicsWanted(levelingStrength: Int): Boolean =
-        isEnabled && (levelingStrength > 0 || (safeVolume && prefs.getInt("loudness_mb", 0) > 0))
+        isEnabled && levelingStrength > 0
 
     /** Call once, e.g. from the foreground service, so effects survive app UI being closed. */
     fun initialize() {
@@ -295,14 +296,17 @@ class AudioEffectManager(private val context: Context) {
 
     /**
      * Safe volume mode only: creates / releases the optional effects so that only the ones in use exist
-     * (Bass, Virtualizer, Loudness, and the limiter while Loudness or Volume Leveling needs it). With everything at 0
+     * (Bass, Virtualizer, and the limiter while Volume Leveling needs it; never Loudness). With everything at 0
      * just the equalizer is attached. Strengths and gains are applied by the setters right after this call.
      */
     private fun syncOptional() {
         if (!safeVolume || equalizer == null) return
         val bassOn = isEnabled && prefs.getInt("bass", 0) > 0
         val virtOn = isEnabled && prefs.getInt("virtualizer", 0) > 0
-        val loudOn = isEnabled && prefs.getInt("loudness_mb", 0).coerceIn(0, currentLoudnessCeilingMb()) > 0
+        // Safe volume mode never creates the LoudnessEnhancer (nor the limiter it used to bring along): on MIUI /
+        // Android 13 they are the likely reason the volume keys stop working. The stored Loudness value is kept, so
+        // switching safe volume mode off brings it back.
+        val loudOn = false
         val dpOn = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && dynamicsWanted(prefs.getInt("volume_leveling", 0))
         if (bassOn && bassBoost == null) bassBoost = try { BassBoost(0, boundSession).apply { enabled = true } } catch (e: Exception) { Log.w(TAG, "BassBoost: ${e.message}"); null }
         else if (!bassOn && bassBoost != null) { try { bassBoost?.release() } catch (e: Exception) { Log.d(TAG, "ignored: $e") }; bassBoost = null }

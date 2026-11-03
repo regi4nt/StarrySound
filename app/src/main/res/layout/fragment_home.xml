@@ -52,7 +52,8 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/np_listen"
                 android:padding="10dp"
-                android:src="@drawable/ic_group" />
+                android:src="@drawable/ic_group"
+                android:tint="?attr/colorHeaderIcon" />
 
             <ImageButton
                 android:id="@+id/settingsButton"
@@ -61,7 +62,8 @@
                 android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/settings_button_desc"
                 android:padding="10dp"
-                android:src="@drawable/ic_settings" />
+                android:src="@drawable/ic_settings"
+                android:tint="?attr/colorHeaderIcon" />
         </LinearLayout>
 
     <ScrollView

@@ -18,6 +18,7 @@
         <item name="colorDivider">@color/dark_divider</item>
         <item name="colorTrackBg">@color/dark_track_bg</item>
         <item name="colorDanger">@color/danger</item>
+        <item name="colorHeaderIcon">?attr/colorTextSecondary</item>
         <item name="colorOnAccent">@color/dark_on_accent</item>
     </style>
 </resources>

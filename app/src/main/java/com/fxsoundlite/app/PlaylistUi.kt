@@ -232,16 +232,17 @@ object PlaylistUi {
             .show()
     }
 
-    /** Long-press menu of a playlist row: pin / move to folder / edit / export / share / delete. */
+    /** Long-press menu of a playlist row: pin / shared playlist / edit / move to folder / export / share / delete. */
     fun playlistActions(
         c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit,
-        pinLabel: String? = null, onPin: (() -> Unit)? = null, onChanged: () -> Unit
+        pinLabel: String? = null, onPin: (() -> Unit)? = null, onCollab: ((Playlist) -> Unit)? = null, onChanged: () -> Unit
     ) {
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
         if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
-        labels += c.getString(R.string.folder_move); actions += { moveToFolder(c, pl, onChanged) }
+        if (onCollab != null) { labels += c.getString(R.string.collab_menu); actions += { onCollab(pl) } }
         labels += c.getString(R.string.playlist_menu_edit); actions += { onEdit(pl) }
+        labels += c.getString(R.string.folder_move); actions += { moveToFolder(c, pl, onChanged) }
         labels += c.getString(R.string.playlist_menu_export_m3u); actions += { onExport(pl) }
         labels += c.getString(R.string.playlist_menu_share_link); actions += { onShare(pl) }
         labels += c.getString(R.string.playlist_delete)

@@ -709,14 +709,14 @@ class SettingsActivity : AppCompatActivity() {
     // === SCREENSAVER DISPLAY: touch effect ===============================================
 
     private fun setupTouchFxSection() {
-        fun refresh() { binding.touchFxValue.setText(ScreensaverPrefs.touchFx(this).labelRes) }
+        fun refresh() { binding.touchFxValue.setText(ScreensaverPrefs.touchFxChoice(this).labelRes) }
         refresh()
         binding.touchFxRow.setOnClickListener {
             val modes = ScreensaverTouchFx.Mode.values()
             val labels = Array(modes.size) { getString(modes[it].labelRes) }
             androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(R.string.screensaver_fx_section)
-                .setSingleChoiceItems(labels, modes.indexOf(ScreensaverPrefs.touchFx(this))) { d, which ->
+                .setSingleChoiceItems(labels, modes.indexOf(ScreensaverPrefs.touchFxChoice(this))) { d, which ->
                     ScreensaverPrefs.setTouchFx(this, modes[which])
                     refresh()
                     d.dismiss()

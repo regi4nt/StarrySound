@@ -94,10 +94,25 @@ object ScreensaverPrefs {
         prefs(context).edit().putString(KEY_CLOCK_STYLE, style).apply()
     }
 
-    /** Touch effect of the Screensaver page (name of a [ScreensaverTouchFx.Mode]); ripples by default. */
-    fun touchFx(context: Context): ScreensaverTouchFx.Mode {
+    /** What the user picked in Settings (name of a [ScreensaverTouchFx.Mode]); [ScreensaverTouchFx.Mode.AUTO] until they choose. */
+    fun touchFxChoice(context: Context): ScreensaverTouchFx.Mode {
         val name = prefs(context).getString(KEY_TOUCH_FX, null)
-        return ScreensaverTouchFx.Mode.values().firstOrNull { it.name == name } ?: ScreensaverTouchFx.Mode.RIPPLE
+        return ScreensaverTouchFx.Mode.values().firstOrNull { it.name == name } ?: ScreensaverTouchFx.Mode.AUTO
+    }
+
+    /** The effect actually used on the Screensaver page. Never AUTO: while the choice is AUTO it follows the background
+     *  (starfield -> scatter, rain -> sparkles, night sky -> shooting stars, water / plain -> ripples, picked photo / video -> off). */
+    fun touchFx(context: Context): ScreensaverTouchFx.Mode {
+        val choice = touchFxChoice(context)
+        if (choice != ScreensaverTouchFx.Mode.AUTO) return choice
+        if (hasVideo(context)) return ScreensaverTouchFx.Mode.OFF // picked photo / video: no effect unless the user turns one on
+        if (mediaType(context) != TYPE_ANIMATED) return ScreensaverTouchFx.Mode.RIPPLE
+        return when (animatedStyle(context)) {
+            STYLE_STARFIELD -> ScreensaverTouchFx.Mode.SCATTER
+            STYLE_NIGHT_SKY -> ScreensaverTouchFx.Mode.METEOR
+            STYLE_RAIN -> ScreensaverTouchFx.Mode.SPARKLE
+            else -> ScreensaverTouchFx.Mode.RIPPLE
+        }
     }
 
     fun setTouchFx(context: Context, mode: ScreensaverTouchFx.Mode) {

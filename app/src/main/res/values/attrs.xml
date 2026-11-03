@@ -17,4 +17,8 @@
          the selected preset chip) — kept themeable in case a future accent
          color needs light-on-accent instead of dark-on-accent. -->
     <attr name="colorOnAccent" format="color" />
+    <!-- Icon tint of the header buttons (Home / Music / Playlist). Defaults to the
+         secondary text colour in both themes; override it in a theme or accent
+         overlay to restyle every header button at once. -->
+    <attr name="colorHeaderIcon" format="color" />
 </resources>

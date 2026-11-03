@@ -1174,9 +1174,12 @@
     <string name="web_cd_close">Close</string>
     <string name="web_cd_reload">Reload or stop</string>
     <string name="web_cd_save">Save this site</string>
+    <string name="loudness_safe_off">Off in Safe volume mode</string>
+    <string name="screensaver_fx_auto">Auto (matches background)</string>
     <string name="screensaver_fx_off">Off</string>
     <string name="screensaver_fx_ripple">Ripples</string>
     <string name="screensaver_fx_sparkle">Sparkles</string>
+    <string name="screensaver_fx_meteor">Shooting stars</string>
     <string name="screensaver_fx_scatter">Scatter</string>
     <string name="screensaver_fx_section">Touch effect</string>
     <string name="screensaver_fx_subtitle">How the Screensaver page reacts when you touch it. Not used by the automatic charging screensaver.</string>

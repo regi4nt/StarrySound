@@ -17,6 +17,7 @@
         <item name="colorDivider">@color/light_divider</item>
         <item name="colorTrackBg">@color/light_track_bg</item>
         <item name="colorDanger">@color/danger</item>
+        <item name="colorHeaderIcon">?attr/colorTextSecondary</item>
         <item name="colorOnAccent">@color/light_on_accent</item>
     </style>
 

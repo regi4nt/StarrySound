@@ -616,7 +616,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val ctx = context ?: return
         val liked = pl.id == PlaylistStore.LIKED_ID
         val h = header ?: return
-        b.plEditBtn.visibility = if (liked || isRemoteList(pl.id)) View.GONE else View.VISIBLE
+        b.plEditBtn.visibility = View.GONE // Edit lives in the ⋮ menu now (showMoreMenu)
         h.plDesc.text = when {
             pl.description.isNotBlank() -> pl.description
             liked -> ""
@@ -896,11 +896,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (openList == null && openFolder != null && PlaylistFolders.get(ctx, openFolder!!) == null) openFolder = null // deleted meanwhile
         backCallback?.isEnabled = isResumed && (openList != null || openFolder != null || openSource != null)
         if (openList == null) { listAccent = null; applyCoverBg() }
-        // Create (+) and the three-dot menu show on the overview only, not inside an opened list.
+        // Create (+) shows on the overview only; the three-dot menu on the overview and inside an opened list.
         // Inside a folder only (+) stays: it creates a playlist right there.
         val headerButtons = if (openList == null) View.VISIBLE else View.GONE
         b.plAddButton.visibility = if (openSource != null) View.GONE else headerButtons
-        b.plMoreButton.visibility = if (openList == null && openFolder == null && openSource == null) View.VISIBLE else View.GONE
+        // Overview, and inside an opened playlist (its menu holds Move / Export / Share link / Shared playlist).
+        b.plMoreButton.visibility = if (openList != null || (openFolder == null && openSource == null)) View.VISIBLE else View.GONE
         b.plPlayBtn.visibility = if (openList == null && (openFolder == null || openSource != null)) View.GONE else View.VISIBLE
         if (openList == null) { b.plPlayBtn.isEnabled = true; b.plPlayBtn.alpha = 1f }
         if (openList == null) b.plEditBtn.visibility = View.GONE // inside a list bindDetail decides
@@ -1369,7 +1370,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
         PlaylistUi.playlistActions(
             ctx, pl, { showEditDialog(it.id) }, { exportM3u(it) }, { shareLink(it) },
-            pinLabel, { togglePin(row) }
+            pinLabel, { togglePin(row) },
+            onCollab = { CollabUi.manage(ctx, it) { if (_binding != null) refresh() } } // Shared playlist: long-press only
         ) { if (_binding != null) refresh() }
     }
 
@@ -1461,7 +1463,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val canSelect = pl != null && !isRemoteList(pl.id) && pl.tracks.isNotEmpty()
         b.plHeaderRow.visibility = if (selecting) View.GONE else View.VISIBLE
         b.plSelectBar.visibility = if (selecting) View.VISIBLE else View.GONE
-        b.plSelectBtn.visibility = if (canSelect) View.VISIBLE else View.GONE
+        b.plSelectBtn.visibility = View.GONE // Select songs lives in the ⋮ menu now (showMoreMenu)
         b.plSelCount.text = getString(R.string.select_count, selected.size)
         val any = selected.isNotEmpty()
         for (v in listOf(b.plSelMove, b.plSelDelete)) { v.isEnabled = any; v.alpha = if (any) 1f else 0.4f }
@@ -1521,29 +1523,26 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val id = openList
         if (id != null) {
             val pl = PlaylistStore.get(ctx, id) ?: return
-            if (id == PlaylistStore.LIKED_ID || isRemoteList(id)) {
-                PlaylistUi.exportActions(ctx, displayName(ctx, pl), { exportM3u(pl) }, { shareLink(pl) })
-                return
+            val liked = id == PlaylistStore.LIKED_ID
+            val remote = isRemoteList(id)
+            val labels = mutableListOf<String>()
+            val actions = mutableListOf<() -> Unit>()
+            fun item(label: String, action: () -> Unit) { labels += label; actions += action }
+            // Select songs and Edit used to be header buttons; they live in this menu now.
+            if (!remote && (resolveList(ctx, id)?.tracks?.isNotEmpty() == true)) item(getString(R.string.select_songs)) { startSelection(null) }
+            if (!liked && !remote) item(getString(R.string.playlist_edit)) { showEditDialog() }
+            if (!liked && !remote) item(getString(R.string.folder_move)) {
+                PlaylistUi.moveToFolder(ctx, pl) {
+                    // Back now returns to the folder the playlist went into (or the main list).
+                    openFolder = PlaylistFolders.folderOf(ctx, pl.id)
+                    if (_binding != null) refresh()
+                }
             }
+            item(getString(R.string.playlist_menu_export_m3u)) { exportM3u(pl) }
+            item(getString(R.string.playlist_menu_share_link)) { shareLink(pl) }
             AlertDialog.Builder(ctx)
                 .setTitle(displayName(ctx, pl))
-                .setItems(arrayOf(
-                    getString(R.string.folder_move),
-                    getString(R.string.playlist_menu_export_m3u),
-                    getString(R.string.playlist_menu_share_link),
-                    getString(R.string.collab_menu)
-                )) { _, which ->
-                    when (which) {
-                        0 -> PlaylistUi.moveToFolder(ctx, pl) {
-                            // Back now returns to the folder the playlist went into (or the main list).
-                            openFolder = PlaylistFolders.folderOf(ctx, pl.id)
-                            if (_binding != null) refresh()
-                        }
-                        1 -> exportM3u(pl)
-                        2 -> shareLink(pl)
-                        else -> CollabUi.manage(ctx, pl) { if (_binding != null) refresh() }
-                    }
-                }
+                .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
                 .show()
             return
         }

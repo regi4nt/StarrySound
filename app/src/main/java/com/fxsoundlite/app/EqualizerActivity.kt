@@ -294,6 +294,11 @@ class EqualizerActivity : AppCompatActivity() {
         val loud = em().loudnessDisplayMb()
         binding.loudnessSeek.progress = loud
         binding.loudnessValueLabel.text = "+${loud / 100} dB"
+        // Safe volume mode does not use Loudness (see AudioEffectManager.syncOptional): grey it out and say why.
+        val loudOff = em().safeVolume
+        binding.loudnessSeek.isEnabled = !loudOff
+        binding.loudnessSeek.alpha = if (loudOff) 0.4f else 1f
+        if (loudOff) binding.loudnessValueLabel.setText(R.string.loudness_safe_off)
 
         val amb = em().prefs.getInt("ambience", 0)
         binding.ambienceSeek.progress = amb

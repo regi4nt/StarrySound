@@ -60,7 +60,7 @@ object ThemeHelper {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun currentMode(context: Context): String =
-        prefs(context).getString(KEY_MODE, MODE_SYSTEM) ?: MODE_SYSTEM
+        prefs(context).getString(KEY_MODE, MODE_DARK) ?: MODE_DARK
 
     fun currentAccent(context: Context): Accent =
         Accent.fromTag(prefs(context).getString(KEY_ACCENT, Accent.DEFAULT.tag))
