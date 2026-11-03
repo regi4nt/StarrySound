@@ -576,6 +576,11 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpRow2.visibility = if (immersive) View.GONE else View.VISIBLE
         if (immersive) binding.vpContent.setPadding(0, 0, 0, 0)
         else binding.vpContent.setPadding(0, dp(12), 0, dp(24))
+        // Landscape / full screen: no 12dp gap under the picture and a black screen behind it (the video letterboxes inside).
+        (binding.vpStage.layoutParams as ViewGroup.MarginLayoutParams).bottomMargin = if (immersive) 0 else dp(12)
+        binding.vpStage.requestLayout()
+        if (immersive) binding.vpRoot.setBackgroundColor(android.graphics.Color.BLACK)
+        else binding.vpRoot.setBackgroundColor(color(R.attr.colorBg))
         placeControls(immersive)
         applyVideoSize()
     }
@@ -641,7 +646,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
             if (panel.parent !== top) {
                 (panel.parent as ViewGroup).removeView(panel)
-                top.addView(panel, top.indexOfChild(binding.vpLandVolume),
+                top.addView(panel, top.indexOfChild(binding.vpLandVolume), // shuffle / repeat first, then volume, lock, menu
                     LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }
         } else {
@@ -663,10 +668,10 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpLandTop.setPadding(dp(8) + i.left, dp(4) + i.top, dp(8) + i.right, dp(20))
         val c = binding.vpControls
         if (c.parent === binding.vpRoot) c.setPadding(i.left, dp(24), i.right, dp(4) + i.bottom)
-        // Same spot as the lock button of the top bar: the bar's padding plus the volume and menu buttons to its right.
+        // Same spot as the lock button of the top bar: the bar's padding plus the menu button to its right.
         (binding.vpUnlock.layoutParams as ViewGroup.MarginLayoutParams).apply {
             topMargin = dp(4) + i.top
-            marginEnd = dp(8) + i.right + dp(80)
+            marginEnd = dp(8) + i.right + dp(40)
         }
         binding.vpUnlock.requestLayout()
     }
@@ -786,6 +791,10 @@ class VideoPlayerActivity : AppCompatActivity() {
         var w = resources.displayMetrics.widthPixels
         var h = w * 9 / 16
         if (h > sh) { h = sh; w = h * 16 / 9 }
+        if (isOverlay()) { // landscape / full screen: the frame is the whole screen; the video keeps its ratio inside it
+            w = ViewGroup.LayoutParams.MATCH_PARENT
+            h = ViewGroup.LayoutParams.MATCH_PARENT
+        }
         val lp = binding.vpVideoFrame.layoutParams as FrameLayout.LayoutParams
         if (lp.width == w && lp.height == h && lp.gravity == Gravity.CENTER) return
         lp.width = w

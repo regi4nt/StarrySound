@@ -367,16 +367,6 @@
         <!-- vpPanel (shuffle / repeat) is inserted here in landscape. -->
 
         <ImageButton
-            android:id="@+id/vpLandLock"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/video_lock"
-            android:padding="8dp"
-            android:src="@drawable/ic_lock_open"
-            android:tint="#FFFFFF" />
-
-        <ImageButton
             android:id="@+id/vpLandVolume"
             android:layout_width="40dp"
             android:layout_height="40dp"
@@ -384,6 +374,16 @@
             android:contentDescription="@string/np_volume"
             android:padding="8dp"
             android:src="@drawable/ic_volume"
+            android:tint="#FFFFFF" />
+
+        <ImageButton
+            android:id="@+id/vpLandLock"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/video_lock"
+            android:padding="8dp"
+            android:src="@drawable/ic_lock_open"
             android:tint="#FFFFFF" />
 
         <ImageButton
@@ -408,14 +408,14 @@
         android:visibility="gone" />
 
     <!-- Shown while the screen is locked (landscape / full screen): the only thing that reacts to touch.
-         Sits exactly where vpLandLock is in the top bar (left of volume and menu): 4dp top, 8dp bar padding + 2 x 40dp buttons from the end. -->
+         Sits exactly where vpLandLock is in the top bar (left of the menu, right of volume): 4dp top, 8dp bar padding + the 40dp menu button from the end. -->
     <ImageButton
         android:id="@+id/vpUnlock"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_gravity="top|end"
         android:layout_marginTop="4dp"
-        android:layout_marginEnd="88dp"
+        android:layout_marginEnd="48dp"
         android:background="@drawable/bg_overlay_circle"
         android:contentDescription="@string/video_unlock"
         android:padding="8dp"

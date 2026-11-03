@@ -1,6 +1,11 @@
 package com.fxsoundlite.app
 
+import android.content.ComponentName
 import android.content.Context
+import android.media.MediaMetadata
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.SystemClock
 import org.json.JSONObject
@@ -15,6 +20,10 @@ import kotlin.math.abs
  * pause or seek through the Web API (Premium + an active Spotify device), and polls what Spotify is doing every
  * few seconds to keep the clock, the play/pause state and the end of the song in sync. The StarrySound
  * equalizer still reaches the audio through [SpotifyEffects].
+ *
+ * Besides the polling, the engine listens to Spotify's own media session (needs notification access): play / pause,
+ * seeking and song changes made in the Spotify app, its notification or a headset reach the player at once, and
+ * play / pause / seek are sent through the session first, which also works without Premium or an active Web API device.
  */
 class SpotifyEngine(
     context: Context,
@@ -42,6 +51,18 @@ class SpotifyEngine(
     override val audible: Boolean get() = confirmed
 
     private val pollRun = Runnable { poll() }
+    private val syncRun = Runnable { syncFromSession() }
+
+    // ---- Spotify's media session
+    private var controller: MediaController? = null
+    private var sessionsRegistered = false
+    private val sessionsListener =
+        MediaSessionManager.OnActiveSessionsChangedListener { list -> attachSession(list.orEmpty()) }
+    private val sessionCallback = object : MediaController.Callback() {
+        override fun onPlaybackStateChanged(state: PlaybackState?) = syncFromSession()
+        override fun onMetadataChanged(metadata: MediaMetadata?) = syncFromSession()
+        override fun onSessionDestroyed() { attachSession(emptyList()) }
+    }
 
     private companion object {
         val TOLERATE_PLAY = setOf(403)
@@ -61,6 +82,7 @@ class SpotifyEngine(
         loadedAt = SystemClock.elapsedRealtime()
         handler.removeCallbacks(pollRun)
         setClock(0, true) // optimistic, like the other engines
+        connectSessions()
         if (!SpotifyAuth.isConnected(app)) {
             handler.post { if (my == gen && !released) fail(401) }
             return
@@ -74,18 +96,21 @@ class SpotifyEngine(
         quietUntil = now + 1500L
         val at = position // read on the main thread; the request runs on the io thread
         setClock(at, true)
+        if (session { it.play() }) { handler.removeCallbacks(syncRun); handler.postDelayed(syncRun, 1600L); return }
         send(gen, tolerate = TOLERATE_PLAY) { SpotifyRemote.resume(app, uri, at) }
     }
 
     override fun pause() {
         quietUntil = SystemClock.elapsedRealtime() + 1500L
         setClock(position, false)
+        if (session { it.pause() }) { handler.removeCallbacks(syncRun); handler.postDelayed(syncRun, 1600L); return }
         send(gen, tolerate = TOLERATE_PAUSE) { SpotifyRemote.pausePlayback(app) }
     }
 
     override fun seekTo(ms: Int) {
         quietUntil = SystemClock.elapsedRealtime() + 1500L
         setClock(ms, playing)
+        if (session { it.seekTo(ms.toLong()) }) { handler.removeCallbacks(syncRun); handler.postDelayed(syncRun, 1600L); return }
         send(gen, tolerate = TOLERATE_PLAY) { SpotifyRemote.seek(app, ms) }
     }
 
@@ -96,6 +121,8 @@ class SpotifyEngine(
         released = true
         gen++
         handler.removeCallbacks(pollRun)
+        handler.removeCallbacks(syncRun)
+        disconnectSessions()
         val wasPlaying = playing
         playing = false
         try {
@@ -105,6 +132,97 @@ class SpotifyEngine(
         } catch (e: Exception) {
             android.util.Log.d("SpotifyEngine", "ignored: $e")
         }
+    }
+
+    // ------------------------------------------------------------------ media session
+
+    /** A transport command on Spotify's session, only once Spotify plays our song; false = use the Web API instead. */
+    private fun session(block: (MediaController.TransportControls) -> Unit): Boolean {
+        val c = controller ?: return false
+        if (!confirmed) return false
+        return try { block(c.transportControls); true } catch (e: Exception) { false }
+    }
+
+    private fun connectSessions() {
+        if (!NowPlayingTracker.isAccessGranted(app)) return
+        val m = app.getSystemService(MediaSessionManager::class.java) ?: return
+        val me = ComponentName(app, NowPlayingListenerService::class.java)
+        try {
+            if (!sessionsRegistered) {
+                m.addOnActiveSessionsChangedListener(sessionsListener, me, handler)
+                sessionsRegistered = true
+            }
+            attachSession(m.getActiveSessions(me))
+        } catch (e: SecurityException) {
+            sessionsRegistered = false // listener service not connected yet: the Web API poll covers
+        }
+    }
+
+    private fun disconnectSessions() {
+        if (sessionsRegistered) {
+            try { app.getSystemService(MediaSessionManager::class.java)?.removeOnActiveSessionsChangedListener(sessionsListener) } catch (e: Exception) { android.util.Log.d("SpotifyEngine", "ignored: $e") }
+            sessionsRegistered = false
+        }
+        controller?.let { try { it.unregisterCallback(sessionCallback) } catch (e: Exception) { android.util.Log.d("SpotifyEngine", "ignored: $e") } }
+        controller = null
+    }
+
+    private fun attachSession(list: List<MediaController>) {
+        if (released) return
+        val next = list.firstOrNull { it.packageName == SpotifyAuth.PKG }
+        if (next != null && next.sessionToken == controller?.sessionToken) { syncFromSession(); return }
+        controller?.let { try { it.unregisterCallback(sessionCallback) } catch (e: Exception) { android.util.Log.d("SpotifyEngine", "ignored: $e") } }
+        controller = next
+        next?.registerCallback(sessionCallback, handler)
+        syncFromSession()
+    }
+
+    private fun sessionPos(st: PlaybackState): Int {
+        var pos = st.position
+        if (st.state == PlaybackState.STATE_PLAYING && st.lastPositionUpdateTime > 0) {
+            pos += ((SystemClock.elapsedRealtime() - st.lastPositionUpdateTime) * st.playbackSpeed).toLong()
+        }
+        return pos.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+    }
+
+    /** Brings the clock / play state in line with Spotify's session: instant, no waiting for the next poll. */
+    private fun syncFromSession() {
+        if (released || ended) return
+        val c = controller ?: return
+        val st = c.playbackState ?: return
+        val md = c.metadata
+        val mid = md?.getString(MediaMetadata.METADATA_KEY_MEDIA_ID).orEmpty()
+        val spPlaying = st.state == PlaybackState.STATE_PLAYING || st.state == PlaybackState.STATE_BUFFERING
+        val pos = sessionPos(st)
+
+        if (!confirmed) {
+            if (mid.isNotEmpty() && mid == uri) { // Spotify switched to our song
+                confirmed = true
+                val d = md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+                if (d > 0) dur = d.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                setClock(pos, spPlaying)
+                if (spPlaying && !started) { started = true; cb.onStarted() } else cb.onStateChanged()
+                schedulePoll(2500L)
+            }
+            return
+        }
+
+        val now = SystemClock.elapsedRealtime()
+        if (now < quietUntil) { // right after our own command: look again once the dust has settled
+            handler.removeCallbacks(syncRun)
+            handler.postDelayed(syncRun, quietUntil - now + 100L)
+            return
+        }
+        // Another song was picked in the Spotify app (or ours finished and Spotify went on): ours is over.
+        if (mid.startsWith("spotify:track:") && mid != uri) { finish(); return }
+        if (mid.isNotEmpty() && mid != uri) return // an ad / episode in between: leave the state alone
+
+        val d = md?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
+        if (d > 0) dur = d.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        val wasPlaying = playing
+        if (wasPlaying && !spPlaying && dur > 0 && position >= dur - 4000) { finish(); return }
+        if (spPlaying != wasPlaying || abs(pos - position) > 2000) setClock(pos, spPlaying)
+        if (spPlaying != wasPlaying) cb.onStateChanged()
     }
 
     // ------------------------------------------------------------------ requests

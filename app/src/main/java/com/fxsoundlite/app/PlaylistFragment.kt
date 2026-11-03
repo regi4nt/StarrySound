@@ -695,12 +695,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val tracks = sortTracks(resolveList(ctx, id)?.tracks.orEmpty()).filter { !it.missing }
         val svc = service ?: MusicService.instance
         if (tracks.isNotEmpty()) MusicPrefs.setLastPlayedList(ctx, id)
-        if ((MusicPrefs.videoMode(ctx) || tracks.all { it.isVideoFile }) && tracks.isNotEmpty()) { playAsVideo(tracks, 0); return }
+        if (MusicPrefs.videoMode(ctx) && tracks.isNotEmpty()) { playAsVideo(tracks, 0); return }
         if (tracks.isEmpty() || svc == null) {
             Toast.makeText(ctx, R.string.playlist_empty_tracks, Toast.LENGTH_SHORT).show()
             return
         }
-        svc.setQueueAndPlay(tracks, 0, fromPlaylist = resolveList(ctx, id)?.name)
+        svc.setQueueAndPlay(withVideosAsAudio(tracks), 0, fromPlaylist = resolveList(ctx, id)?.name)
     }
 
     /** Plays every song of the playlists in folder [folderId], optionally in random order. */
@@ -712,8 +712,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (shuffle) tracks = tracks.shuffled()
         val svc = service ?: MusicService.instance
         if (tracks.isEmpty() || svc == null) { toast(ctx, R.string.folder_no_songs); return }
-        if (MusicPrefs.videoMode(ctx) || tracks.all { it.isVideoFile }) { playAsVideo(tracks, 0); return }
-        svc.setQueueAndPlay(tracks, 0, fromPlaylist = PlaylistFolders.get(ctx, folderId)?.name)
+        if (MusicPrefs.videoMode(ctx)) { playAsVideo(tracks, 0); return }
+        svc.setQueueAndPlay(withVideosAsAudio(tracks), 0, fromPlaylist = PlaylistFolders.get(ctx, folderId)?.name)
     }
 
     /** Orders [list] by the chosen [sortMode]; the stored playlist itself is never reordered. */
@@ -1413,19 +1413,33 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (position !in shown.indices) return
         if (selecting) { toggleSelected(shown[position]); return }
         openList?.let { MusicPrefs.setLastPlayedList(requireContext(), it) } // pinned right below Liked songs
-        if (MusicPrefs.videoMode(requireContext())) { playAsVideo(shown, position); return }
+        if (MusicPrefs.videoMode(requireContext())) { playAsVideo(shown, position, tappedByUser = true); return }
         val ctx = requireContext()
-        if (shown[position].isVideoFile) { playAsVideo(shown, position); return } // a video of the list opens in the video player
         val from = openList?.let { resolveList(ctx, it)?.name }
-        (service ?: MusicService.instance)?.setQueueAndPlay(shown, position, fromPlaylist = from)
+        // Music mode: a video of the list plays as audio too (its audio twin); the video button of the player brings the picture back.
+        (service ?: MusicService.instance)?.setQueueAndPlay(withVideosAsAudio(shown), position, fromPlaylist = from)
     }
+
+    /** Video files (device / Drive) never enter the audio queue as such: each one goes in as its audio twin, so every video plays in music mode. Same order and size. */
+    private fun withVideosAsAudio(list: List<Track>): List<Track> =
+        if (list.any { it.isVideoFile }) list.map { if (it.isVideoFile) PlayerMode.videoToAudio(it) else it } else list
 
     /**
      * Video mode: the playlist plays as a video queue. Songs without a video (device songs, radio, ...) are skipped;
      * the tapped one must have one, else the first that does is used.
      */
-    private fun playAsVideo(list: List<Track>, position: Int) {
+    private fun playAsVideo(list: List<Track>, position: Int, tappedByUser: Boolean = false) {
         val ctx = context ?: return
+        // Any song without a video (device song, radio, Spotify, ...) plays as audio even in video mode: the tapped one,
+        // or the first one when nothing in the list has a video.
+        val tapped0 = list.getOrNull(position)
+        val audioTapped = tappedByUser && tapped0 != null && !tapped0.isVideoPlayable && !tapped0.isVideoFile && !tapped0.missing
+        val noVideo = list.none { it.isVideoPlayable && !it.missing }
+        val firstAudio = list.indexOfFirst { !it.isVideoFile && !it.missing }
+        if (audioTapped || (noVideo && firstAudio >= 0)) {
+            playAsAudio(ctx, list, if (audioTapped) position else firstAudio)
+            return
+        }
         val playable = list.filter { it.isVideoPlayable && !it.missing }
         if (playable.isEmpty()) {
             Toast.makeText(ctx, R.string.video_not_available, Toast.LENGTH_SHORT).show()
@@ -1437,6 +1451,15 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (skipped > 0) Toast.makeText(ctx, getString(R.string.video_skipped, skipped), Toast.LENGTH_SHORT).show()
         (service ?: MusicService.instance)?.let { if (it.isPlaying) it.pause() }
         startActivity(VideoPlayerActivity.queueIntent(ctx, playable, i, 0L))
+    }
+
+    /** Video mode: the list goes to the music service (video files are not audio, so they stay out) and starts at the song [position]. */
+    private fun playAsAudio(ctx: android.content.Context, list: List<Track>, position: Int) {
+        val start = list.getOrNull(position) ?: return
+        val audio = list.filter { !it.isVideoFile && !it.missing }
+        val i = audio.indexOfFirst { it.key == start.key }.coerceAtLeast(0)
+        val from = openList?.let { resolveList(ctx, it)?.name }
+        (service ?: MusicService.instance)?.setQueueAndPlay(audio, i, fromPlaylist = from)
     }
 
     private fun onTrackLongClicked(position: Int) {
