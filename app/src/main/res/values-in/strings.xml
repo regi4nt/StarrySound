@@ -960,7 +960,6 @@
     <string name="audio_quality_normal_desc">Sekitar 128 kbps · seimbang</string>
     <string name="audio_quality_high_desc">Tertinggi yang tersedia · paling boros data</string>
     <string name="audio_quality_applies_next">Berlaku mulai lagu berikutnya. File lokal selalu diputar dengan kualitas aslinya.</string>
-    <string name="audio_quality_row_desc">Kualitas streaming untuk YouTube dan radio</string>
     <!-- Pengaturan > Musik online > Tab pencarian -->
     <string name="search_tabs_title">Tab pencarian</string>
     <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>
