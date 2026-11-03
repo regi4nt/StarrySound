@@ -269,10 +269,9 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         applyCoverTheme(s.artwork)
         updateCoverFx()
 
-        // Live radio has no queue order to shuffle or repeat: hide both (equal width, so play stays centred).
-        val radioVis = if (live) View.GONE else View.VISIBLE
-        binding.npShuffle.visibility = radioVis
-        binding.npRepeat.visibility = radioVis
+        // Radio (and a TV channel playing as audio) is live: no shuffle / repeat buttons.
+        binding.npShuffle.visibility = if (live) View.GONE else View.VISIBLE
+        binding.npRepeat.visibility = if (live) View.GONE else View.VISIBLE
 
         val accent = themeAccent()
         val inactive = color(R.attr.colorTextSecondary)

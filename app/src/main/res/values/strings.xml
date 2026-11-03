@@ -1275,4 +1275,8 @@
     <string name="blend_badge_waiting">💞 Blend</string>
     <string name="scene_theme_label">Scene theme</string>
     <string name="scene_none">None (normal)</string>
+    <string name="blend_menu_shared">Shared Blend</string>
+    <string name="collab_create_menu">Create shared playlist</string>
+    <string name="blend_create_menu">Create Blend</string>
+    <string name="blend_join_menu">Join Blend</string>
 </resources>

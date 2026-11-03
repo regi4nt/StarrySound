@@ -1,18 +1,29 @@
 package com.fxsoundlite.app
 
+import android.content.ComponentName
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
+import android.graphics.Outline
+import android.media.MediaMetadata
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
+import android.media.session.PlaybackState
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.TypedValue
+import android.view.Choreographer
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.BaseAdapter
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
@@ -48,6 +59,7 @@ class SpotifyActivity : AppCompatActivity() {
 
     private lateinit var statusText: TextView
     private lateinit var cover: ImageView
+    private lateinit var waves: CoverWaveView
     private lateinit var titleText: TextView
     private lateinit var artistText: TextView
     private lateinit var seek: SeekBar
@@ -66,6 +78,37 @@ class SpotifyActivity : AppCompatActivity() {
     private var shuffle = false
     private var repeat = "off"
     private var seeking = false
+
+    // Spotify's own media session (needs notification access): the source of truth for the buttons and the cover animation.
+    private var controller: MediaController? = null
+    private var sessionsRegistered = false
+    private var sessionLive = false          // the session currently delivers a song; the Web API poll then only adds shuffle / repeat
+    private var lastBitmap: Bitmap? = null
+    private var lastTrackKey: String? = null
+    private var lastFrameNs = 0L
+    private var lastSeekTick = 0L
+
+    private val sessionsListener =
+        MediaSessionManager.OnActiveSessionsChangedListener { list -> attachSession(list.orEmpty()) }
+
+    private val sessionCallback = object : MediaController.Callback() {
+        override fun onMetadataChanged(metadata: MediaMetadata?) = showSession()
+        override fun onPlaybackStateChanged(state: PlaybackState?) = showSession()
+        override fun onSessionDestroyed() = connectSessions()
+    }
+
+    /** Frame loop (not a ValueAnimator, so it also runs with animator scale 0 / battery saver): neon around the cover while playing + seek bar. */
+    private val frame = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!alive) return
+            val dt = if (lastFrameNs == 0L) 0f else ((frameTimeNanos - lastFrameNs) / 1e9f).coerceAtMost(0.1f)
+            lastFrameNs = frameTimeNanos
+            if (playing && waves.glowOn) waves.advance(dt)
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastSeekTick >= 500) { lastSeekTick = now; tickSeek() }
+            Choreographer.getInstance().postFrameCallback(this)
+        }
+    }
 
     private val adapter = object : BaseAdapter() {
         override fun getCount() = rows.size
@@ -114,18 +157,24 @@ class SpotifyActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         alive = true
+        connectSessions()
         if (SpotifyAuth.isConnected(this)) {
             statusText.visibility = View.GONE
             ui.removeCallbacks(poll)
             ui.post(poll)
-        } else {
+        } else if (!sessionLive) {
             showNotConnected()
         }
+        lastFrameNs = 0L
+        Choreographer.getInstance().removeFrameCallback(frame)
+        Choreographer.getInstance().postFrameCallback(frame)
     }
 
     override fun onPause() {
         alive = false
         ui.removeCallbacks(poll)
+        Choreographer.getInstance().removeFrameCallback(frame)
+        disconnectSessions()
         super.onPause()
     }
 
@@ -187,13 +236,26 @@ class SpotifyActivity : AppCompatActivity() {
             scaleType = ImageView.ScaleType.CENTER_CROP
             setBackgroundColor(Color.parseColor("#33000000"))
         }
-        now.addView(cover, LinearLayout.LayoutParams(dp(96), dp(96)))
+        cover.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) { outline.setRoundRect(0, 0, view.width, view.height, dp(12).toFloat()) }
+        }
+        cover.clipToOutline = true
+        waves = CoverWaveView(this).apply {
+            target = cover
+            waveColor = green
+            cornerRadius = dp(12).toFloat()
+        }
+        // The neon runs around the cover, so the waves view is a larger sibling behind it.
+        val coverFrame = FrameLayout(this).apply { clipChildren = false; clipToPadding = false }
+        coverFrame.addView(waves, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        coverFrame.addView(cover, FrameLayout.LayoutParams(dp(96), dp(96), Gravity.CENTER))
+        now.addView(coverFrame, LinearLayout.LayoutParams(dp(96 + 20), dp(96 + 20)))
         val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         titleText = textView(17f, true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; setText(R.string.sp_nothing) }
         artistText = textView(14f, color = themeColor(android.R.attr.textColorSecondary, Color.GRAY)).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         names.addView(titleText)
         names.addView(artistText)
-        now.addView(names, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(14) })
+        now.addView(names, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4) })
         root.addView(now)
 
         seek = SeekBar(this).apply {
@@ -205,7 +267,9 @@ class SpotifyActivity : AppCompatActivity() {
                 override fun onStartTrackingTouch(sb: SeekBar?) { seeking = true }
                 override fun onStopTrackingTouch(sb: SeekBar?) {
                     val pos = sb?.progress ?: 0
-                    control({ SpotifyApi.put(applicationContext, "/me/player/seek?position_ms=$pos", "{}") }, null)
+                    if (!session { it.seekTo(pos.toLong()) }) {
+                        control({ SpotifyApi.put(applicationContext, "/me/player/seek?position_ms=$pos", "{}") }, null)
+                    }
                     seeking = false
                 }
             })
@@ -233,12 +297,18 @@ class SpotifyActivity : AppCompatActivity() {
             control({ SpotifyApi.put(applicationContext, "/me/player/repeat?state=$to", "{}") }, null)
         }
         prevBtn.setOnClickListener {
+            if (session { it.skipToPrevious() }) return@setOnClickListener
             control({ SpotifyApi.post(applicationContext, "/me/player/previous") }, { SpotifyRemote.previous(applicationContext) })
         }
         nextBtn.setOnClickListener {
+            if (session { it.skipToNext() }) return@setOnClickListener
             control({ SpotifyApi.post(applicationContext, "/me/player/next") }, { SpotifyRemote.next(applicationContext) })
         }
         playBtn.setOnClickListener {
+            if (session { if (playing) it.pause() else it.play() }) {
+                setPlaying(!playing)   // instant feedback; the session callback confirms it
+                return@setOnClickListener
+            }
             if (playing) control({ SpotifyApi.put(applicationContext, "/me/player/pause", "{}") }, { SpotifyRemote.playPause(applicationContext) })
             else control({ SpotifyApi.put(applicationContext, "/me/player/play", "{}") }, { SpotifyRemote.playPause(applicationContext) })
         }
@@ -430,21 +500,31 @@ class SpotifyActivity : AppCompatActivity() {
             try {
                 val p = SpotifyApi.player(app)
                 runOnUiThread { showPlayer(p) }
-            } catch (e: Exception) { runOnUiThread { showError(e) } }
+            } catch (e: Exception) { runOnUiThread { if (!sessionLive) showError(e) } }
         }
     }
 
     private fun showPlayer(p: JSONObject?) {
         if (destroyed) return
         statusText.visibility = View.GONE
+        if (sessionLive) {
+            // Title, cover, play state and position come from Spotify's media session; the Web API only adds what the session lacks.
+            if (p != null) {
+                shuffle = p.optBoolean("shuffle_state")
+                repeat = p.optString("repeat_state", "off")
+                shuffleBtn.alpha = if (shuffle) 1f else 0.4f
+                repeatBtn.text = if (repeat == "track") "\uD83D\uDD02" else "\uD83D\uDD01"
+                repeatBtn.alpha = if (repeat == "off") 0.4f else 1f
+            }
+            return
+        }
         val item = p?.optJSONObject("item")
         if (p == null || item == null) {
             titleText.setText(R.string.sp_nothing)
             artistText.text = ""
             cover.setImageDrawable(null)
             cover.tag = null
-            playing = false
-            playBtn.text = "\u25B6"
+            setPlaying(false)
             if (!seeking) { seek.max = 1; seek.progress = 0 }
             return
         }
@@ -458,10 +538,9 @@ class SpotifyActivity : AppCompatActivity() {
             cover.tag = art
             ImageLoader.load(art) { bm -> if (bm != null && cover.tag == art) cover.setImageBitmap(bm) }
         }
-        playing = p.optBoolean("is_playing")
+        setPlaying(p.optBoolean("is_playing"))
         shuffle = p.optBoolean("shuffle_state")
         repeat = p.optString("repeat_state", "off")
-        playBtn.text = if (playing) "\u23F8" else "\u25B6"
         shuffleBtn.alpha = if (shuffle) 1f else 0.4f
         repeatBtn.text = if (repeat == "track") "\uD83D\uDD02" else "\uD83D\uDD01"
         repeatBtn.alpha = if (repeat == "off") 0.4f else 1f
@@ -469,6 +548,117 @@ class SpotifyActivity : AppCompatActivity() {
             val dur = item.optLong("duration_ms", 0L).coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
             seek.max = dur
             seek.progress = p.optLong("progress_ms", 0L).coerceIn(0L, dur.toLong()).toInt()
+        }
+    }
+
+    // ------------------------------------------------------------------ media session
+
+    /** Play state in one place: the play / pause glyph, the cover's size and the neon around it. */
+    private fun setPlaying(on: Boolean) {
+        val changed = playing != on
+        playing = on
+        playBtn.text = if (on) "\u23F8" else "\u25B6"
+        waves.glowOn = on && MusicPrefs.coverAnim(this)
+        if (changed) cover.animate().scaleX(if (on) 1f else 0.92f).scaleY(if (on) 1f else 0.92f).setDuration(250).start()
+    }
+
+    /** Runs a transport command on Spotify's media session; false when there is no session (then the Web API / media key is used). */
+    private fun session(block: (MediaController.TransportControls) -> Unit): Boolean {
+        val c = controller ?: return false
+        return try { block(c.transportControls); true } catch (e: Exception) { false }
+    }
+
+    private fun connectSessions() {
+        if (!NowPlayingTracker.isAccessGranted(this)) { attachSession(emptyList()); return }
+        val m = getSystemService(MediaSessionManager::class.java) ?: return
+        val me = ComponentName(this, NowPlayingListenerService::class.java)
+        try {
+            if (!sessionsRegistered) {
+                m.addOnActiveSessionsChangedListener(sessionsListener, me, ui)
+                sessionsRegistered = true
+            }
+            attachSession(m.getActiveSessions(me))
+        } catch (e: SecurityException) {
+            // Access is on but the listener service is not (re)connected yet; the Web API poll covers until it is.
+            sessionsRegistered = false
+            attachSession(emptyList())
+        }
+    }
+
+    private fun disconnectSessions() {
+        if (sessionsRegistered) {
+            try { getSystemService(MediaSessionManager::class.java)?.removeOnActiveSessionsChangedListener(sessionsListener) } catch (e: Exception) { android.util.Log.d("SpotifyActivity", "ignored: $e") }
+            sessionsRegistered = false
+        }
+        controller?.let { try { it.unregisterCallback(sessionCallback) } catch (e: Exception) { android.util.Log.d("SpotifyActivity", "ignored: $e") } }
+        controller = null
+        sessionLive = false
+    }
+
+    private fun attachSession(list: List<MediaController>) {
+        if (destroyed) return
+        val next = list.firstOrNull { it.packageName == SpotifyAuth.PKG }
+        if (next != null && next.sessionToken == controller?.sessionToken) { showSession(); return }
+        controller?.let { try { it.unregisterCallback(sessionCallback) } catch (e: Exception) { android.util.Log.d("SpotifyActivity", "ignored: $e") } }
+        controller = next
+        next?.registerCallback(sessionCallback, ui)
+        showSession()
+    }
+
+    /** Fills title, artist, cover and play state from Spotify's media session, instantly on every change. */
+    private fun showSession() {
+        if (destroyed || !alive) return
+        val c = controller
+        val md = c?.metadata
+        val title = md?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
+        if (c == null || md == null || title.isNullOrBlank()) { sessionLive = false; return }
+        sessionLive = true
+        statusText.visibility = View.GONE
+        val artist = md.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE).orEmpty()
+        titleText.text = title
+        artistText.text = artist
+
+        val key = "$title|$artist"
+        val bm = md.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+            ?: md.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: md.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+        if (bm != null) {
+            if (bm !== lastBitmap) { lastBitmap = bm; cover.tag = null; cover.setImageBitmap(bm) }
+        } else {
+            val uri = md.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI) ?: md.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI)
+            if (uri != null && uri.startsWith("http")) {
+                if (cover.tag != uri) {
+                    cover.tag = uri
+                    lastBitmap = null
+                    ImageLoader.load(uri) { b -> if (b != null && cover.tag == uri) cover.setImageBitmap(b) }
+                }
+            } else if (key != lastTrackKey) {
+                lastBitmap = null; cover.tag = null; cover.setImageDrawable(null)   // new song, art not delivered (yet)
+            }
+        }
+        lastTrackKey = key
+
+        val st = c.playbackState?.state
+        setPlaying(st == PlaybackState.STATE_PLAYING || st == PlaybackState.STATE_BUFFERING)
+        lastSeekTick = 0L
+        tickSeek()
+    }
+
+    /** Seek bar from the session: the reported position plus the time since it was reported. */
+    private fun tickSeek() {
+        if (!sessionLive || seeking) return
+        val c = controller ?: return
+        val dur = (c.metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L).coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+        val st = c.playbackState ?: return
+        var pos = st.position
+        if (st.state == PlaybackState.STATE_PLAYING && st.lastPositionUpdateTime > 0) {
+            pos += ((SystemClock.elapsedRealtime() - st.lastPositionUpdateTime) * st.playbackSpeed).toLong()
+        }
+        if (dur > 0) {
+            seek.max = dur
+            seek.progress = pos.coerceIn(0L, dur.toLong()).toInt()
+        } else {
+            seek.max = 1; seek.progress = 0   // unknown length (ad / podcast without duration)
         }
     }
 

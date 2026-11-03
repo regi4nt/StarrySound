@@ -407,16 +407,18 @@
         android:orientation="horizontal"
         android:visibility="gone" />
 
-    <!-- Shown while the screen is locked (landscape / full screen): the only thing that reacts to touch. -->
+    <!-- Shown while the screen is locked (landscape / full screen): the only thing that reacts to touch.
+         Sits exactly where vpLandLock is in the top bar (left of volume and menu): 4dp top, 8dp bar padding + 2 x 40dp buttons from the end. -->
     <ImageButton
         android:id="@+id/vpUnlock"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:layout_gravity="center_vertical|start"
-        android:layout_marginStart="24dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="88dp"
         android:background="@drawable/bg_overlay_circle"
         android:contentDescription="@string/video_unlock"
-        android:padding="14dp"
+        android:padding="8dp"
         android:src="@drawable/ic_lock"
         android:tint="#FFFFFF"
         android:visibility="gone" />

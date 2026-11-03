@@ -1268,4 +1268,8 @@
     <string name="blend_badge_waiting">💞 Blend</string>
     <string name="scene_theme_label">Tema suasana</string>
     <string name="scene_none">Tidak ada (biasa)</string>
+    <string name="blend_menu_shared">Blend bersama</string>
+    <string name="collab_create_menu">Buat playlist bersama</string>
+    <string name="blend_create_menu">Buat Blend</string>
+    <string name="blend_join_menu">Gabung Blend</string>
 </resources>

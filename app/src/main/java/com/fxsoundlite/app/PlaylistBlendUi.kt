@@ -36,7 +36,7 @@ object PlaylistBlendUi {
             .show()
     }
 
-    private fun create(c: Context, onOpen: (String) -> Unit) {
+    fun create(c: Context, onOpen: (String) -> Unit) {
         Toast.makeText(c, R.string.blend_creating, Toast.LENGTH_SHORT).show()
         PlaylistBlend.create(c) { fail, code, id ->
             if (fail != null) { toast(c, failText(fail)); return@create }
@@ -72,7 +72,7 @@ object PlaylistBlendUi {
         c.startActivity(chooser)
     }
 
-    private fun promptJoin(c: Context, onOpen: (String) -> Unit) {
+    fun promptJoin(c: Context, onOpen: (String) -> Unit) {
         val input = EditText(c).apply {
             setSingleLine()
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS

@@ -663,7 +663,11 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpLandTop.setPadding(dp(8) + i.left, dp(4) + i.top, dp(8) + i.right, dp(20))
         val c = binding.vpControls
         if (c.parent === binding.vpRoot) c.setPadding(i.left, dp(24), i.right, dp(4) + i.bottom)
-        (binding.vpUnlock.layoutParams as ViewGroup.MarginLayoutParams).marginStart = dp(24) + i.left
+        // Same spot as the lock button of the top bar: the bar's padding plus the volume and menu buttons to its right.
+        (binding.vpUnlock.layoutParams as ViewGroup.MarginLayoutParams).apply {
+            topMargin = dp(4) + i.top
+            marginEnd = dp(8) + i.right + dp(80)
+        }
         binding.vpUnlock.requestLayout()
     }
 
@@ -1048,10 +1052,11 @@ class VideoPlayerActivity : AppCompatActivity() {
                 binding.vpElapsed.text = formatDuration(posMs)
             }
         }
-        // A single video has nothing to shuffle / skip to: hidden, but keeping their room so play stays centred.
+        // Live TV channels have no shuffle / repeat buttons; previous / next need a second item to go to.
         val multi = queue.size > 1
+        binding.vpShuffle.visibility = if (live) View.GONE else View.VISIBLE
+        binding.vpRepeat.visibility = if (live) View.GONE else View.VISIBLE
         val vis = if (multi) View.VISIBLE else View.INVISIBLE
-        binding.vpShuffle.visibility = vis
         binding.vpPrev.visibility = vis
         binding.vpNext.visibility = vis
         val accent = themeAccent()

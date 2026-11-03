@@ -1563,7 +1563,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val actions = mutableListOf<() -> Unit>()
             fun item(label: String, action: () -> Unit) { labels += label; actions += action }
             // Shared playlist sits at the top, above Select songs (same dialog as the long-press on the overview).
-            if (!liked && !remote && PlaylistBlend.isBlend(ctx, id)) item(getString(R.string.blend_menu)) {
+            if (!liked && !remote && PlaylistBlend.isBlend(ctx, id)) item(getString(R.string.blend_menu_shared)) {
                 PlaylistBlendUi.manage(ctx, pl) { if (_binding != null) refresh() }
             }
             if (!liked && !remote && !PlaylistBlend.isBlend(ctx, id)) item(getString(R.string.collab_menu)) {
@@ -1618,19 +1618,26 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
         val labels = arrayOf(
             getString(R.string.playlist_create),
+            getString(R.string.collab_create_menu),
+            getString(R.string.blend_create_menu),
             getString(R.string.playlist_generate) + if (generating) " \u2026" else "",
             getString(R.string.folder_new),
             getString(R.string.collab_join_menu),
-            getString(R.string.blend_menu)
+            getString(R.string.blend_join_menu)
         )
         AlertDialog.Builder(ctx)
             .setItems(labels) { _, which ->
                 when (which) {
                     0 -> PlaylistUi.createPlaylist(ctx) { pl -> if (_binding != null) open(pl.id) }
-                    1 -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
-                    2 -> PlaylistUi.createFolder(ctx) { if (_binding != null) refresh() }
-                    3 -> CollabUi.promptJoin(ctx) { id -> if (_binding != null) open(id) }
-                    else -> PlaylistBlendUi.start(ctx) { id -> if (_binding != null) { refresh(); open(id) } else openList = id }
+                    1 -> PlaylistUi.createPlaylist(ctx) { pl -> // new playlist, made shared right away (code + share dialog)
+                        if (_binding != null) open(pl.id)
+                        CollabUi.manage(ctx, pl) { if (_binding != null) refresh() }
+                    }
+                    2 -> PlaylistBlendUi.create(ctx) { id -> if (_binding != null) { refresh(); open(id) } else openList = id }
+                    3 -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
+                    4 -> PlaylistUi.createFolder(ctx) { if (_binding != null) refresh() }
+                    5 -> CollabUi.promptJoin(ctx) { id -> if (_binding != null) open(id) }
+                    else -> PlaylistBlendUi.promptJoin(ctx) { id -> if (_binding != null) { refresh(); open(id) } else openList = id }
                 }
             }
             .show()
