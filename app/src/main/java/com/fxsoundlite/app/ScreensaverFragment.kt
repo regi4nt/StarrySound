@@ -114,7 +114,7 @@ class ScreensaverFragment : Fragment() {
             // Opened from the charging screensaver (over the lock screen): the player must show above the keyguard too.
             if (activity is ChargingScreensaverActivity) intent.putExtra(NowPlayingActivity.EXTRA_OVER_LOCK, true)
             startActivity(intent)
-            activity?.overridePendingTransition(R.anim.slide_up, R.anim.stay)
+            activity?.overridePendingTransition(R.anim.fade_in, R.anim.stay)
         }
         setupLockButton()
         setupTouchFx()

@@ -242,7 +242,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(R.anim.stay, R.anim.slide_down)
+        overridePendingTransition(R.anim.stay, R.anim.fade_out)
     }
 
     override fun onMusicStateChanged() {

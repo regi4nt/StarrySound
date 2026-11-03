@@ -711,7 +711,7 @@ class QuickFragment : Fragment(), QuickActions {
         svc.setQueueAndPlay(queue, 0)
         // This page has no mini player, so open the full player as feedback.
         startActivity(Intent(requireContext(), NowPlayingActivity::class.java))
-        activity?.overridePendingTransition(R.anim.slide_up, R.anim.stay)
+        activity?.overridePendingTransition(R.anim.fade_in, R.anim.stay)
     }
 
     /** Opens the clip of this reel as video (from the chorus start); the audio preview and the user's music stay stopped. */

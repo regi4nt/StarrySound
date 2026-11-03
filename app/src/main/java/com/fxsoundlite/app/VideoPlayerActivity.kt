@@ -268,7 +268,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         // Opens with the same slide as the music player, except when it comes from the music player itself (no animation between the two).
         if (intent.getBooleanExtra(EXTRA_FROM_PLAYER, false)) overridePendingTransition(0, 0)
-        else overridePendingTransition(R.anim.slide_up, R.anim.stay)
+        else overridePendingTransition(R.anim.fade_in, R.anim.stay)
         supportActionBar?.hide()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         volumeControlStream = AudioManager.STREAM_MUSIC // the hardware volume keys control the media volume
@@ -1622,7 +1622,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         super.finish()
         // Same slide as the music player, but none when switching between the two players.
         if (quietSwitch || fromPlayer) overridePendingTransition(0, 0)
-        else overridePendingTransition(R.anim.stay, R.anim.slide_down)
+        else overridePendingTransition(R.anim.stay, R.anim.fade_out)
     }
 
     override fun onDestroy() {

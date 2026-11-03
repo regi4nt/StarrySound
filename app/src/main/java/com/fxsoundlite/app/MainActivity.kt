@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             if (target == currentPage) { isEnabled = false; return }
             goingBack = true
-            jumpToPage(target, target == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER)
+            binding.mainPager.setCurrentItem(target, slides(currentPage, target))
         }
     }
 
@@ -142,19 +142,6 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         // showing -- avoids a black flash from tearing it down/rebuilding
         // the VideoView on every swipe.
         binding.mainPager.offscreenPageLimit = 4
-        // Simple like Spotify: while swiping, the two pages involved stay in place and cross-fade. Every other page
-        // is left where the pager put it (off screen): no visibility changes, so the Screensaver's video / surface is
-        // never torn down and rebuilt (that made every page slow), and nothing invisible sits on top taking touches.
-        binding.mainPager.setPageTransformer { page, position ->
-            val a = kotlin.math.abs(position)
-            if (a < 1f) {
-                page.translationX = -position * page.width
-                page.alpha = 1f - a
-            } else {
-                page.translationX = 0f
-                page.alpha = 1f
-            }
-        }
         onBackPressedDispatcher.addCallback(this, pageBackCallback)
         onBackPressedDispatcher.addCallback(this, lockBackCallback)
         setupBottomNav()
@@ -190,7 +177,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             if (cur == null && !SpotifyAuth.isConnected(this)) {
                 // Spotify not connected: no search box, just open the (empty) full player like a normal music player.
                 startActivity(Intent(this, NowPlayingActivity::class.java).putExtra(NowPlayingActivity.EXTRA_EMPTY_SPOTIFY, true))
-                overridePendingTransition(R.anim.slide_up, R.anim.stay)
+                overridePendingTransition(R.anim.fade_in, R.anim.stay)
                 return@setOnClickListener
             }
             if (cur == null) { // empty Spotify mini player: start the last song and open the player on it
@@ -199,7 +186,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
                     val i = Intent(this, NowPlayingActivity::class.java)
                     if (!open) i.putExtra(NowPlayingActivity.EXTRA_EMPTY_SPOTIFY, true)
                     startActivity(i)
-                    overridePendingTransition(R.anim.slide_up, R.anim.stay)
+                    overridePendingTransition(R.anim.fade_in, R.anim.stay)
                 }
                 return@setOnClickListener
             }
@@ -211,7 +198,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
                 return@setOnClickListener
             }
             startActivity(Intent(this, NowPlayingActivity::class.java))
-            overridePendingTransition(R.anim.slide_up, R.anim.stay)
+            overridePendingTransition(R.anim.fade_in, R.anim.stay)
         }
         binding.miniAddPlaylist.setOnClickListener {
             MusicService.instance?.current?.let { t -> PlaylistUi.addToPlaylist(this, t) }
@@ -436,19 +423,10 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         }
     }
 
-    /**
-     * Goes to [page]. With [fade] (to / from the Screensaver) the pager fades out, jumps straight to the page without
-     * scrolling past the ones in between, and fades back in: one short cross-fade instead of a long scroll.
-     */
-    private fun jumpToPage(page: Int, fade: Boolean) {
-        val pager = binding.mainPager
-        if (!fade) { pager.setCurrentItem(page, false); return }
-        pager.animate().cancel()
-        pager.animate().alpha(0f).setDuration(90).withEndAction {
-            pager.setCurrentItem(page, false)
-            pager.animate().alpha(1f).setDuration(140).start()
-        }.start()
-    }
+    /** Only Quick and Screensaver slide, and only to a neighbouring page; every other tab change is instant. */
+    private fun slides(from: Int, to: Int): Boolean =
+        kotlin.math.abs(to - from) == 1 &&
+            (from == PAGE_QUICK || from == PAGE_SCREENSAVER || to == PAGE_QUICK || to == PAGE_SCREENSAVER)
 
     /** Lets a page (e.g. Home's tiles) jump to another page of the pager. */
     fun openPage(page: Int) = goToPage(page)
@@ -477,7 +455,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             return
         }
-        jumpToPage(page, page == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER)
+        binding.mainPager.setCurrentItem(page, slides(currentPage, page))
     }
 
     private fun askNotificationPermissionOnce() {

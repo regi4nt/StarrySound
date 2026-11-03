@@ -4,7 +4,6 @@
          this out for values-night/themes.xml automatically based on
          AppCompatDelegate's night mode — see ThemeHelper.applyMode(). -->
     <style name="Theme.FXSoundLite" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="android:windowAnimationStyle">@style/WindowAnim.Fade</item>
         <item name="colorPrimary">@color/accent_default</item>
         <item name="colorPrimaryDark">@color/light_bg</item>
         <item name="colorAccent">@color/accent_default</item>
@@ -76,17 +75,6 @@
         <item name="android:shadowRadius">3</item>
     </style>
 
-    <!-- Simple cross-fade between screens (no sideways sliding). Screens that slide up like the player set their own. -->
-    <style name="WindowAnim.Fade" parent="@android:style/Animation.Activity">
-        <item name="android:activityOpenEnterAnimation">@anim/fade_in</item>
-        <item name="android:activityOpenExitAnimation">@anim/fade_out</item>
-        <item name="android:activityCloseEnterAnimation">@anim/fade_in</item>
-        <item name="android:activityCloseExitAnimation">@anim/fade_out</item>
-        <item name="android:taskOpenEnterAnimation">@anim/fade_in</item>
-        <item name="android:taskOpenExitAnimation">@anim/fade_out</item>
-        <item name="android:taskCloseEnterAnimation">@anim/fade_in</item>
-        <item name="android:taskCloseExitAnimation">@anim/fade_out</item>
-    </style>
 
     <!-- Scene themes: whole-app palette + matching accent, one per animated Screensaver background. -->
     <style name="ThemeOverlay.Scene.Rain" parent="">
