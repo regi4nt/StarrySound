@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             if (target == currentPage) { isEnabled = false; return }
             goingBack = true
-            binding.mainPager.setCurrentItem(target, false)
+            jumpToPage(target, target == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER)
         }
     }
 
@@ -142,13 +142,18 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         // showing -- avoids a black flash from tearing it down/rebuilding
         // the VideoView on every swipe.
         binding.mainPager.offscreenPageLimit = 4
-        // Simple like Spotify: pages stay in place and cross-fade instead of sliding sideways.
+        // Simple like Spotify: while swiping, the two pages involved stay in place and cross-fade. Every other page
+        // is left where the pager put it (off screen): no visibility changes, so the Screensaver's video / surface is
+        // never torn down and rebuilt (that made every page slow), and nothing invisible sits on top taking touches.
         binding.mainPager.setPageTransformer { page, position ->
-            page.translationX = -position * page.width
-            page.alpha = (1f - kotlin.math.abs(position)).coerceIn(0f, 1f)
-            // All pages sit on top of each other now, and a transparent view still takes touches: hide the pages
-            // that are not showing, otherwise the last one (Screensaver) swallows every tap and swipe.
-            page.visibility = if (kotlin.math.abs(position) < 1f) android.view.View.VISIBLE else android.view.View.INVISIBLE
+            val a = kotlin.math.abs(position)
+            if (a < 1f) {
+                page.translationX = -position * page.width
+                page.alpha = 1f - a
+            } else {
+                page.translationX = 0f
+                page.alpha = 1f
+            }
         }
         onBackPressedDispatcher.addCallback(this, pageBackCallback)
         onBackPressedDispatcher.addCallback(this, lockBackCallback)
@@ -431,6 +436,20 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         }
     }
 
+    /**
+     * Goes to [page]. With [fade] (to / from the Screensaver) the pager fades out, jumps straight to the page without
+     * scrolling past the ones in between, and fades back in: one short cross-fade instead of a long scroll.
+     */
+    private fun jumpToPage(page: Int, fade: Boolean) {
+        val pager = binding.mainPager
+        if (!fade) { pager.setCurrentItem(page, false); return }
+        pager.animate().cancel()
+        pager.animate().alpha(0f).setDuration(90).withEndAction {
+            pager.setCurrentItem(page, false)
+            pager.animate().alpha(1f).setDuration(140).start()
+        }.start()
+    }
+
     /** Lets a page (e.g. Home's tiles) jump to another page of the pager. */
     fun openPage(page: Int) = goToPage(page)
 
@@ -458,7 +477,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             return
         }
-        binding.mainPager.setCurrentItem(page, false) // instant: no scrolling past the pages in between
+        jumpToPage(page, page == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER)
     }
 
     private fun askNotificationPermissionOnce() {
