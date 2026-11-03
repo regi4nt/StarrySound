@@ -1045,4 +1045,6 @@
     <string name="collab_denied">Server menolak akses. Di Firebase, buka Realtime Database > Rules dan izinkan baca/tulis pada \"rooms\".</string>
     <string name="collab_ended">Playlist bersama ditutup oleh pemiliknya. Salinanmu tetap ada.</string>
     <string name="collab_badge">👥 %1$d orang</string>
+    <string name="spotify_auto_import_start">Mengimpor %1$d playlist Spotify di latar belakang…</string>
+    <string name="spotify_auto_import_more">%1$d playlist Spotify lagi akan diimpor saat kamu membuka Playlist berikutnya.</string>
 </resources>

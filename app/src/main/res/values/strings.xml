@@ -627,7 +627,7 @@
 
     <!-- Playlist import / export -->
     <string name="playlist_more">More options</string>
-    <string name="playlist_menu_import_link">Import from YT</string>
+    <string name="playlist_menu_import_link">Import from link</string>
     <string name="playlist_menu_import_file">Import from file (M3U or backup)</string>
     <string name="playlist_menu_backup">Back up all playlists to a file</string>
     <string name="playlist_menu_export_m3u">Export as M3U file</string>
@@ -1242,4 +1242,6 @@
     <string name="collab_denied">Server refused access. In Firebase, open Realtime Database > Rules and allow read/write on \"rooms\".</string>
     <string name="collab_ended">A shared playlist was closed by its owner. Your copy is kept.</string>
     <string name="collab_badge">👥 %1$d people</string>
+    <string name="spotify_auto_import_start">Importing %1$d Spotify playlists in the background…</string>
+    <string name="spotify_auto_import_more">%1$d more Spotify playlists will be imported next time you open Playlist.</string>
 </resources>

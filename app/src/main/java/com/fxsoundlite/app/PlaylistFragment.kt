@@ -553,6 +553,19 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         consumePendingOpen()
         CollabPlaylist.onRemoteChange = { if (_binding != null) refresh() } // a friend changed a shared playlist
         CollabPlaylist.startPolling(requireContext())
+        autoImportSpotify()
+    }
+
+    /** Connected to Spotify: its playlists are copied into the automatic Spotify folder, in the background. */
+    private fun autoImportSpotify() {
+        val ctx = context?.applicationContext ?: return
+        SpotifyAutoImport.maybeRun(ctx,
+            onStart = { n -> Toast.makeText(ctx, ctx.getString(R.string.spotify_auto_import_start, n), Toast.LENGTH_SHORT).show() },
+            onDone = { r, left ->
+                Toast.makeText(ctx, ctx.getString(R.string.spotify_import_done, r.playlists, r.songs, r.missed), Toast.LENGTH_LONG).show()
+                if (left > 0) Toast.makeText(ctx, ctx.getString(R.string.spotify_auto_import_more, left), Toast.LENGTH_SHORT).show()
+                if (_binding != null) refresh()
+            })
     }
 
     override fun onPause() {
@@ -925,10 +938,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             // "Generate playlist" lives in the "+" button; "Convert playlist" in the "⋮" menu.
             val want = { kind: Int -> inAnyFolder() || kindFilter == 0 || kindFilter == kind }
             val srcView = openSource
-            // Device / Drive / YouTube / Spotify playlists sit in their own folders on the main list; a search or a
+            // Device / Drive / YouTube playlists sit in their own folders on the main list; a search or a
             // kind filter lists everything flat instead, like the user's own folders.
             val grouped = q.isEmpty() && (kindFilter == 0 || inAnyFolder())
-            val spotifyIds = SpotifyLists.ids(ctx)
             if (openFolder == null && srcView == null && want(F_LIKED) && (q.isEmpty() || likedName.lowercase(Locale.getDefault()).contains(q))) {
                 rows += Row(ROW_LIKED, PlaylistStore.LIKED_ID, likedName, songCount(PlaylistStore.liked(ctx).size))
             }
@@ -942,6 +954,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     rows += Row(ROW_FOLDER, f.id, f.name, resources.getString(R.string.playlist_overview_count, n), count = n)
                 }
             }
+            // Connected to Spotify: the playlists imported from it get their own automatic folder (below YouTube).
+            // Not connected: no folder, so they stay on the main list as ordinary playlists.
+            val spotifyFolder = SpotifyAuth.isConnected(ctx)
+            val spotifyIds = if (spotifyFolder) SpotifyLists.ids(ctx) else emptySet()
             // Playlists in a folder show only inside it (a pinned one also stays on top of the main list).
             // A search looks through every playlist, folder or not.
             lists.filter { pl ->
@@ -952,8 +968,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 .forEach {
                     // artUrl: fallback cover = artwork of the first song that has one
                     val art = it.tracks.firstOrNull { t -> t.artUrl.isNotBlank() }?.artUrl.orEmpty()
-                    val fromSpotify = it.id in spotifyIds && PlaylistFolders.folderOf(ctx, it.id) == null
-                    rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size, src = if (fromSpotify) SRC_SPOTIFY else null,
+                    rows += Row(ROW_LIST, it.id, it.name, songCount(it.tracks.size), art, count = it.tracks.size,
+                        src = if (it.id in spotifyIds) SRC_SPOTIFY else null,
                         coverStamp = PlaylistStore.coverFile(ctx, it.id).let { f -> if (f.exists()) f.lastModified() else 0L })
                 }
             var ytCount = 0
@@ -1018,7 +1034,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 srcRow(SRC_DEVICE, R.string.source_local, deviceFoldersAvailable(ctx))
                 srcRow(SRC_DRIVE, R.string.source_drive, DriveMusic.isSignedIn(ctx))
                 srcRow(SRC_YT, R.string.source_youtube, YouTubeAccount.isSignedIn(ctx))
-                srcRow(SRC_SPOTIFY, R.string.source_spotify, allRows.any { it.src == SRC_SPOTIFY })
+                srcRow(SRC_SPOTIFY, R.string.source_spotify, spotifyFolder) // right below the YouTube folder
             }
             val likedRows = rows.filter { it.kind == ROW_LIKED }
             val pinnedRows = pinIds.mapNotNull { pid -> rows.firstOrNull { it.id == pid && it.kind != ROW_LIKED } }
@@ -1676,13 +1692,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             .setView(box)
             .setPositiveButton(android.R.string.ok) { _, _ -> importFromText(input.text.toString()) }
             .setNegativeButton(android.R.string.cancel, null)
-            .apply {
-                // Logged in to Spotify: the playlists of the account can be ticked instead of pasting a link.
-                if (SpotifyAuth.isConnected(ctx)) setNeutralButton(R.string.playlist_import_spotify_account) { _, _ ->
-                    activity?.let { act -> SpotifyImportUi.start(act) { if (_binding != null) refresh() } }
-                }
-            }
-            .show()
+            .show() // one field for every link (YouTube, YouTube Music, Spotify, StarrySound); no separate Spotify button
     }
 
     /** Imports from pasted text: a StarrySound share link or a YouTube / YouTube Music playlist link. */

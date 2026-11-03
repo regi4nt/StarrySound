@@ -105,7 +105,12 @@ class QuickAdapter(
                     if (tv.visibility == View.GONE) continue
                     tv.measure(wSpec, hSpec)
                     val tlp = tv.layoutParams as ViewGroup.MarginLayoutParams
-                    h += tv.measuredHeight + tlp.topMargin + tlp.bottomMargin
+                    // The current line may wrap to 2 lines: reserve those 2 (so the size never depends on the song), but a
+                    // 1-line lyric is laid out as 1 line, so the three lines stay close together.
+                    val own = if (tv === b.quickLyCur) {
+                        maxOf(tv.measuredHeight, tv.lineHeight * 2 + tv.compoundPaddingTop + tv.compoundPaddingBottom)
+                    } else tv.measuredHeight
+                    h += own + tlp.topMargin + tlp.bottomMargin
                 }
                 return h
             }

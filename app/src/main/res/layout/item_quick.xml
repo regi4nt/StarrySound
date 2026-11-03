@@ -138,7 +138,6 @@
             android:gravity="center"
             android:textAlignment="center"
             android:maxLines="2"
-            android:minLines="2"
             android:shadowColor="#99000000"
             android:shadowDx="0"
             android:shadowDy="1"
