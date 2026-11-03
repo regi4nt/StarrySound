@@ -1239,6 +1239,7 @@
     <string name="collab_not_found">Code not found</string>
     <string name="collab_not_configured">Server is not set up. Add the database URL in the Listen together settings.</string>
     <string name="collab_network">Couldn\'t reach the server. Try again.</string>
+    <string name="collab_denied">Server refused access. In Firebase, open Realtime Database > Rules and allow read/write on \"rooms\".</string>
     <string name="collab_ended">A shared playlist was closed by its owner. Your copy is kept.</string>
     <string name="collab_badge">👥 %1$d people</string>
 </resources>

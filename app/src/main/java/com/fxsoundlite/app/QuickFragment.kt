@@ -632,6 +632,7 @@ class QuickFragment : Fragment(), QuickActions {
             vh.b.quickLyNext.text = line(mid + 1)
         }
         box.visibility = View.VISIBLE
+        box.post { if (_binding != null) QuickAdapter.fitLyrics(vh.b) } // new text: re-check that it fits the band
     }
 
     /** Heart under "Full song": filled + accent colour when the song is in Liked songs. */

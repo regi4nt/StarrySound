@@ -22,6 +22,7 @@ object CollabUi {
         CollabPlaylist.Fail.NETWORK -> R.string.collab_network
         CollabPlaylist.Fail.NOT_FOUND -> R.string.collab_not_found
         CollabPlaylist.Fail.ALREADY -> R.string.collab_already
+        CollabPlaylist.Fail.DENIED -> R.string.collab_denied
     }
 
     /** Entry point from the long-press menu of a playlist row (Playlist tab). */

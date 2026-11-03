@@ -58,7 +58,70 @@ class QuickAdapter(
 
     override fun getItemCount() = tracks.size
 
+
     companion object {
+        private const val LY_SIDE_SP = 13f
+        private const val LY_CUR_SP = 17f
+        private const val LY_MIN_SCALE = 0.62f
+
+        /**
+         * Keeps the previous / current / next lyric lines inside the band under the cover. The band is what is left
+         * between the cover and the title block, so on a short screen (big cover) the fixed 13 / 17 sp lines were cut
+         * off. Shrinks all three together (down to [LY_MIN_SCALE]); if even that does not fit, only the current line
+         * stays. Call after the text changed and whenever the band changes size.
+         */
+        fun fitLyrics(b: ItemQuickBinding) {
+            val box = b.quickLyrics
+            val root = b.quickRoot
+            val info = b.quickInfo
+            if (root.height <= 0 || info.height <= 0 || box.height <= 0) return
+            val dens = box.resources.displayMetrics.density
+            val lp = box.layoutParams as ViewGroup.MarginLayoutParams
+            // The band under the cover ends at the title block, whose height depends on the song (1 or 2 title lines).
+            // Size the lyrics for the worst case (2 lines) so every song gets the same size and position, and nothing
+            // is ever pushed up onto the cover.
+            val titleLines = b.quickTitle.lineCount.coerceIn(1, 2)
+            val worstInfoH = info.height + (2 - titleLines) * b.quickTitle.lineHeight
+            val infoTop = root.height - (22 * dens).toInt() - worstInfoH
+            val bandTop = b.quickCover.bottom + lp.topMargin
+            val bandBottom = infoTop - lp.bottomMargin
+            val avail = minOf(bandBottom - bandTop, box.height)
+            val width = box.width - box.paddingLeft - box.paddingRight
+            if (width <= 0 || avail <= 0) return
+            val side = listOf(b.quickLyPrev, b.quickLyNext)
+            val all = listOf(b.quickLyPrev, b.quickLyCur, b.quickLyNext)
+
+            fun setScale(k: Float, showSide: Boolean) {
+                b.quickLyPrev.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, LY_SIDE_SP * k)
+                b.quickLyNext.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, LY_SIDE_SP * k)
+                b.quickLyCur.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, LY_CUR_SP * k)
+                side.forEach { it.visibility = if (showSide) View.VISIBLE else View.GONE }
+            }
+            fun needed(): Int {
+                val wSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
+                val hSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+                var h = 0
+                for (tv in all) {
+                    if (tv.visibility == View.GONE) continue
+                    tv.measure(wSpec, hSpec)
+                    val tlp = tv.layoutParams as ViewGroup.MarginLayoutParams
+                    h += tv.measuredHeight + tlp.topMargin + tlp.bottomMargin
+                }
+                return h
+            }
+
+            var k = 1f
+            setScale(k, true)
+            while (needed() > avail && k > LY_MIN_SCALE) { k = (k - 0.06f).coerceAtLeast(LY_MIN_SCALE); setScale(k, true) }
+            if (needed() > avail) { // still too tall: only the current line, as big as fits
+                setScale(k, false)
+                while (needed() > avail && k > 0.5f) { k -= 0.06f; setScale(k, false) }
+            }
+            // Centre the lines in that fixed region: the extra room of a 1-line title goes below, not around them.
+            val extra = (box.height - avail).coerceAtLeast(0)
+            if (box.paddingBottom != extra) box.setPadding(box.paddingLeft, box.paddingTop, box.paddingRight, extra)
+        }
+
         /**
          * A TextureView stretches the video to its own size. This scales it like "center crop": the video
          * fills the whole page, keeps its proportions and the outer parts (left / right or top / bottom)
@@ -122,6 +185,13 @@ class QuickAdapter(
         }
         vh.syncCover = { syncGeo(b.quickRoot) }
         holders.add(vh)
+        // The lyrics band is whatever is left under the cover: keep the three lines inside it.
+        b.quickLyrics.addOnLayoutChangeListener { _, _, t, _, bt, _, ot, _, ob ->
+            if (bt - t != ob - ot) fitLyrics(b)
+        }
+        b.quickInfo.addOnLayoutChangeListener { _, _, t, _, bt, _, ot, _, ob ->
+            if (bt - t != ob - ot) b.quickLyrics.post { fitLyrics(b) }
+        }
         b.quickRoot.addOnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
             if (syncGeo(v)) return@addOnLayoutChangeListener
             val top = ((62 + 8) * dens).toInt()

@@ -1042,6 +1042,7 @@
     <string name="collab_not_found">Kode tidak ditemukan</string>
     <string name="collab_not_configured">Server belum diatur. Isi URL database di pengaturan Listen together.</string>
     <string name="collab_network">Tidak bisa terhubung ke server. Coba lagi.</string>
+    <string name="collab_denied">Server menolak akses. Di Firebase, buka Realtime Database > Rules dan izinkan baca/tulis pada \"rooms\".</string>
     <string name="collab_ended">Playlist bersama ditutup oleh pemiliknya. Salinanmu tetap ada.</string>
     <string name="collab_badge">👥 %1$d orang</string>
 </resources>

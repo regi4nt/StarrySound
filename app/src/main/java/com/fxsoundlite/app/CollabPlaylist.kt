@@ -18,9 +18,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Same backend as [ListenTogether] (Firebase Realtime Database over plain REST, no SDK, no login):
  *
- *   collab/<CODE>/meta              {name, desc, owner}   owner = uid of the creator
- *   collab/<CODE>/tracks/<hash>     {t: track json, by: uid, bn: name of who added it, at: time}
- *   collab/<CODE>/members/<uid>     {n: display name}
+ *   rooms/_collab/<CODE>/meta              {name, desc, owner}   owner = uid of the creator
+ *   rooms/_collab/<CODE>/tracks/<hash>     {t: track json, by: uid, bn: name of who added it, at: time}
+ *   rooms/_collab/<CODE>/members/<uid>     {n: display name}
  *
  * The local playlist stays a normal [Playlist] in [PlaylistStore] (so playing, sorting, selecting,
  * Drive backup... all keep working). This object only links it to a code and reconciles it with the
@@ -42,7 +42,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 object CollabPlaylist {
 
-    enum class Fail { NOT_CONFIGURED, NETWORK, NOT_FOUND, ALREADY }
+    enum class Fail { NOT_CONFIGURED, NETWORK, NOT_FOUND, ALREADY, DENIED }
+
+    /** Under "rooms" on purpose: that is the node the Listen together setup already opens in the database rules. */
+    private const val ROOT = "rooms/_collab"
+
+    /** HTTP status of the last server answer (0 = none / no connection), to tell "rules refuse" from "offline". */
+    @Volatile private var lastCode = 0
+
+    private fun failure() = if (lastCode == 401 || lastCode == 403) Fail.DENIED else Fail.NETWORK
 
     /** People in a shared playlist and how many songs each added (name "" = no name chosen). */
     class Info(val members: Int, val contributors: List<Pair<String, Int>>)
@@ -130,16 +138,16 @@ object CollabPlaylist {
     private fun db(c: Context) = ListenTogether.dbUrl(c)
 
     private fun get(c: Context, path: String): String? = try {
-        Http.request("GET", "${db(c)}/$path.json").takeIf { it.code in 200..299 }?.body?.trim()
-    } catch (e: Exception) { null }
+        Http.request("GET", "${db(c)}/$path.json").also { lastCode = it.code }.takeIf { it.code in 200..299 }?.body?.trim()
+    } catch (e: Exception) { lastCode = 0; null }
 
     private fun put(c: Context, path: String, json: String): Boolean = try {
-        Http.request("PUT", "${db(c)}/$path.json", body = json, contentType = "application/json").code in 200..299
-    } catch (e: Exception) { false }
+        Http.request("PUT", "${db(c)}/$path.json", body = json, contentType = "application/json").also { lastCode = it.code }.code in 200..299
+    } catch (e: Exception) { lastCode = 0; false }
 
     private fun delete(c: Context, path: String): Boolean = try {
-        Http.request("DELETE", "${db(c)}/$path.json").code in 200..299
-    } catch (e: Exception) { false }
+        Http.request("DELETE", "${db(c)}/$path.json").also { lastCode = it.code }.code in 200..299
+    } catch (e: Exception) { lastCode = 0; false }
 
     private fun serverTime() = JSONObject().put(".sv", "timestamp")
 
@@ -192,15 +200,15 @@ object CollabPlaylist {
         app = ctx
         io.execute {
             val pl = PlaylistStore.get(ctx, id)
-            if (pl == null) { main.post { done(Fail.NETWORK, "", 0) }; return@execute }
+            if (pl == null) { main.post { done(failure(), "", 0) }; return@execute }
             var code = ""
             for (i in 0 until 6) {
                 val cand = randomCode()
-                val ex = get(ctx, "collab/$cand/meta")
-                if (ex == null) { main.post { done(Fail.NETWORK, "", 0) }; return@execute }
+                val ex = get(ctx, "$ROOT/$cand/meta")
+                if (ex == null) { main.post { done(failure(), "", 0) }; return@execute }
                 if (ex == "null" || ex.isEmpty()) { code = cand; break }
             }
-            if (code.isEmpty()) { main.post { done(Fail.NETWORK, "", 0) }; return@execute }
+            if (code.isEmpty()) { main.post { done(failure(), "", 0) }; return@execute }
 
             val me = uid(ctx)
             val myName = ListenTogether.myName(ctx)
@@ -214,7 +222,7 @@ object CollabPlaylist {
                 .put("meta", JSONObject().put("name", pl.name).put("desc", pl.description).put("owner", me))
                 .put("members", JSONObject().put(me, JSONObject().put("n", myName)))
             if (send.isNotEmpty()) root.put("tracks", tracks)
-            if (!put(ctx, "collab/$code", root.toString())) { main.post { done(Fail.NETWORK, "", 0) }; return@execute }
+            if (!put(ctx, "$ROOT/$code", root.toString())) { main.post { done(failure(), "", 0) }; return@execute }
 
             saveLink(ctx, id, Link(code, true, send.keys))
             val skipped = pl.tracks.size - send.size
@@ -234,15 +242,15 @@ object CollabPlaylist {
         app = ctx
         linkedIds(ctx).firstOrNull { link(ctx, it)?.code == code }?.let { done(Fail.ALREADY, it); return }
         io.execute {
-            val body = get(ctx, "collab/$code")
-            if (body == null) { main.post { done(Fail.NETWORK, "") }; return@execute }
+            val body = get(ctx, "$ROOT/$code")
+            if (body == null) { main.post { done(failure(), "") }; return@execute }
             val snap = if (body == "null" || body.isEmpty()) null else parse(body)
             if (snap == null) { main.post { done(Fail.NOT_FOUND, "") }; return@execute }
 
             val pl = PlaylistStore.createWith(ctx, snap.name.ifBlank { code }, snap.tracks.values.sortedBy { it.at }.map { it.track })
             if (snap.desc.isNotBlank()) PlaylistStore.setDescription(ctx, pl.id, snap.desc)
             saveLink(ctx, pl.id, Link(code, snap.owner == uid(ctx), snap.tracks.keys.toSet()))
-            put(ctx, "collab/$code/members/${uid(ctx)}", JSONObject().put("n", ListenTogether.myName(ctx)).toString())
+            put(ctx, "$ROOT/$code/members/${uid(ctx)}", JSONObject().put("n", ListenTogether.myName(ctx)).toString())
             infos[pl.id] = infoOf(snap)
             main.post { done(null, pl.id) }
         }
@@ -258,11 +266,11 @@ object CollabPlaylist {
         if (l == null) { done(); return }
         unlink(ctx, id) // right away: nothing more is pushed from here
         io.execute {
-            if (stopForEveryone && l.owner) delete(ctx, "collab/${l.code}")
+            if (stopForEveryone && l.owner) delete(ctx, "$ROOT/${l.code}")
             else {
-                delete(ctx, "collab/${l.code}/members/${uid(ctx)}")
-                val left = get(ctx, "collab/${l.code}/members")
-                if (left == "null" || left == "") delete(ctx, "collab/${l.code}") // last one out: clean up
+                delete(ctx, "$ROOT/${l.code}/members/${uid(ctx)}")
+                val left = get(ctx, "$ROOT/${l.code}/members")
+                if (left == "null" || left == "") delete(ctx, "$ROOT/${l.code}") // last one out: clean up
             }
             main.post { done() }
         }
@@ -288,7 +296,7 @@ object CollabPlaylist {
     /** One reconcile of [id] with the server (io thread). */
     private fun syncNow(c: Context, id: String): Result {
         val l = link(c, id) ?: return Result.SAME
-        val body = get(c, "collab/${l.code}") ?: return Result.FAILED
+        val body = get(c, "$ROOT/${l.code}") ?: return Result.FAILED
         if (body == "null" || body.isEmpty()) { // closed by its owner
             unlink(c, id)
             main.post { Toast.makeText(c, R.string.collab_ended, Toast.LENGTH_LONG).show() }
@@ -312,13 +320,13 @@ object CollabPlaylist {
 
         // 1) our changes to the server
         var ok = true
-        for (h in toPush) ok = put(c, "collab/${l.code}/tracks/$h", trackBody(local[h]!!, me, myName, serverTime()).toString()) && ok
-        for (h in toDeleteRemote) ok = delete(c, "collab/${l.code}/tracks/$h") && ok
+        for (h in toPush) ok = put(c, "$ROOT/${l.code}/tracks/$h", trackBody(local[h]!!, me, myName, serverTime()).toString()) && ok
+        for (h in toDeleteRemote) ok = delete(c, "$ROOT/${l.code}/tracks/$h") && ok
         if (l.owner && (pl.name != snap.name || pl.description != snap.desc)) {
             val meta = JSONObject().put("name", pl.name).put("desc", pl.description).put("owner", me)
-            ok = put(c, "collab/${l.code}/meta", meta.toString()) && ok
+            ok = put(c, "$ROOT/${l.code}/meta", meta.toString()) && ok
         }
-        if (snap.memberNames[me] != myName) ok = put(c, "collab/${l.code}/members/$me", JSONObject().put("n", myName).toString()) && ok
+        if (snap.memberNames[me] != myName) ok = put(c, "$ROOT/${l.code}/members/$me", JSONObject().put("n", myName).toString()) && ok
 
         // 2) other people's changes to this phone
         var changed = false

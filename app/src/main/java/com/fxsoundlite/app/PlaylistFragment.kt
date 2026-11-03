@@ -1528,6 +1528,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val labels = mutableListOf<String>()
             val actions = mutableListOf<() -> Unit>()
             fun item(label: String, action: () -> Unit) { labels += label; actions += action }
+            // Shared playlist sits at the top, above Select songs (same dialog as the long-press on the overview).
+            if (!liked && !remote) item(getString(R.string.collab_menu)) {
+                CollabUi.manage(ctx, pl) { if (_binding != null) refresh() }
+            }
             // Select songs and Edit used to be header buttons; they live in this menu now.
             if (!remote && (resolveList(ctx, id)?.tracks?.isNotEmpty() == true)) item(getString(R.string.select_songs)) { startSelection(null) }
             if (!liked && !remote) item(getString(R.string.playlist_edit)) { showEditDialog() }
