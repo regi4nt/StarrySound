@@ -43,6 +43,21 @@ class WebVideoActivity : AppCompatActivity() {
         fun intent(c: Context, url: String? = null): Intent =
             Intent(c, WebVideoActivity::class.java).apply { if (url != null) putExtra(EXTRA_URL, url) }
 
+        /** True for a complete link (http(s):// or www. + a host with a dot, no spaces): what a paste into the address bar opens at once. */
+        fun isLink(raw: String): Boolean {
+            val t = raw.trim()
+            if (t.length < 4 || t.any { it.isWhitespace() }) return false
+            val lower = t.lowercase()
+            val rest = when {
+                lower.startsWith("https://") -> t.substring(8)
+                lower.startsWith("http://") -> t.substring(7)
+                lower.startsWith("www.") -> t
+                else -> return false
+            }
+            val host = rest.substringBefore('/').substringBefore('?').substringBefore('#')
+            return host.length >= 3 && host.contains('.') && !host.startsWith('.') && !host.endsWith('.')
+        }
+
         /** An address as typed -> what to load: a full link as is, a bare host gets https, anything else is a video search. */
         fun normalize(raw: String): String? {
             val t = raw.trim()
@@ -87,6 +102,17 @@ class WebVideoActivity : AppCompatActivity() {
                 true
             } else false
         }
+        // Pasting a complete link opens it at once, no Enter needed. Only a multi-character insert counts (a paste), so
+        // typing a link by hand still waits for Enter; the focus check skips the address the page itself writes back.
+        binding.webAddress.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (s == null || count - before < 2 || !binding.webAddress.hasFocus()) return
+                val link = s.toString().trim()
+                if (isLink(link)) binding.webAddress.post { go(link) }
+            }
+        })
         onBackPressedDispatcher.addCallback(this) {
             when {
                 customView != null -> hideCustomView()
