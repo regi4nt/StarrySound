@@ -92,7 +92,7 @@
             android:name=".ExternalOpenActivity"
             android:exported="true"
             android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/Theme.Translucent.NoAnim">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -111,7 +111,7 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:noHistory="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/Theme.Translucent.NoAnim" />
 
         <activity
             android:name=".NowPlayingActivity"
@@ -120,6 +120,7 @@
         <!-- "Listen together": full-screen, Discord-style room screen (create / join / members / now playing). -->
         <activity
             android:name=".ListenTogetherActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/listen_title"
             android:windowSoftInputMode="adjustResize" />
@@ -129,7 +130,7 @@
             android:name=".SpotifyCallbackActivity"
             android:exported="true"
             android:launchMode="singleTask"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            android:theme="@style/Theme.Translucent.NoAnim">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -141,6 +142,7 @@
         <!-- Web tab: a small browser for watching videos on websites, see WebVideoActivity. -->
         <activity
             android:name=".WebVideoActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden" />
@@ -148,6 +150,7 @@
         <!-- App lock screen: shown over the app until the fingerprint / face / screen lock is accepted, see AppLock. -->
         <activity
             android:name=".AppLockActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:launchMode="singleTop" />
 
@@ -160,28 +163,33 @@
 
         <activity
             android:name=".EqualizerActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/equalizer_label" />
 
         <activity
             android:name=".SongDetectActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/detect_title" />
 
         <!-- "Wrapped": monthly / yearly listening recap. -->
         <activity
             android:name=".WrappedActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/wrapped_title" />
 
         <!-- Spotify player: controls the Spotify app (now playing, playlists, search, queue). -->
         <activity
             android:name=".SpotifyActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/sp_title" />
 
         <activity
             android:name=".BedtimeActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:launchMode="singleTop"
             android:label="@string/bedtime_title" />
@@ -189,6 +197,7 @@
         <!-- Download a song or video from a pasted link (also receives links shared from other apps). -->
         <activity
             android:name=".LinkDownloadActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="true"
             android:label="@string/link_download_title">
             <intent-filter>
@@ -201,11 +210,13 @@
         <!-- Wake-up alarm with a song: settings screen + the screen shown over the lock screen when it rings. -->
         <activity
             android:name=".AlarmActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/alarm_title" />
 
         <activity
             android:name=".WakeAlarmActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:excludeFromRecents="true"
             android:launchMode="singleTask"
@@ -215,6 +226,7 @@
 
         <activity
             android:name=".SettingsActivity"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:exported="false"
             android:label="@string/settings_title" />
 

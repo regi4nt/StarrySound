@@ -161,4 +161,15 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/logo_mark</item>
         <item name="postSplashScreenTheme">@style/Theme.FXSoundLite</item>
     </style>
+
+    <!-- Same as the app theme, but no open / close animation (Detect, Equalizer, Download, Sleep, Wake alarm,
+         Listen together, Settings, Web video). -->
+    <style name="Theme.FXSoundLite.NoAnim" parent="Theme.FXSoundLite">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- Invisible helper screens (Open with, Copy link, Spotify callback): transparent, and no animation. -->
+    <style name="Theme.Translucent.NoAnim" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

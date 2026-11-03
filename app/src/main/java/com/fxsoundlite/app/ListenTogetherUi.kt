@@ -13,6 +13,6 @@ object ListenTogetherUi {
         val i = Intent(activity, ListenTogetherActivity::class.java)
         if (!joinCode.isNullOrBlank()) i.putExtra(ListenTogetherActivity.EXTRA_JOIN, joinCode)
         activity.startActivity(i)
-        activity.overridePendingTransition(R.anim.slide_up, R.anim.stay)
+        activity.overridePendingTransition(0, 0)
     }
 }
