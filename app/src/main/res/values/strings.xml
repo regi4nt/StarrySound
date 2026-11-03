@@ -1247,18 +1247,12 @@
 
     <!-- Blend -->
     <string name="blend_menu">Blend</string>
-    <string name="blend_intro">Blend mixes your music taste with a friend's into one playlist, with a match score.
-
-Start a Blend and send your friend the code, or join theirs. Only online songs (YouTube, radio, Online tab) are mixed in, because a friend can't play files from your device.</string>
+    <string name="blend_intro">Blend mixes your music taste with a friend\'s into one playlist, with a match score.\n\nStart a Blend and send your friend the code, or join theirs. Only online songs (YouTube, radio, Online tab) are mixed in, because a friend can\'t play files from your device.</string>
     <string name="blend_new_btn">Start a Blend</string>
     <string name="blend_join_btn">Join with code</string>
     <string name="blend_creating">Starting Blend…</string>
     <string name="blend_mixing">Mixing your tastes…</string>
-    <string name="blend_created_msg">Your Blend is ready. Send this code to a friend so they can join:
-
-%1$s
-
-The playlist fills up as soon as they join.</string>
+    <string name="blend_created_msg">Your Blend is ready. Send this code to a friend so they can join:\n\n%1$s\n\nThe playlist fills up as soon as they join.</string>
     <string name="blend_share_text">Let\'s make a Blend on StarrySound! Open Playlists, tap +, choose \"Blend\" > \"Join with code\" and enter: %1$s</string>
     <string name="blend_code_hint">Code (6 characters)</string>
     <string name="blend_joined">Blend ready · %1$d%% match</string>
@@ -1276,8 +1270,7 @@ The playlist fills up as soon as they join.</string>
     <string name="blend_match">%1$d%% match</string>
     <string name="blend_people">Blend of: %1$s</string>
     <string name="blend_shared">In common: %1$s</string>
-    <string name="blend_code_line">Code: %1$s
-Open this menu again any time to refresh the mix.</string>
+    <string name="blend_code_line">Code: %1$s\nOpen this menu again any time to refresh the mix.</string>
     <string name="blend_badge">💞 %1$d%% match</string>
     <string name="blend_badge_waiting">💞 Blend</string>
     <string name="scene_theme_label">Scene theme</string>

@@ -88,4 +88,5 @@
     <color name="scene_water_track">#21444F</color>
     <color name="scene_water_accent">#4FD1C5</color>
     <color name="scene_water_on">#03181B</color>
+    <color name="splash_bg">#050A1A</color>
 </resources>

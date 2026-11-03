@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import com.fxsoundlite.app.databinding.ActivityMainBinding
@@ -125,6 +126,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen() // dark launch screen with the logo; must run before super.onCreate()
         ThemeHelper.applyMode(this)
         ThemeHelper.applyAccent(this)
         ThemeHelper.watchAuto(this)

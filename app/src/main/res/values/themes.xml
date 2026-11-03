@@ -165,4 +165,12 @@
         <item name="colorPrimary">@color/scene_water_accent</item>
         <item name="colorOnAccent">@color/scene_water_on</item>
     </style>
+
+    <!-- Launch screen: dark background + the app logo (instead of the white window before the app shows).
+         MainActivity switches to Theme.FXSoundLite as soon as it is ready (installSplashScreen). -->
+    <style name="Theme.FXSoundLite.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logo_mark</item>
+        <item name="postSplashScreenTheme">@style/Theme.FXSoundLite</item>
+    </style>
 </resources>

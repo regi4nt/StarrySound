@@ -1050,18 +1050,12 @@
 
     <!-- Blend -->
     <string name="blend_menu">Blend</string>
-    <string name="blend_intro">Blend memadukan selera musikmu dengan temanmu jadi satu playlist, lengkap dengan skor kecocokan.
-
-Buat Blend lalu kirim kodenya ke teman, atau gabung ke Blend temanmu. Hanya lagu online (YouTube, radio, tab Online) yang dicampur, karena teman tidak bisa memutar file dari perangkatmu.</string>
+    <string name="blend_intro">Blend memadukan selera musikmu dengan temanmu jadi satu playlist, lengkap dengan skor kecocokan.\n\nBuat Blend lalu kirim kodenya ke teman, atau gabung ke Blend temanmu. Hanya lagu online (YouTube, radio, tab Online) yang dicampur, karena teman tidak bisa memutar file dari perangkatmu.</string>
     <string name="blend_new_btn">Buat Blend</string>
     <string name="blend_join_btn">Gabung dengan kode</string>
     <string name="blend_creating">Membuat Blend…</string>
     <string name="blend_mixing">Memadukan selera kalian…</string>
-    <string name="blend_created_msg">Blend-mu sudah siap. Kirim kode ini ke teman supaya dia bisa gabung:
-
-%1$s
-
-Playlist akan terisi begitu dia bergabung.</string>
+    <string name="blend_created_msg">Blend-mu sudah siap. Kirim kode ini ke teman supaya dia bisa gabung:\n\n%1$s\n\nPlaylist akan terisi begitu dia bergabung.</string>
     <string name="blend_share_text">Yuk bikin Blend di StarrySound! Buka Playlist, ketuk +, pilih \"Blend\" > \"Gabung dengan kode\" lalu masukkan: %1$s</string>
     <string name="blend_code_hint">Kode (6 karakter)</string>
     <string name="blend_joined">Blend siap · kecocokan %1$d%%</string>
@@ -1079,8 +1073,7 @@ Playlist akan terisi begitu dia bergabung.</string>
     <string name="blend_match">Kecocokan %1$d%%</string>
     <string name="blend_people">Blend dari: %1$s</string>
     <string name="blend_shared">Sama-sama suka: %1$s</string>
-    <string name="blend_code_line">Kode: %1$s
-Buka menu ini kapan saja untuk menyegarkan campurannya.</string>
+    <string name="blend_code_line">Kode: %1$s\nBuka menu ini kapan saja untuk menyegarkan campurannya.</string>
     <string name="blend_badge">💞 Cocok %1$d%%</string>
     <string name="blend_badge_waiting">💞 Blend</string>
     <string name="scene_theme_label">Tema suasana</string>
