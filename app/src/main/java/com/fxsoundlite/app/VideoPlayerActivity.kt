@@ -73,6 +73,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         const val EXTRA_TO_MUSIC = "to_music"
         /** Result: the close arrow was used on a video opened from the music player, so the caller closes too (back to the page before both players). */
         const val EXTRA_CLOSE_ALL = "close_all"
+        /** Opened by a Listen-together room for a guest: the room steers it (video, play / pause, position). */
+        const val EXTRA_LISTEN_GUEST = "listen_guest"
         private const val EXTRA_FROM_PLAYER = "from_player"
         private const val EXTRA_Q_SOURCES = "q_sources"
         private const val EXTRA_Q_IDS = "q_ids"
@@ -110,6 +112,10 @@ class VideoPlayerActivity : AppCompatActivity() {
         private const val PIP_NEXT = 3
         private const val VQ_PREFS = "video_quality"
         private const val VQ_KEY = "height" // 0 = automatic (the YouTube player)
+
+        /** The video player that is open right now (main thread only), for Listen together. */
+        @Volatile var live: VideoPlayerActivity? = null
+            private set
 
         /** [fromPlayer] = opened from the music player (NowPlayingActivity), which takes the result and resumes its audio. */
         fun intent(c: Context, t: Track, startMs: Long = 0L, fromPlayer: Boolean = false): Intent =
@@ -208,6 +214,53 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     private val current: Track get() = queue[index]
 
+    // ------------------------------------------------------------------ Listen together
+
+    class SyncSnapshot(val track: Track, val playing: Boolean, val posMs: Long, val durMs: Long)
+
+    private var listenGuest = false
+    private var syncClosing = false
+    private var lastSyncSeek = 0L
+
+    fun isListenGuest() = listenGuest
+
+    /** What a Listen-together host shares while watching: the YouTube video, whether it plays, and where it is. */
+    fun syncSnapshot(): SyncSnapshot? {
+        val t = queue.getOrNull(index) ?: return null
+        if (t.source != Track.SOURCE_YOUTUBE && t.source != Track.SOURCE_TV) return null
+        return SyncSnapshot(t, playing, posMs, durMs)
+    }
+
+    /** Guest: shows [t] (loads it if another video is open) and follows the host's play / pause and position. */
+    fun syncFollow(t: Track, play: Boolean, expectedMs: Long, driftMs: Long) {
+        if (!::binding.isInitialized || isDestroyed || queue.isEmpty()) return
+        val cur = queue.getOrNull(index)
+        if (cur == null || cur.source != t.source || cur.remoteId != t.remoteId) {
+            original = listOf(t); queue = mutableListOf(t)
+            lastSyncSeek = System.currentTimeMillis()
+            playIndex(0, expectedMs.coerceAtLeast(0L))
+            return
+        }
+        val live = t.source == Track.SOURCE_TV
+        val now = System.currentTimeMillis()
+        if (play != playing) {
+            if (live) { // a paused live stream resumes by connecting again (not more often than every 8 s)
+                if (!play) pausePlayback()
+                else if (now - lastSyncSeek > 8000) { lastSyncSeek = now; failStreak = 0; playIndex(index, 0L) }
+            } else if (play) { yt?.play(); fileView?.let { it.start(); applySpeed() } } else pausePlayback()
+        }
+        if (!live && play && posMs > 0 && kotlin.math.abs(posMs - expectedMs) > driftMs && now - lastSyncSeek > 5000) {
+            lastSyncSeek = now
+            seekTo(expectedMs)
+        }
+    }
+
+    /** The room ended (or the host left the video): this guest's video player closes by itself. */
+    fun syncClose() {
+        syncClosing = true
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         PlayerMode.init(this)
         ThemeHelper.applyMode(this) // same light / dark mode and accent colour as the music player
@@ -237,6 +290,8 @@ class VideoPlayerActivity : AppCompatActivity() {
             Track(0L, titles[it], artists[it], "", durs.getOrElse(it) { 0L }, sources[it], ids[it], arts.getOrElse(it) { "" })
         }
         queue = original.toMutableList()
+        listenGuest = intent.getBooleanExtra(EXTRA_LISTEN_GUEST, false)
+        live = this
         index = (savedInstanceState?.getInt(EXTRA_INDEX) ?: intent.getIntExtra(EXTRA_INDEX, 0)).coerceIn(0, n - 1)
         val startMs = savedInstanceState?.getLong(EXTRA_POSITION_MS) ?: intent.getLongExtra(EXTRA_START_MS, 0L)
 
@@ -439,6 +494,7 @@ class VideoPlayerActivity : AppCompatActivity() {
             }
         }
         updateUi()
+        ListenTogether.videoChanged() // new video: a room host shares it
     }
 
     private fun dropYoutube() {
@@ -789,6 +845,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 playing = state == PlayerConstants.PlayerState.PLAYING || state == PlayerConstants.PlayerState.BUFFERING
                 if (state == PlayerConstants.PlayerState.PLAYING) { failStreak = 0; applySpeed() }
                 updateUi()
+                ListenTogether.videoChanged() // a room host shares play / pause at once
                 if (state == PlayerConstants.PlayerState.ENDED) onEnded()
             }
 
@@ -1569,6 +1626,11 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (live === this) live = null
+        if (listenGuest && !syncClosing) queue.getOrNull(index)?.let {
+            ListenTogether.guestVideoClosed(if (it.source == Track.SOURCE_TV) "u:" + it.remoteId else it.remoteId)
+        }
+        ListenTogether.videoChanged() // a host that closes the video goes back to sharing its audio player
         unregisterPipReceiver()
         handler.removeCallbacks(poll)
         handler.removeCallbacks(sleepRun)

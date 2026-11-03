@@ -224,6 +224,7 @@ class QuickFragment : Fragment(), QuickActions {
 
     override fun onResume() {
         super.onResume()
+        if (::adapter.isInitialized) adapter.syncCovers()
         visible = true
         for (d in -1..1) holderAt(currentPos + d)?.b?.quickCover?.invalidateOutline() // cover shape may have changed in Settings
         handler.removeCallbacks(ticker)

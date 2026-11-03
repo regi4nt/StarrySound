@@ -47,7 +47,14 @@ class QuickAdapter(
     class VH(val b: ItemQuickBinding) : RecyclerView.ViewHolder(b.root) {
         /** Surface of [ItemQuickBinding.quickVideo] while it has one. */
         var surface: Surface? = null
+        /** Re-places the cover like the full player's (see onCreateViewHolder). */
+        var syncCover: () -> Unit = {}
     }
+
+    private val holders = java.util.Collections.newSetFromMap(java.util.WeakHashMap<VH, Boolean>())
+
+    /** Call when the page comes back on screen: the full player may have been opened (and moved the cover spot) meanwhile. */
+    fun syncCovers() = holders.forEach { it.syncCover() }
 
     override fun getItemCount() = tracks.size
 
@@ -80,7 +87,43 @@ class QuickAdapter(
         // Cover size: same rule as the full player (NowPlayingActivity.applyCoverSize) - a square that fits the free
         // space (page width minus 32dp each side, header bottom + 8dp down to 8dp above the action rail), max 360dp.
         val dens = parent.resources.displayMetrics.density
+        val syncGeo: (View) -> Boolean = fun(v: View): Boolean {
+            // Preferred: copy the full player's cover exactly (same size, same y on screen). The page height is the
+            // pager's, so the y is taken from the pager (stable) and not from this page (offset while scrolling).
+            val geo = CoverUi.fullGeometry(v.context) ?: return false
+            val loc = IntArray(2)
+            parent.getLocationOnScreen(loc)
+            val size = minOf(geo.second, b.quickRoot.width)
+            val y = (geo.first - loc[1]).coerceAtLeast(0)
+            val lp = b.quickCover.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+            if (lp.width != size || lp.height != size || lp.topMargin != y ||
+                lp.topToBottom != androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET) {
+                lp.width = size
+                lp.height = size
+                lp.topToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                lp.bottomToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET
+                lp.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID
+                lp.topMargin = y
+                lp.bottomMargin = 0
+                lp.marginStart = 0
+                lp.marginEnd = 0
+                v.post { b.quickCover.layoutParams = lp }
+            }
+            // The action rail must not run into the cover: when the space under the cover (down to the rail's 22dp bottom
+            // margin, with 8dp air above) is smaller than the rail, shrink the rail towards its bottom-right corner (min 65%).
+            val railH = b.quickRail.height
+            val free = b.quickRoot.height - (22 * dens).toInt() - (y + size + (8 * dens).toInt())
+            val k = if (railH > 0 && free > 0) (free.toFloat() / railH).coerceIn(0.65f, 1f) else 1f
+            b.quickRail.pivotX = b.quickRail.width.toFloat()
+            b.quickRail.pivotY = railH.toFloat()
+            b.quickRail.scaleX = k
+            b.quickRail.scaleY = k
+            return true
+        }
+        vh.syncCover = { syncGeo(b.quickRoot) }
+        holders.add(vh)
         b.quickRoot.addOnLayoutChangeListener { v, left, _, right, _, _, _, _, _ ->
+            if (syncGeo(v)) return@addOnLayoutChangeListener
             val top = ((62 + 8) * dens).toInt()
             val bottom = b.quickRail.top - (8 * dens).toInt()
             val free = minOf((right - left) - (64 * dens).toInt(), bottom - top)

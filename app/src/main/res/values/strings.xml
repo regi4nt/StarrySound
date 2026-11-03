@@ -911,6 +911,9 @@
     <string name="listen_role_guest">You are listening along</string>
     <string name="listen_members_fmt">%d listening</string>
     <string name="listen_invite">Invite</string>
+    <string name="listen_watch_video">Watch the host\'s video (tap for audio only)</string>
+    <string name="listen_watch_video_on">Watching the host\'s videos</string>
+    <string name="listen_audio_only_on">Audio only: the host\'s videos play as sound</string>
     <string name="listen_leave">Leave room</string>
     <string name="listen_close">Close room</string>
     <string name="listen_ended">The room was closed</string>
@@ -1205,4 +1208,34 @@
     <string name="diag_safe_idle">Safe volume mode is on: no effect is attached while nothing plays. The EQ attaches to the player when a song starts.</string>
     <string name="link_copied">Link copied</string>
     <string name="copy_link_target">Copy link</string>
+
+    <!-- Shared (collaborative) playlists -->
+    <string name="collab_menu">Shared playlist</string>
+    <string name="collab_join_menu">Join a shared playlist</string>
+    <string name="collab_make_msg">Anyone with the code can add and remove songs, and the list stays in sync on every phone.\n\nOnly online songs (YouTube, radio, Online tab) are shared. Songs stored on your device or Drive stay out, because friends can\'t play them.</string>
+    <string name="collab_make_btn">Create code</string>
+    <string name="collab_creating">Creating shared playlist…</string>
+    <string name="collab_created">Shared! Code: %1$s</string>
+    <string name="collab_skipped">%1$d songs from this device or Drive were not shared.</string>
+    <string name="collab_info">Code: %1$s\n%2$d people in this playlist</string>
+    <string name="collab_contributors">Songs added so far:</string>
+    <string name="collab_anon">Someone</string>
+    <string name="collab_share_btn">Share code</string>
+    <string name="collab_copy_btn">Copy</string>
+    <string name="collab_copied">Code copied</string>
+    <string name="collab_leave_btn">Leave</string>
+    <string name="collab_stop_btn">Stop sharing</string>
+    <string name="collab_leave_confirm">Leave this shared playlist? You keep your copy, but it stops syncing.</string>
+    <string name="collab_stop_confirm">Stop sharing for everyone? Each person keeps their own copy, but it stops syncing.</string>
+    <string name="collab_left">Playlist is no longer shared</string>
+    <string name="collab_share_text">Join my playlist \"%1$s\" on StarrySound! Open Playlists, tap +, choose \"Join a shared playlist\" and enter the code: %2$s</string>
+    <string name="collab_code_hint">Code (8 characters)</string>
+    <string name="collab_join_btn">Join</string>
+    <string name="collab_joined">Joined \"%1$s\"</string>
+    <string name="collab_already">You already have this playlist</string>
+    <string name="collab_not_found">Code not found</string>
+    <string name="collab_not_configured">Server is not set up. Add the database URL in the Listen together settings.</string>
+    <string name="collab_network">Couldn\'t reach the server. Try again.</string>
+    <string name="collab_ended">A shared playlist was closed by its owner. Your copy is kept.</string>
+    <string name="collab_badge">👥 %1$d people</string>
 </resources>

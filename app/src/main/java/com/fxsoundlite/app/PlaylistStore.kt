@@ -235,11 +235,13 @@ object PlaylistStore {
     @Synchronized
     fun rename(c: Context, id: String, name: String) {
         saveLists(c, rawPlaylists(c).map { if (it.id == id) it.copy(name = name.trim()) else it })
+        CollabPlaylist.localChanged(c, id)
     }
 
     @Synchronized
     fun setDescription(c: Context, id: String, text: String) {
         saveLists(c, rawPlaylists(c).map { if (it.id == id) it.copy(description = text.trim()) else it })
+        CollabPlaylist.localChanged(c, id)
     }
 
     // ---- custom cover image: a small JPEG in the app's own folder (device only)
@@ -259,6 +261,7 @@ object PlaylistStore {
     @Synchronized
     fun delete(c: Context, id: String) {
         coverFile(c, id).delete()
+        CollabPlaylist.localDeleted(c, id)
         PlaylistPins.unpin(c, id)
         PlaylistFolders.forget(c, id)
         SpotifyLists.forget(c, id)
@@ -283,6 +286,7 @@ object PlaylistStore {
                 it.copy(tracks = it.tracks + track)
             } else it
         })
+        if (added) CollabPlaylist.localChanged(c, id)
         return added
     }
 
@@ -296,6 +300,7 @@ object PlaylistStore {
         saveLists(c, rawPlaylists(c).map {
             if (it.id == id) it.copy(tracks = it.tracks.filter { x -> x.syncKey != t.syncKey }) else it
         })
+        CollabPlaylist.localChanged(c, id)
     }
 
     /** Adds all of [tracks] (skipping ones already there); returns how many were really added. One write for the batch. */
@@ -319,6 +324,7 @@ object PlaylistStore {
                 if (add.isEmpty()) it else it.copy(tracks = it.tracks + add)
             }
         })
+        if (added > 0) CollabPlaylist.localChanged(c, id)
         return added
     }
 
@@ -336,6 +342,7 @@ object PlaylistStore {
         saveLists(c, rawPlaylists(c).map {
             if (it.id == id) it.copy(tracks = it.tracks.filter { x -> x.syncKey !in gone }) else it
         })
+        CollabPlaylist.localChanged(c, id)
     }
 
     /** Likes / un-likes [t]; returns the new state (true = now liked). */

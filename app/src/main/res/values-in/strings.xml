@@ -904,6 +904,9 @@
     <string name="listen_role_guest">Anda ikut mendengarkan</string>
     <string name="listen_members_fmt">%d mendengarkan</string>
     <string name="listen_invite">Undang</string>
+    <string name="listen_watch_video">Tonton video host (ketuk untuk audio saja)</string>
+    <string name="listen_watch_video_on">Menonton video host</string>
+    <string name="listen_audio_only_on">Audio saja: video host diputar sebagai suara</string>
     <string name="listen_leave">Keluar dari ruang</string>
     <string name="listen_close">Tutup ruang</string>
     <string name="listen_ended">Ruang telah ditutup</string>
@@ -1198,4 +1201,34 @@
     <string name="diag_safe_idle">Mode aman volume aktif: tidak ada efek yang terpasang saat tidak ada lagu diputar. EQ terpasang ke pemutar begitu lagu mulai.</string>
     <string name="link_copied">Link disalin</string>
     <string name="copy_link_target">Salin link</string>
+
+    <!-- Shared (collaborative) playlists -->
+    <string name="collab_menu">Playlist bersama</string>
+    <string name="collab_join_menu">Gabung playlist bersama</string>
+    <string name="collab_make_msg">Siapa pun yang punya kode bisa menambah dan menghapus lagu, dan daftarnya tetap sama di semua ponsel.\n\nHanya lagu online (YouTube, radio, tab Online) yang dibagikan. Lagu di perangkat atau Drive tidak ikut karena teman tidak bisa memutarnya.</string>
+    <string name="collab_make_btn">Buat kode</string>
+    <string name="collab_creating">Membuat playlist bersama…</string>
+    <string name="collab_created">Dibagikan! Kode: %1$s</string>
+    <string name="collab_skipped">%1$d lagu dari perangkat atau Drive tidak dibagikan.</string>
+    <string name="collab_info">Kode: %1$s\n%2$d orang di playlist ini</string>
+    <string name="collab_contributors">Lagu yang sudah ditambahkan:</string>
+    <string name="collab_anon">Seseorang</string>
+    <string name="collab_share_btn">Bagikan kode</string>
+    <string name="collab_copy_btn">Salin</string>
+    <string name="collab_copied">Kode disalin</string>
+    <string name="collab_leave_btn">Keluar</string>
+    <string name="collab_stop_btn">Hentikan berbagi</string>
+    <string name="collab_leave_confirm">Keluar dari playlist bersama ini? Salinanmu tetap ada, tapi tidak lagi tersinkron.</string>
+    <string name="collab_stop_confirm">Hentikan berbagi untuk semua orang? Setiap orang tetap punya salinan sendiri, tapi tidak lagi tersinkron.</string>
+    <string name="collab_left">Playlist tidak lagi dibagikan</string>
+    <string name="collab_share_text">Gabung playlist \"%1$s\" milikku di StarrySound! Buka Playlist, ketuk +, pilih \"Gabung playlist bersama\", lalu masukkan kode: %2$s</string>
+    <string name="collab_code_hint">Kode (8 karakter)</string>
+    <string name="collab_join_btn">Gabung</string>
+    <string name="collab_joined">Bergabung ke \"%1$s\"</string>
+    <string name="collab_already">Kamu sudah punya playlist ini</string>
+    <string name="collab_not_found">Kode tidak ditemukan</string>
+    <string name="collab_not_configured">Server belum diatur. Isi URL database di pengaturan Listen together.</string>
+    <string name="collab_network">Tidak bisa terhubung ke server. Coba lagi.</string>
+    <string name="collab_ended">Playlist bersama ditutup oleh pemiliknya. Salinanmu tetap ada.</string>
+    <string name="collab_badge">👥 %1$d orang</string>
 </resources>

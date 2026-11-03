@@ -590,6 +590,14 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         binding.npWaves.cornerRadius = coverCornerPx()
         binding.npWaves.waveColor = accentColor()
         (art.parent as View).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> applyCoverSize() }
+        // Tell the Quick page where this cover really is, so its cover can sit at exactly the same spot.
+        art.addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+            if (v.isShown && v.width > 0 && v.width == v.height) {
+                val loc = IntArray(2)
+                v.getLocationOnScreen(loc)
+                CoverUi.saveFullGeometry(this, loc[1], v.width)
+            }
+        }
     }
 
     /** Corner radius of the square cover and of the waves around it (rounded, not sharp). */

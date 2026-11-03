@@ -420,19 +420,19 @@ class SleepBackgroundView @JvmOverloads constructor(
     }
 
     // --- Night water ------------------------------------------------------------
-    // A calm lake at night: a dark sky with a few twinkling stars and a moon above a horizon line, and below it
-    // the water -- slow swells, a column of moonlight glitter that shimmers under the moon, and soft ripple rings
-    // that spread out in the perspective of the surface (flattened ellipses, bigger the nearer they are).
-    // Motion is slow on purpose, like the other styles, so it stays easy on the eyes in bed.
+    // Seen from straight above: the whole screen is the dark surface of a calm lake at night (no horizon, no sky).
+    // The moon is not visible itself, only its reflection -- a soft glow with a cluster of shimmering glints -- plus a
+    // few faint reflected stars, slow swell lines drifting across the surface, and round ripple rings that spread out
+    // from random spots. Motion is slow on purpose, like the other styles, so it stays easy on the eyes in bed.
 
-    private class Glitter(val dx: Float, val depth: Float, val w: Float, val phase: Float, val speed: Float)
-    private class Ripple(var x: Float, var y: Float, var depth: Float, var age: Float, var life: Float, var maxR: Float)
-    private class Swell(val depth: Float, val phase: Float, val wavelength: Float, val speed: Float)
+    // Glitter: dx / dy are a point inside the unit disc around the moon reflection.
+    private class Glitter(val dx: Float, val dy: Float, val w: Float, val phase: Float, val speed: Float)
+    private class Ripple(var x: Float, var y: Float, var age: Float, var life: Float, var maxR: Float)
+    private class Swell(val y: Float, val phase: Float, val wavelength: Float, val speed: Float, val amp: Float)
 
     private val glitters = mutableListOf<Glitter>()
     private val ripples = mutableListOf<Ripple>()
     private val swells = mutableListOf<Swell>()
-    private val skyPaint = Paint()
     private val waterPaint = Paint()
     private var waterShaderKey: String? = null
     private val glitterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -448,39 +448,41 @@ class SleepBackgroundView @JvmOverloads constructor(
         style = Paint.Style.STROKE
         strokeWidth = 1.6f
     }
+    private val reflectPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val swellPath = Path()
     private val rippleRect = RectF()
 
-    private fun horizonY() = height * 0.42f
-    private fun waterMoonX() = width * 0.7f
-    private fun waterMoonY() = height * 0.2f
-    private fun waterMoonR() = minOf(width, height) * 0.055f
+    /** Centre and size of the moon's reflection on the surface. */
+    private fun reflectX() = width * 0.66f
+    private fun reflectY() = height * 0.32f
+    private fun reflectR() = minOf(width, height) * 0.30f
 
     private fun seedWater() {
         glitters.clear()
-        repeat(72) {
-            val depth = Math.pow(Random.nextDouble(), 1.3).toFloat()
+        repeat(90) {
+            val ang = Random.nextFloat() * (Math.PI * 2).toFloat()
+            val rad = Math.pow(Random.nextDouble(), 0.8).toFloat()
             glitters += Glitter(
-                dx = Random.nextFloat() * 2f - 1f,
-                depth = depth,
+                dx = rad * cos(ang),
+                dy = rad * sin(ang),
                 w = 0.6f + Random.nextFloat() * 0.4f,
                 phase = Random.nextFloat() * (Math.PI * 2).toFloat(),
                 speed = 0.0009f + Random.nextFloat() * 0.0016f
             )
         }
         swells.clear()
-        repeat(7) { i ->
-            val depth = (i + 0.6f) / 7f
+        repeat(10) { i ->
             swells += Swell(
-                depth = depth,
+                y = (i + 0.5f) / 10f,
                 phase = Random.nextFloat() * (Math.PI * 2).toFloat(),
-                wavelength = width * (0.5f - 0.25f * depth),
-                speed = 0.00025f + depth * 0.0003f
+                wavelength = width * (0.45f + Random.nextFloat() * 0.3f),
+                speed = 0.00022f + Random.nextFloat() * 0.0002f,
+                amp = 3f + Random.nextFloat() * 4f
             )
         }
         ripples.clear()
-        repeat(5) {
-            val r = Ripple(0f, 0f, 0f, 0f, 1f, 0f)
+        repeat(6) {
+            val r = Ripple(0f, 0f, 0f, 1f, 0f)
             respawnRipple(r)
             r.age = Random.nextFloat() * r.life - r.life * 0.3f // staggered, some still waiting
             ripples += r
@@ -488,11 +490,9 @@ class SleepBackgroundView @JvmOverloads constructor(
     }
 
     private fun respawnRipple(r: Ripple) {
-        val depth = 0.1f + Random.nextFloat() * 0.85f
-        r.depth = depth
         r.x = Random.nextFloat() * width
-        r.y = horizonY() + depth * (height - horizonY())
-        r.maxR = width * (0.04f + 0.1f * depth)
+        r.y = Random.nextFloat() * height
+        r.maxR = minOf(width, height) * (0.07f + 0.1f * Random.nextFloat())
         r.life = 3800f + Random.nextFloat() * 2600f
         r.age = -(300f + Random.nextFloat() * 2200f)
     }
@@ -505,37 +505,45 @@ class SleepBackgroundView @JvmOverloads constructor(
     }
 
     private fun drawWater(canvas: Canvas) {
-        val hy = horizonY()
         val key = "$width:$height"
         if (waterShaderKey != key) {
-            skyPaint.shader = LinearGradient(0f, 0f, 0f, hy, Color.parseColor("#04080F"), Color.parseColor("#15294A"), Shader.TileMode.CLAMP)
-            waterPaint.shader = LinearGradient(0f, hy, 0f, height.toFloat(), Color.parseColor("#102A45"), Color.parseColor("#030A14"), Shader.TileMode.CLAMP)
+            // Lighter around the moon's reflection, nearly black at the edges.
+            waterPaint.shader = RadialGradient(
+                reflectX(), reflectY(), maxOf(width, height) * 0.95f,
+                intArrayOf(Color.parseColor("#1D3F66"), Color.parseColor("#0C1D33"), Color.parseColor("#030A14")),
+                floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP
+            )
+            reflectPaint.shader = RadialGradient(
+                reflectX(), reflectY(), reflectR() * 0.9f,
+                Color.parseColor("#55DCE8FF"), Color.TRANSPARENT, Shader.TileMode.CLAMP
+            )
             waterShaderKey = key
         }
-        canvas.drawRect(0f, 0f, width.toFloat(), hy, skyPaint)
-        canvas.drawRect(0f, hy, width.toFloat(), height.toFloat(), waterPaint)
-        drawStars(canvas, maxY = hy * 0.95f, stride = 2)
-        drawMoon(canvas, waterMoonX(), waterMoonY(), waterMoonR())
+        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), waterPaint)
 
-        // Slow swells: faint wavy lines that drift sideways, calmer and thinner towards the horizon.
-        val water = height - hy
+        // A few faint reflected stars.
+        drawStars(canvas, stride = 4, tint = Color.parseColor("#9FBAE0"))
+
+        // Soft glow of the moon's reflection.
+        canvas.drawCircle(reflectX(), reflectY(), reflectR() * 0.9f, reflectPaint)
+
+        // Slow swells: faint wavy lines across the whole surface that drift sideways.
         val step = (width / 24f).coerceAtLeast(8f)
         for (sw in swells) {
-            val y0 = hy + sw.depth * water
-            val amp = 1.5f + sw.depth * 5f
+            val y0 = sw.y * height
             swellPath.rewind()
             var x = 0f
             var first = true
             while (x <= width + step) {
-                val y = y0 + amp * sin(x / sw.wavelength * (Math.PI * 2).toFloat() + sw.phase + elapsedMs * sw.speed)
+                val y = y0 + sw.amp * sin(x / sw.wavelength * (Math.PI * 2).toFloat() + sw.phase + elapsedMs * sw.speed)
                 if (first) { swellPath.moveTo(x, y); first = false } else swellPath.lineTo(x, y)
                 x += step
             }
-            swellPaint.alpha = (22 + sw.depth * 40).toInt()
+            swellPaint.alpha = 34
             canvas.drawPath(swellPath, swellPaint)
         }
 
-        // Ripple rings.
+        // Ripple rings: round, since the surface is seen from above.
         for (r in ripples) {
             if (r.age < 0f) continue
             val p = (r.age / r.life).coerceIn(0f, 1f)
@@ -544,29 +552,26 @@ class SleepBackgroundView @JvmOverloads constructor(
             val a = (110f * fade * fade * (p * 8f).coerceAtMost(1f)).toInt().coerceIn(0, 255)
             if (a <= 0) continue
             val cx = pushedX(r.x, r.y); val cy = pushedY(r.x, r.y)
-            ripplePaint.strokeWidth = 1.4f + r.depth * 1.8f
+            ripplePaint.strokeWidth = 2.2f
             ripplePaint.alpha = a
-            rippleRect.set(cx - rad, cy - rad * 0.24f, cx + rad, cy + rad * 0.24f)
-            canvas.drawOval(rippleRect, ripplePaint)
-            if (p > 0.18f) { // a thinner second ring behind the first
-                val r2 = rad * 0.62f
+            canvas.drawCircle(cx, cy, rad, ripplePaint)
+            if (p > 0.18f) { // a thinner second ring inside the first
                 ripplePaint.alpha = (a * 0.6f).toInt()
-                rippleRect.set(cx - r2, cy - r2 * 0.24f, cx + r2, cy + r2 * 0.24f)
-                canvas.drawOval(rippleRect, ripplePaint)
+                canvas.drawCircle(cx, cy, rad * 0.62f, ripplePaint)
             }
         }
 
-        // Moonlight on the water: short horizontal glints that spread and shimmer with depth.
-        val mx = waterMoonX()
+        // Moonlight glints around the reflection: short strokes that shimmer, brighter and longer near the centre.
+        val rx = reflectX(); val ry = reflectY(); val rr = reflectR()
         for (g in glitters) {
-            val y = hy + 4f + g.depth * water * 0.95f
-            val spread = width * (0.025f + 0.11f * g.depth)
-            val sway = sin(g.phase + elapsedMs * g.speed * 0.7f) * (4f + 10f * g.depth)
-            val x = mx + g.dx * spread + sway
-            val half = (8f + g.depth * 38f) * g.w
+            val dist = hypot(g.dx.toDouble(), g.dy.toDouble()).toFloat().coerceAtMost(1f)
+            val sway = sin(g.phase + elapsedMs * g.speed * 0.7f) * 6f
+            val x = rx + g.dx * rr + sway
+            val y = ry + g.dy * rr * 0.9f
+            val half = (10f + (1f - dist) * 24f) * g.w
             val tw = 0.5f + 0.5f * sin(g.phase * 1.7f + elapsedMs * g.speed)
-            glitterPaint.alpha = (tw * tw * 210f * (1f - 0.45f * g.depth)).toInt().coerceIn(0, 255)
-            glitterPaint.strokeWidth = 1.4f + g.depth * 3.4f
+            glitterPaint.alpha = (tw * tw * 220f * (1f - 0.7f * dist)).toInt().coerceIn(0, 255)
+            glitterPaint.strokeWidth = 1.6f + (1f - dist) * 2.4f
             canvas.drawLine(pushedX(x - half, y), pushedY(x - half, y), pushedX(x + half, y), pushedY(x + half, y), glitterPaint)
         }
     }

@@ -1016,6 +1016,14 @@ class MusicFragment : Fragment(), MusicService.Listener {
             .show()
     }
 
+    /** Music tab tapped again while shown: back to the start page (Device tab, empty search, top of the list). */
+    fun resetToStart() {
+        if (_binding == null) return
+        if (source != Track.SOURCE_LOCAL) selectSource(Track.SOURCE_LOCAL)
+        else if (!binding.searchInput.text.isNullOrEmpty()) binding.searchInput.setText("")
+        binding.trackList.scrollToPosition(0)
+    }
+
     private fun selectSource(newSource: Int) {
         if (newSource == source) return
         source = newSource

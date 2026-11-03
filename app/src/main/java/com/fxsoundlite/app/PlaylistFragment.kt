@@ -551,9 +551,13 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         backCallback?.isEnabled = openList != null // this page is now the visible one
         consumePendingImport()
         consumePendingOpen()
+        CollabPlaylist.onRemoteChange = { if (_binding != null) refresh() } // a friend changed a shared playlist
+        CollabPlaylist.startPolling(requireContext())
     }
 
     override fun onPause() {
+        CollabPlaylist.stopPolling()
+        CollabPlaylist.onRemoteChange = null
         backCallback?.isEnabled = false
         super.onPause()
     }
@@ -589,6 +593,15 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         return true
     }
 
+    /** Playlist tab tapped again while shown: leaves any open list / folder / source and goes back to the top of the main list. */
+    fun resetToStart() {
+        if (_binding == null) return
+        if (selecting) exitSelection()
+        openList = null; openFolder = null; openSource = null
+        if (binding.plSearchInput.text.isNullOrEmpty()) refresh() else binding.plSearchInput.setText("")
+        binding.plList.scrollToPosition(0)
+    }
+
     private fun goBack() {
         if (selecting) { exitSelection(); refresh(); return } // Back first leaves selection mode
         if (openList != null) openList = null else if (openFolder != null) openFolder = null else openSource = null // a list closes to its folder, a folder to the main list
@@ -612,7 +625,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         h.plDesc.alpha = if (pl.description.isBlank()) 0.6f else 1f
         h.plDesc.visibility = if (h.plDesc.text.isNullOrBlank()) View.GONE else View.VISIBLE
         val minutes = ((pl.tracks.sumOf { it.durationMs } + 59_999L) / 60_000L).toInt()
-        h.plMeta.text = listOf(songCount(pl.tracks.size), if (minutes > 0) getString(R.string.playlist_total_min, minutes) else "")
+        val people = if (CollabPlaylist.isShared(ctx, pl.id)) getString(R.string.collab_badge, CollabPlaylist.info(pl.id)?.members ?: 1) else ""
+        h.plMeta.text = listOf(songCount(pl.tracks.size), if (minutes > 0) getString(R.string.playlist_total_min, minutes) else "", people)
             .filter { it.isNotBlank() }.joinToString(" \u00B7 ")
         b.plPlayBtn.isEnabled = pl.tracks.any { !it.missing }
         b.plPlayBtn.alpha = if (b.plPlayBtn.isEnabled) 1f else 0.4f // an icon button has no built-in disabled look
@@ -1516,7 +1530,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 .setItems(arrayOf(
                     getString(R.string.folder_move),
                     getString(R.string.playlist_menu_export_m3u),
-                    getString(R.string.playlist_menu_share_link)
+                    getString(R.string.playlist_menu_share_link),
+                    getString(R.string.collab_menu)
                 )) { _, which ->
                     when (which) {
                         0 -> PlaylistUi.moveToFolder(ctx, pl) {
@@ -1525,7 +1540,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                             if (_binding != null) refresh()
                         }
                         1 -> exportM3u(pl)
-                        else -> shareLink(pl)
+                        2 -> shareLink(pl)
+                        else -> CollabUi.manage(ctx, pl) { if (_binding != null) refresh() }
                     }
                 }
                 .show()
@@ -1563,14 +1579,16 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val labels = arrayOf(
             getString(R.string.playlist_create),
             getString(R.string.playlist_generate) + if (generating) " \u2026" else "",
-            getString(R.string.folder_new)
+            getString(R.string.folder_new),
+            getString(R.string.collab_join_menu)
         )
         AlertDialog.Builder(ctx)
             .setItems(labels) { _, which ->
                 when (which) {
                     0 -> PlaylistUi.createPlaylist(ctx) { pl -> if (_binding != null) open(pl.id) }
                     1 -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
-                    else -> PlaylistUi.createFolder(ctx) { if (_binding != null) refresh() }
+                    2 -> PlaylistUi.createFolder(ctx) { if (_binding != null) refresh() }
+                    else -> CollabUi.promptJoin(ctx) { id -> if (_binding != null) open(id) }
                 }
             }
             .show()

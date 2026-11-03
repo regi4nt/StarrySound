@@ -163,9 +163,14 @@ class AudioEffectManager(private val context: Context) {
         try {
             equalizer = Equalizer(0, boundSession).apply { enabled = isEnabled }
             equalizer?.let { rememberBands(it) }
-            bassBoost = BassBoost(0, boundSession).apply { enabled = isEnabled }
-            virtualizer = Virtualizer(0, boundSession).apply { enabled = isEnabled }
-            loudness = LoudnessEnhancer(boundSession).apply { enabled = false }
+            // Safe volume mode: only the equalizer is created here. Bass / Virtualizer / Loudness / limiter exist only while
+            // they are really used (see syncOptional): on MIUI / HyperOS an idle effect instance can already keep the
+            // volume keys from changing the sound.
+            if (!safeVolume) {
+                bassBoost = BassBoost(0, boundSession).apply { enabled = isEnabled }
+                virtualizer = Virtualizer(0, boundSession).apply { enabled = isEnabled }
+                loudness = LoudnessEnhancer(boundSession).apply { enabled = false }
+            }
             // EnvironmentalReverb is an auxiliary effect: it always stays on the global mix
             // and is created only once, so it survives rebind().
             if (reverb == null && !safeVolume) { // an auxiliary effect always sits on session 0: skipped in safe volume mode
@@ -178,7 +183,7 @@ class AudioEffectManager(private val context: Context) {
                     reverb = null
                 }
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (!safeVolume && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 try {
                     dynamicsProcessing = buildDynamicsProcessing()
                 } catch (e: Exception) {
@@ -288,8 +293,30 @@ class AudioEffectManager(private val context: Context) {
         return equalizer != null
     }
 
+    /**
+     * Safe volume mode only: creates / releases the optional effects so that only the ones in use exist
+     * (Bass, Virtualizer, Loudness, and the limiter while Loudness or Volume Leveling needs it). With everything at 0
+     * just the equalizer is attached. Strengths and gains are applied by the setters right after this call.
+     */
+    private fun syncOptional() {
+        if (!safeVolume || equalizer == null) return
+        val bassOn = isEnabled && prefs.getInt("bass", 0) > 0
+        val virtOn = isEnabled && prefs.getInt("virtualizer", 0) > 0
+        val loudOn = isEnabled && prefs.getInt("loudness_mb", 0).coerceIn(0, currentLoudnessCeilingMb()) > 0
+        val dpOn = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && dynamicsWanted(prefs.getInt("volume_leveling", 0))
+        if (bassOn && bassBoost == null) bassBoost = try { BassBoost(0, boundSession).apply { enabled = true } } catch (e: Exception) { Log.w(TAG, "BassBoost: ${e.message}"); null }
+        else if (!bassOn && bassBoost != null) { try { bassBoost?.release() } catch (e: Exception) { Log.d(TAG, "ignored: $e") }; bassBoost = null }
+        if (virtOn && virtualizer == null) virtualizer = try { Virtualizer(0, boundSession).apply { enabled = true } } catch (e: Exception) { Log.w(TAG, "Virtualizer: ${e.message}"); null }
+        else if (!virtOn && virtualizer != null) { try { virtualizer?.release() } catch (e: Exception) { Log.d(TAG, "ignored: $e") }; virtualizer = null }
+        if (loudOn && loudness == null) loudness = try { LoudnessEnhancer(boundSession).apply { enabled = false } } catch (e: Exception) { Log.w(TAG, "LoudnessEnhancer: ${e.message}"); null }
+        else if (!loudOn && loudness != null) { try { loudness?.release() } catch (e: Exception) { Log.d(TAG, "ignored: $e") }; loudness = null }
+        if (dpOn && dynamicsProcessing == null) dynamicsProcessing = try { buildDynamicsProcessing() } catch (e: Exception) { Log.w(TAG, "DynamicsProcessing: ${e.message}"); null }
+        else if (!dpOn && dynamicsProcessing != null) { try { dynamicsProcessing?.release() } catch (e: Exception) { Log.d(TAG, "ignored: $e") }; dynamicsProcessing = null }
+    }
+
     fun setMasterEnabled(on: Boolean) {
         isEnabled = on
+        syncOptional()
         equalizer?.enabled = on
         bassBoost?.enabled = on
         virtualizer?.enabled = on
@@ -339,15 +366,17 @@ class AudioEffectManager(private val context: Context) {
 
     fun setBassBoost(strength0to1000: Short) {
         try {
-            bassBoost?.setStrength(strength0to1000)
             prefs.edit().putInt("bass", strength0to1000.toInt()).apply()
+            syncOptional()
+            bassBoost?.setStrength(strength0to1000)
         } catch (e: Exception) { Log.e(TAG, "bassBoost failed: ${e.message}") }
     }
 
     fun setVirtualizer(strength0to1000: Short) {
         try {
-            virtualizer?.setStrength(strength0to1000)
             prefs.edit().putInt("virtualizer", strength0to1000.toInt()).apply()
+            syncOptional()
+            virtualizer?.setStrength(strength0to1000)
         } catch (e: Exception) { Log.e(TAG, "virtualizer failed: ${e.message}") }
     }
 
@@ -361,6 +390,7 @@ class AudioEffectManager(private val context: Context) {
         prefs.edit().putInt("loudness_mb", stored).apply()
         val applied = stored.coerceIn(0, currentLoudnessCeilingMb())
         try {
+            syncOptional()
             loudness?.setTargetGain(applied)
             loudness?.enabled = applied > 0 && isEnabled
             dynamicsProcessing?.enabled = dynamicsWanted(prefs.getInt("volume_leveling", 0))
@@ -417,8 +447,10 @@ class AudioEffectManager(private val context: Context) {
      */
     fun setVolumeLeveling(strength0to100: Short) {
         val s = strength0to100.coerceIn(0, 100)
+        prefs.edit().putInt("volume_leveling", s.toInt()).apply()
         if (isVolumeLevelingSupported()) {
             try {
+                syncOptional()
                 dynamicsProcessing?.let { dp ->
                     val t = s / 100f
                     val ratio = 1.5f + t * 4.5f        // 1.5:1 .. 6:1

@@ -65,7 +65,9 @@ object ListenTogether {
         /** Search text for songs that are not on YouTube (local / Drive): the guest looks them up there. */
         val q: String = "",
         /** "" = YouTube, "online" = Online-tab song, "radio" = live radio station. For the last two [vid] is "u:" + the audio link. */
-        val src: String = ""
+        val src: String = "",
+        /** True while the host watches this YouTube video in the video player: guests open their video player too. */
+        val video: Boolean = false
     )
 
     private const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -259,6 +261,8 @@ object ListenTogether {
         memberNames = emptyMap()
         main.removeCallbacks(hostLoop)
         main.removeCallbacks(guestLoop)
+        VideoPlayerActivity.live?.takeIf { it.isListenGuest() }?.syncClose() // the video the room opened goes with it
+        videoLaunchAt = 0L; videoOptOut = ""; videoFallback = ""
         MusicService.removeGlobalListener(hostListener)
         try { streamConn?.disconnect() } catch (e: Exception) { android.util.Log.d("ListenTogether", "ignored: " + e) }
         streamConn = null
@@ -294,6 +298,20 @@ object ListenTogether {
     /** Pushes the host's state when the song / play state changed or the position jumped. */
     private fun hostTick(force: Boolean) {
         if (role != Role.HOST) return
+        // The host is watching a YouTube video in the video player (the music service is silent then): sync that.
+        val snap = VideoPlayerActivity.live?.takeIf { !it.isListenGuest() }?.syncSnapshot()
+        if (snap != null && snap.track.remoteId.isNotBlank()) {
+            val vt = snap.track
+            val tv = vt.source == Track.SOURCE_TV // live channel: guests open the same stream, no position to follow
+            pushIfChanged(
+                State(
+                    if (tv) "u:" + vt.remoteId else vt.remoteId, vt.title, vt.artist, vt.artUrl,
+                    if (tv) 0L else snap.durMs, snap.playing, if (tv) 0L else snap.posMs, serverNow(), "",
+                    if (tv) "tv" else "", true
+                ), tv, force
+            )
+            return
+        }
         val svc = MusicService.instance
         val t = svc?.current
         val yt = svc != null && t != null && t.source == Track.SOURCE_YOUTUBE && t.remoteId.isNotBlank()
@@ -311,14 +329,6 @@ object ListenTogether {
         val playing = has && sv != null && sv.isPlaying
         val pos = if (has && !live && sv != null) sv.position.toLong() else 0L
         val now = serverNow()
-        val last = lastPushed
-        val expected = when {
-            last == null -> 0L
-            last.playing -> last.pos + (now - last.ref)
-            else -> last.pos
-        }
-        val changed = last == null || last.vid != vid || last.playing != playing || (!live && abs(pos - expected) > 1500)
-        if (!changed && !force) return
         val st = State(
             vid, if (has && tr != null) tr.title else "", if (has && tr != null) tr.artist else "",
             if (has && tr != null) tr.artUrl else "",
@@ -326,15 +336,32 @@ object ListenTogether {
             if (alt && tr != null) "${tr.title} ${tr.artist}".trim() else "",
             if (live) "radio" else if (link) "online" else ""
         )
+        pushIfChanged(st, live, force)
+    }
+
+    /** Writes [st] to the room when the song / play state / video mode changed or the position jumped (or when [force]d). */
+    private fun pushIfChanged(st: State, live: Boolean, force: Boolean) {
+        val last = lastPushed
+        val expected = when {
+            last == null -> 0L
+            last.playing -> last.pos + (st.ref - last.ref)
+            else -> last.pos
+        }
+        val changed = last == null || last.vid != st.vid || last.playing != st.playing || last.video != st.video ||
+            (!live && abs(st.pos - expected) > 1500)
+        if (!changed && !force) return
         lastPushed = st
         val json = JSONObject()
             .put("vid", st.vid).put("title", st.title).put("artist", st.artist).put("art", st.art)
             .put("dur", st.dur).put("playing", st.playing).put("pos", st.pos).put("ref", st.ref)
-            .put("q", st.q).put("src", st.src)
+            .put("q", st.q).put("src", st.src).put("video", st.video)
             .toString()
         val room = code
         io.execute { put("rooms/$room/state", json) }
     }
+
+    /** The host's video player started / paused / changed video / closed: push the new state at once (main thread). */
+    fun videoChanged() { if (role == Role.HOST) hostTick(force = false) }
 
     // ------------------------------------------------------------------ guest side
 
@@ -419,10 +446,11 @@ object ListenTogether {
     private fun parse(o: JSONObject) = State(
         vid = o.optString("vid"), title = o.optString("title"), artist = o.optString("artist"),
         art = o.optString("art"), dur = o.optLong("dur"), playing = o.optBoolean("playing"),
-        pos = o.optLong("pos"), ref = o.optLong("ref"), q = o.optString("q"), src = o.optString("src")
+        pos = o.optLong("pos"), ref = o.optLong("ref"), q = o.optString("q"), src = o.optString("src"),
+        video = o.optBoolean("video")
     )
 
-    private fun isLive(st: State) = st.src == "radio"
+    private fun isLive(st: State) = st.src == "radio" || st.src == "tv"
 
     /** Same song already loaded in our player? (YouTube id, or the audio link of an Online / radio song.) */
     private fun sameSong(cur: Track?, tr: Track) = cur != null && cur.source == tr.source && cur.remoteId == tr.remoteId
@@ -432,6 +460,9 @@ object ListenTogether {
 
     /** The song a guest plays for [st]: the host's own YouTube video / Online link / radio stream, or the YouTube match for a local / Drive song. */
     private fun guestTrack(st: State): Track? {
+        if (st.vid.startsWith("u:") && st.src == "tv") { // live TV channel of the host: heard as audio (like a radio station)
+            return PlayerMode.tvToAudio(Track(0, st.title, "", "", 0L, Track.SOURCE_TV, st.vid.substring(2), st.art))
+        }
         if (st.vid.startsWith("u:")) { // Online-tab song or radio station of the host: the same link
             val src = if (isLive(st)) Track.SOURCE_RADIO else Track.SOURCE_ONLINE
             return Track(0, st.title, st.artist, "", if (isLive(st)) 0L else st.dur, src, st.vid.substring(2), st.art)
@@ -439,6 +470,11 @@ object ListenTogether {
         if (!st.vid.startsWith("q:")) return Track(0, st.title, st.artist, "", st.dur, Track.SOURCE_YOUTUBE, st.vid, st.art)
         return resolved[st.vid]?.takeIf { it.remoteId.isNotBlank() }
     }
+
+    /** The track a guest WATCHES for a video state: the YouTube video itself, or the live TV channel's stream. */
+    private fun guestVideoTrack(st: State): Track? =
+        if (st.src == "tv" && st.vid.startsWith("u:")) Track(0, st.title, "", "", 0L, Track.SOURCE_TV, st.vid.substring(2), st.art)
+        else guestTrack(st)
 
     /** Looks the host's local / Drive song up on YouTube (once per song) and then re-applies the host state. */
     private fun resolveAlt(st: State, my: Int) {
@@ -463,6 +499,9 @@ object ListenTogether {
     private fun applyState(st: State) {
         if (role != Role.GUEST) return
         lastState = st
+        if (followVideo(st)) return
+        // Not following a video (any more): a video the room opened closes, the song goes on as audio.
+        VideoPlayerActivity.live?.takeIf { it.isListenGuest() }?.syncClose()
         val svc = MusicService.instance ?: run { ensureService(); return } // guestLoop re-applies once it is up
         if (st.vid.isBlank()) { // host plays nothing syncable (e.g. nothing yet): just stop
             if (svc.isPlaying) svc.pause()
@@ -484,6 +523,69 @@ object ListenTogether {
         if (isLive(st)) return // a live stream cannot be sought: playing / paused is all there is to follow
         val expected = expectedPos(st)
         if (svc.position > 0 && abs(svc.position - expected) > 1500) seek(svc, expected)
+    }
+
+    // ---- video (guest) -------------------------------------------------------
+
+    private var videoLaunchAt = 0L
+    /** Video id the guest closed by hand: the room does not open it again. */
+    private var videoOptOut = ""
+    /** Video id the video player could not be opened for: followed as audio. */
+    private var videoFallback = ""
+
+    /** True when the host watches a (normal, seekable) YouTube video and this guest should too. */
+    private fun wantsVideo(st: State): Boolean {
+        if (!st.video || st.vid.isBlank() || st.vid.startsWith("q:")) return false
+        val tv = st.src == "tv" && st.vid.startsWith("u:")
+        val yt = st.src.isEmpty() && !st.vid.startsWith("u:")
+        if (!tv && !yt) return false
+        if (st.vid == videoOptOut || st.vid == videoFallback) return false
+        return app?.let { watchVideo(it) } ?: true
+    }
+
+    /** Guest setting: open the video when the host watches one (default), or stay with audio only. */
+    fun watchVideo(c: Context): Boolean = prefs(c).getBoolean("watch_video", true)
+
+    fun setWatchVideo(c: Context, on: Boolean) {
+        prefs(c).edit().putBoolean("watch_video", on).apply()
+        if (role != Role.GUEST) return
+        videoOptOut = ""; videoFallback = ""; videoLaunchAt = 0L
+        if (!on) VideoPlayerActivity.live?.takeIf { it.isListenGuest() }?.syncClose()
+        lastState?.let { applyState(it) } // on: opens the video now; off: the song goes on as audio
+    }
+
+    /** A guest whose video player was closed by hand (not by the room): that video is not opened again. */
+    fun guestVideoClosed(id: String) { if (role == Role.GUEST) videoOptOut = id }
+
+    /**
+     * Guest: the host watches a video -> open the video player on it (or steer the open one: video, play / pause,
+     * position) and keep the audio player silent. Returns false when this state is not a video state (or the guest
+     * opted out / the player could not be opened): the audio path then handles it.
+     */
+    private fun followVideo(st: State): Boolean {
+        if (role != Role.GUEST || !wantsVideo(st)) return false
+        val c = app ?: return false
+        val tr = guestVideoTrack(st) ?: return false
+        MusicService.instance?.let { if (it.isPlaying) it.pause() }
+        val expected = if (isLive(st)) 0L else expectedPos(st)
+        val act = VideoPlayerActivity.live
+        if (act != null) {
+            act.syncFollow(tr, st.playing, expected, DRIFT_MS)
+        } else if (System.currentTimeMillis() - videoLaunchAt > 6000) { // not again while the last try is still starting
+            videoLaunchAt = System.currentTimeMillis()
+            try {
+                c.startActivity(
+                    VideoPlayerActivity.intent(c, tr, expected, false)
+                        .putExtra(VideoPlayerActivity.EXTRA_LISTEN_GUEST, true)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (e: Exception) {
+                android.util.Log.w("ListenTogether", "cannot open the video player", e)
+                videoFallback = st.vid
+                return false
+            }
+        }
+        return true
     }
 
     private fun seek(svc: MusicService, ms: Long) {
@@ -512,6 +614,11 @@ object ListenTogether {
 
     private fun reconcile() {
         val st = lastState ?: return
+        // The video player could not be opened (app in the background): after a few seconds the guest hears the song instead.
+        if (wantsVideo(st) && VideoPlayerActivity.live == null && videoLaunchAt > 0 && System.currentTimeMillis() - videoLaunchAt > 4000) {
+            videoFallback = st.vid
+        }
+        if (followVideo(st)) return
         val svc = MusicService.instance ?: run { ensureService(); return }
         val tr0 = guestTrack(st)
         val cur0 = svc.current

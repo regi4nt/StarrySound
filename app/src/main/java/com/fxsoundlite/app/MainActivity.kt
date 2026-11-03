@@ -432,6 +432,15 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             (supportFragmentManager.findFragmentByTag("f$PAGE_QUICK") as? QuickFragment)?.refresh()
             return
         }
+        // Tapping the tab of the page already shown = back to that page's start (top of the list, closes open lists).
+        if (page == currentPage) {
+            when (page) {
+                PAGE_HOME -> (supportFragmentManager.findFragmentByTag("f$PAGE_HOME") as? HomeFragment)?.resetToStart()
+                PAGE_MUSIC -> (supportFragmentManager.findFragmentByTag("f$PAGE_MUSIC") as? MusicFragment)?.resetToStart()
+                PAGE_PLAYLIST -> (supportFragmentManager.findFragmentByTag("f$PAGE_PLAYLIST") as? PlaylistFragment)?.resetToStart()
+            }
+            return
+        }
         val animate = page == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER
         binding.mainPager.setCurrentItem(page, animate)
     }

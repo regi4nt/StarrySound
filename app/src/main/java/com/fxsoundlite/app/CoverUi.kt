@@ -73,6 +73,28 @@ object CoverUi {
      *  resets to the custom cover when the app process restarts. */
     @Volatile var showThumb = false
 
+    // Where the full player really draws its cover (screen y of its top edge + square size, in px). The Quick page
+    // copies it so both covers sit at exactly the same place. Saved, so it also works right after a restart.
+    private const val GEO_PREFS = "cover_geo"
+    @Volatile private var geoTop = -1
+    @Volatile private var geoSize = -1
+
+    fun saveFullGeometry(c: Context, topOnScreen: Int, size: Int) {
+        if (size <= 0 || (topOnScreen == geoTop && size == geoSize)) return
+        geoTop = topOnScreen; geoSize = size
+        c.applicationContext.getSharedPreferences(GEO_PREFS, Context.MODE_PRIVATE)
+            .edit().putInt("top", topOnScreen).putInt("size", size).apply()
+    }
+
+    /** (top on screen, size) of the full player's cover, or null until the full player has been opened once. */
+    fun fullGeometry(c: Context): Pair<Int, Int>? {
+        if (geoSize <= 0) {
+            val p = c.applicationContext.getSharedPreferences(GEO_PREFS, Context.MODE_PRIVATE)
+            geoTop = p.getInt("top", -1); geoSize = p.getInt("size", -1)
+        }
+        return if (geoSize > 0 && geoTop >= 0) geoTop to geoSize else null
+    }
+
     /** True when tapping the cover can switch to the thumbnail: a custom cover is set and a thumbnail exists. */
     fun canToggle(c: Context, songArt: Bitmap?): Boolean = hasCustom(c) && songArt != null && !MusicPrefs.saver(c)
 

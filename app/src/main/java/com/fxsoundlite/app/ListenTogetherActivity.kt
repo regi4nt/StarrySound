@@ -444,6 +444,19 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
             setColorFilter(Color.WHITE)
         }, FrameLayout.LayoutParams(px(26), px(26), Gravity.CENTER))
         bar.addView(copy, LinearLayout.LayoutParams(px(52), px(52)))
+        if (!host) { // guests choose: open the host's video, or audio only
+            var watch = ListenTogether.watchVideo(this)
+            val btn = roundButton(if (watch) R.drawable.ic_videocam else R.drawable.ic_music, if (watch) cGreen else cPanel, cText)
+            btn.contentDescription = getString(R.string.listen_watch_video)
+            btn.setOnClickListener {
+                watch = !watch
+                ListenTogether.setWatchVideo(this, watch)
+                // rebuilt by the room render below so the icon and colour match
+                toast(if (watch) R.string.listen_watch_video_on else R.string.listen_audio_only_on)
+                render()
+            }
+            bar.addView(btn, LinearLayout.LayoutParams(px(52), px(52)).apply { leftMargin = px(14) })
+        }
         bar.addView(invite, LinearLayout.LayoutParams(px(52), px(52)).apply { leftMargin = px(14) })
         bar.addView(leave, LinearLayout.LayoutParams(px(84), px(52)).apply { leftMargin = px(14) })
         barHolder.addView(bar, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_HORIZONTAL))

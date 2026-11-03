@@ -110,6 +110,11 @@ class HomeFragment : Fragment() {
         }
     )
 
+    /** Home tab tapped again while shown: back to the top of the page. */
+    fun resetToStart() {
+        _binding?.homeScroll?.smoothScrollTo(0, 0)
+    }
+
     private fun showAiStatus(text: String, action: (() -> Unit)? = null) {
         val b = _binding ?: return
         aiStatusAction = action
