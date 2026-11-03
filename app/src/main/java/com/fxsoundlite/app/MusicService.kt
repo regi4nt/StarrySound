@@ -180,9 +180,15 @@ class MusicService : MediaBrowserService() {
         }
     }
 
+    private var lastCacheTrim = SystemClock.elapsedRealtime()
     private val statsTick = object : Runnable {
         override fun run() {
             val now = SystemClock.elapsedRealtime()
+            // A long listening session never reopens the app or a video: look at the cache folder now and then.
+            if (isPlaying && now - lastCacheTrim > 10 * 60_000L) {
+                lastCacheTrim = now
+                CacheCleaner.trimLive(this@MusicService)
+            }
             val delta = (now - statsLast).coerceIn(0L, 10_000L)
             statsLast = now
             val t = current

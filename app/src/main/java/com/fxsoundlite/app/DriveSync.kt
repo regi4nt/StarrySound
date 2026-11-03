@@ -152,6 +152,7 @@ object DriveSync {
     fun syncOnStartup(c: Context) {
         val app = c.applicationContext
         if (!isSignedIn(app) || !autoSync(app)) return
+        if (MusicPrefs.saver(app)) return // not on mobile data / Battery Saver; the manual "Sync now" still works
         val now = System.currentTimeMillis()
         if (now - lastStartupSync < STARTUP_MIN_INTERVAL_MS) return
         lastStartupSync = now

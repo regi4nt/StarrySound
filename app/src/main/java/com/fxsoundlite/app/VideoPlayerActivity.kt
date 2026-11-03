@@ -112,6 +112,8 @@ class VideoPlayerActivity : AppCompatActivity() {
         private const val PIP_NEXT = 3
         private const val VQ_PREFS = "video_quality"
         private const val VQ_KEY = "height" // 0 = automatic (the YouTube player)
+        /** Data saver: "automatic" and anything above this height play as this stream (picture + sound in one MP4). */
+        private const val SAVER_VIDEO_HEIGHT = 360
 
         /** The video player that is open right now (main thread only), for Listen together. */
         @Volatile var live: VideoPlayerActivity? = null
@@ -208,7 +210,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 if (durMs <= 0) durMs = it.duration.toLong().coerceAtLeast(0L)
             }
             updateUi()
-            handler.postDelayed(this, 500)
+            handler.postDelayed(this, if (MusicPrefs.saver(this@VideoPlayerActivity)) 1000L else 500L)
         }
     }
 
@@ -462,7 +464,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         val id = t.remoteId
         when (t.source) {
             Track.SOURCE_YOUTUBE -> {
-                val wantH = videoQualityPref()
+                val wantH = playbackQualityPref()
                 if (wantH > 0 && ytFallbackFor != t.key) {
                     yt?.pause() // the previous video stays silent while the chosen quality's link is resolved
                     playYoutubeAsFile(t, startMs, wantH) // the quality the user picked; falls back to the YouTube player if it is gone
@@ -1310,6 +1312,12 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     private fun videoQualityPref(): Int = getSharedPreferences(VQ_PREFS, Context.MODE_PRIVATE).getInt(VQ_KEY, 0)
+
+    /** The height actually requested: the chosen one, but capped while Data saver is on (0 = the YouTube player picks). */
+    private fun playbackQualityPref(): Int {
+        val h = videoQualityPref()
+        return if (MusicPrefs.saver(this) && (h == 0 || h > SAVER_VIDEO_HEIGHT)) SAVER_VIDEO_HEIGHT else h
+    }
 
     /**
      * Video quality of a YouTube video: "Automatic" = the YouTube player (it picks the quality itself), or one of the

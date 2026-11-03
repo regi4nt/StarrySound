@@ -248,8 +248,8 @@
     <string name="saver_mode_on">Hemat</string>
     <string name="saver_on_toast">Mode hemat: audio bitrate rendah, tanpa thumbnail, pembaruan latar lebih jarang. Cadangan video dimatikan.</string>
     <string name="saver_off_toast">Mode normal: kualitas audio terbaik, thumbnail dan cadangan pemutar aktif.</string>
-    <string name="saver_auto_title">Hemat data otomatis di data seluler</string>
-    <string name="saver_auto_desc">Mode hemat menyala sendiri saat memakai data seluler (atau jaringan berbayar) dan mati lagi di Wi-Fi. Daftar radio dibatasi ke stasiun hingga 96 kbps.</string>
+    <string name="saver_auto_title">Hemat data otomatis di data seluler atau Penghemat Baterai</string>
+    <string name="saver_auto_desc">Mode hemat menyala sendiri saat memakai data seluler (atau jaringan berbayar) atau saat Penghemat Baterai Android aktif, dan mati lagi di Wi-Fi. Daftar radio dibatasi ke stasiun hingga 96 kbps.</string>
     <string name="data_used_reset_toast">Penghitung data direset</string>
     <string name="bedtime_section_suggest">SARAN</string>
     <string name="np_more">Opsi lainnya</string>
@@ -279,6 +279,7 @@
     <string name="np_download_preparing">Menyiapkan unduhan…</string>
     <string name="np_download_started">Mengunduh ke Music/StarrySound. Progres ada di notifikasi.</string>
     <string name="np_download_local">Lagu ini sudah ada di perangkatmu.</string>
+    <string name="np_download_exists">Sudah diunduh: Music/StarrySound</string>
     <string name="np_download_network">Tidak ada koneksi. Unduhan tidak bisa dimulai.</string>
     <string name="np_download_failed">Lagu ini tidak bisa diunduh.</string>
     <string name="np_queue">Antrean</string>
@@ -960,7 +961,6 @@
     <string name="audio_quality_normal_desc">Sekitar 128 kbps · seimbang</string>
     <string name="audio_quality_high_desc">Tertinggi yang tersedia · paling boros data</string>
     <string name="audio_quality_applies_next">Berlaku mulai lagu berikutnya. File lokal selalu diputar dengan kualitas aslinya.</string>
-    <string name="audio_quality_row_desc">Kualitas streaming untuk YouTube dan radio</string>
     <!-- Pengaturan > Musik online > Tab pencarian -->
     <string name="search_tabs_title">Tab pencarian</string>
     <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>

@@ -254,8 +254,8 @@
     <string name="saver_mode_on">Saver</string>
     <string name="saver_on_toast">Saver mode: low-bitrate audio, no thumbnails, fewer background refreshes. Video fallbacks are off.</string>
     <string name="saver_off_toast">Normal mode: best audio quality, thumbnails and fallbacks on.</string>
-    <string name="saver_auto_title">Save data automatically on mobile data</string>
-    <string name="saver_auto_desc">Turns Data saver on by itself while you are on mobile data (or any metered network) and off again on Wi-Fi. Radio lists are limited to stations of up to 96 kbps.</string>
+    <string name="saver_auto_title">Save data automatically on mobile data or Battery Saver</string>
+    <string name="saver_auto_desc">Turns Data saver on by itself while you are on mobile data (or any metered network) or while the Android Battery Saver is on, and off again on Wi-Fi. Radio lists are limited to stations of up to 96 kbps.</string>
     <string name="data_used_reset_toast">Data counter reset</string>
     <string name="bedtime_section_suggest">SUGGESTIONS</string>
     <string name="np_more">More options</string>
@@ -285,6 +285,7 @@
     <string name="np_download_preparing">Preparing download…</string>
     <string name="np_download_started">Downloading to Music/StarrySound. Progress is in the notification.</string>
     <string name="np_download_local">This song is already on your device.</string>
+    <string name="np_download_exists">Already downloaded: Music/StarrySound</string>
     <string name="np_download_network">No connection. Could not start the download.</string>
     <string name="np_download_failed">Could not download this song.</string>
     <string name="np_queue">Queue</string>
@@ -967,7 +968,6 @@
     <string name="audio_quality_normal_desc">About 128 kbps · balanced</string>
     <string name="audio_quality_high_desc">Highest available · most data</string>
     <string name="audio_quality_applies_next">Applies from the next song. Local files always play at their original quality.</string>
-    <string name="audio_quality_row_desc">Streaming quality for YouTube and radio</string>
     <!-- Settings > Online music > Search tabs -->
     <string name="search_tabs_title">Search tabs</string>
     <string name="search_tabs_desc">Choose which online tabs show on the Search screen. The Device tab is always shown.</string>

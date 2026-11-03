@@ -37,6 +37,7 @@ object UpdateChecker {
     fun checkIfDue(activity: Activity) {
         val repo = BuildConfig.UPDATE_REPO
         if (repo.isBlank()) return
+        if (MusicPrefs.saver(activity)) return // no automatic check on mobile data; it runs on the next start with Wi-Fi
         val prefs = activity.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val now = System.currentTimeMillis()
         if (now - prefs.getLong(KEY_LAST_CHECK, 0) < CHECK_INTERVAL_MS) return

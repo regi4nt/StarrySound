@@ -72,7 +72,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySettingsBinding
     private var page = PAGE_HUB
     private val backToCards = object : OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() = showPage(PAGE_HUB, true)
+        override fun handleOnBackPressed() = showPage(PAGE_HUB)
     }
 
     private var effectManager: AudioEffectManager? = null
@@ -207,14 +207,14 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(binding.root)
         AppNavBar.attach(this)
 
-        binding.backButton.setOnClickListener { if (page != PAGE_HUB) showPage(PAGE_HUB, true) else finish() }
+        binding.backButton.setOnClickListener { if (page != PAGE_HUB) showPage(PAGE_HUB) else finish() }
         onBackPressedDispatcher.addCallback(this, backToCards)
-        binding.cardGeneral.setOnClickListener { showPage("general", true) }
-        binding.cardPlayer.setOnClickListener { showPage("player", true) }
-        binding.cardScreensaver.setOnClickListener { showPage("screensaver", true) }
-        binding.cardOnline.setOnClickListener { showPage(PAGE_ONLINE, true) }
-        binding.cardAdvanced.setOnClickListener { showPage("advanced", true) }
-        showPage(savedInstanceState?.getString(STATE_PAGE) ?: intent.getStringExtra(EXTRA_PAGE) ?: PAGE_HUB, false)
+        binding.cardGeneral.setOnClickListener { showPage("general") }
+        binding.cardPlayer.setOnClickListener { showPage("player") }
+        binding.cardScreensaver.setOnClickListener { showPage("screensaver") }
+        binding.cardOnline.setOnClickListener { showPage(PAGE_ONLINE) }
+        binding.cardAdvanced.setOnClickListener { showPage("advanced") }
+        showPage(savedInstanceState?.getString(STATE_PAGE) ?: intent.getStringExtra(EXTRA_PAGE) ?: PAGE_HUB)
 
         setupCache()
         setupAbout()
@@ -273,7 +273,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /** Shows the card list ([PAGE_HUB]) or one category's page, with the matching title in the top bar. */
-    private fun showPage(key: String, animate: Boolean) {
+    private fun showPage(key: String) {
         val pages = mapOf(
             "general" to (binding.pageGeneral to R.string.settings_group_general),
             "player" to (binding.pagePlayer to R.string.settings_group_player),
@@ -288,13 +288,6 @@ class SettingsActivity : AppCompatActivity() {
         binding.settingsTitle.setText(target?.second ?: R.string.settings_title)
         binding.settingsScroll.scrollTo(0, 0)
         backToCards.isEnabled = target != null
-        if (animate) {
-            val shown: View = target?.first ?: binding.hubGroup
-            val dx = (if (target != null) 40 else -40) * resources.displayMetrics.density
-            shown.alpha = 0f
-            shown.translationX = dx
-            shown.animate().alpha(1f).translationX(0f).setDuration(180L).start()
-        }
     }
 
     // ---------------------------------------------------------------- App lock

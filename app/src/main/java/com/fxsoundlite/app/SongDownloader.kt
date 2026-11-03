@@ -51,6 +51,9 @@ object SongDownloader {
     private val main = Handler(Looper.getMainLooper())
     internal val notifIds = AtomicInteger(5000)
 
+    /** Data saver: highest audio bitrate (kbps) a download may have. */
+    private const val SAVER_MAX_KBPS = 130
+
     fun canDownload(t: Track) = t.source == Track.SOURCE_YOUTUBE && t.remoteId.isNotBlank()
 
     fun download(context: Context, track: Track) {
@@ -89,11 +92,21 @@ object SongDownloader {
     }
 
     private fun run(app: Context, track: Track, notifId: Int) {
+        // Already saved (a second copy would only eat storage): say so before any data is used.
+        if (alreadyDownloaded(app, fileName(track))) {
+            toast(app, R.string.np_download_exists)
+            return
+        }
         val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=${track.remoteId}")
         val usable = originalTrackOnly(info.audioStreams.filter { it.isUrl && !it.content.isNullOrBlank() })
         // Prefer M4A (plays everywhere, including the system music apps), best bitrate.
-        val best = usable.filter { it.format?.suffix.equals("m4a", true) }.ifEmpty { usable }
-            .maxByOrNull { it.averageBitrate }
+        val pool = usable.filter { it.format?.suffix.equals("m4a", true) }.ifEmpty { usable }
+        val best = if (MusicPrefs.saver(app)) {
+            // Data saver: the best stream up to SAVER_MAX_KBPS (else the lightest one): smaller file, less data.
+            pool.filter { it.averageBitrate in 1..SAVER_MAX_KBPS }.maxByOrNull { it.averageBitrate }
+                ?: pool.filter { it.averageBitrate > 0 }.minByOrNull { it.averageBitrate }
+                ?: pool.firstOrNull()
+        } else pool.maxByOrNull { it.averageBitrate }
         if (best == null) {
             toast(app, R.string.np_download_failed)
             return
@@ -317,6 +330,23 @@ object SongDownloader {
         }
         return null
     }
+
+    /** True when a song with this file name (any extension) already sits in Music/StarrySound. */
+    private fun alreadyDownloaded(app: Context, base: String): Boolean = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val esc = base.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            app.contentResolver.query(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                arrayOf(MediaStore.Audio.Media._ID),
+                "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ? ESCAPE '\\' AND ${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?",
+                arrayOf("$esc.%", "${Environment.DIRECTORY_MUSIC}/$FOLDER%"), null
+            )?.use { it.count > 0 } ?: false
+        } else {
+            @Suppress("DEPRECATION")
+            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), FOLDER)
+            dir.listFiles { f -> f.isFile && f.name.startsWith("$base.") }?.isNotEmpty() ?: false
+        }
+    } catch (e: Exception) { false }
 
     private fun fileName(t: Track): String {
         val raw = if (t.artist.isBlank()) t.title else "${t.artist} - ${t.title}"

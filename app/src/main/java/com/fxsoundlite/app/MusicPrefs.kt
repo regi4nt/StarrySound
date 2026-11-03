@@ -168,12 +168,12 @@ object MusicPrefs {
     fun lyricsTransLang(c: Context): String = p(c).getString(KEY_TRANS_LANG, "id").let { if (it == "en") "en" else "id" }
     fun setLyricsTransLang(c: Context, v: String) = p(c).edit().putString(KEY_TRANS_LANG, v).apply()
 
-    /** Effective data-saver state: switched on by hand, or automatically while on mobile data / a metered network. */
+    /** Effective data-saver state: switched on by hand, or automatically while on mobile data / a metered network / Android's Battery Saver. */
     fun saver(c: Context): Boolean = saverManual(c) || (saverAuto(c) && onMeteredNetwork(c))
     /** The saver switch as the user set it (without the automatic part). */
     fun saverManual(c: Context): Boolean = p(c).getBoolean(KEY_SAVER, false)
     fun setSaver(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_SAVER, v).apply()
-    /** "Save data automatically on mobile data" (off by default). */
+    /** "Save data automatically on mobile data / in Battery Saver" (on by default). */
     // YouTube search filters (Search page > YouTube tab).
     fun ytLocal(c: Context): Boolean = p(c).getBoolean("yt_local_only", false)
     fun setYtLocal(c: Context, v: Boolean) = p(c).edit().putBoolean("yt_local_only", v).apply()
@@ -190,7 +190,7 @@ object MusicPrefs {
     fun skipSegments(c: Context): Boolean = p(c).getBoolean("skip_segments", false)
     fun setSkipSegments(c: Context, v: Boolean) = p(c).edit().putBoolean("skip_segments", v).apply()
 
-    fun saverAuto(c: Context): Boolean = p(c).getBoolean(KEY_SAVER_AUTO, false)
+    fun saverAuto(c: Context): Boolean = p(c).getBoolean(KEY_SAVER_AUTO, true)
     fun setSaverAuto(c: Context, v: Boolean) = p(c).edit().putBoolean(KEY_SAVER_AUTO, v).apply()
 
     // saver() is asked very often (list rows, progress ticks): the network state is looked up at most every 5 s.
@@ -201,7 +201,8 @@ object MusicPrefs {
         val now = SystemClock.elapsedRealtime()
         if (now - meteredAt < 5_000L) return meteredNow
         meteredNow = try {
-            c.applicationContext.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered == true
+            c.applicationContext.getSystemService(ConnectivityManager::class.java)?.isActiveNetworkMetered == true ||
+                c.applicationContext.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode == true
         } catch (_: Exception) { false }
         meteredAt = now
         return meteredNow
