@@ -166,6 +166,16 @@
                 android:tint="?attr/colorTextSecondary" />
 
             <ImageButton
+                android:id="@+id/plSelAdd"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/select_add"
+                android:padding="10dp"
+                android:src="@drawable/ic_playlist_add"
+                android:tint="?attr/colorTextSecondary" />
+
+            <ImageButton
                 android:id="@+id/plSelMove"
                 android:layout_width="44dp"
                 android:layout_height="44dp"

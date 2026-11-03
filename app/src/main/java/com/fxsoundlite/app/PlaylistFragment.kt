@@ -527,8 +527,9 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         binding.plSelectBtn.setOnClickListener { startSelection(null) }
         binding.plSelClose.setOnClickListener { exitSelection(); refresh() }
         binding.plSelAll.setOnClickListener { toggleSelectAll() }
-        binding.plSelMove.setOnClickListener { moveSelected() }
-        binding.plSelDelete.setOnClickListener { removeSelected() }
+        binding.plSelAdd.setOnClickListener { addSelected() }
+        binding.plSelMove.setOnClickListener { if (openList == null) moveSelectedLists() else moveSelected() }
+        binding.plSelDelete.setOnClickListener { if (openList == null) deleteSelectedLists() else removeSelected() }
 
         // Only intercepts Back while this page is the visible one (see updateBack()).
         backCallback = object : OnBackPressedCallback(false) {
@@ -701,6 +702,24 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             return
         }
         svc.setQueueAndPlay(withVideosAsAudio(tracks), 0, fromPlaylist = resolveList(ctx, id)?.name)
+    }
+
+    /** Plays the playlist [id] from its row's long-press menu (Play / Shuffle play), without opening it. */
+    private fun playRow(id: String, shuffle: Boolean) {
+        val ctx = context ?: return
+        if (YouTubeAccount.isYtId(id) && !ytTracks.containsKey(id)) { // songs not fetched yet
+            loadYtTracks(id)
+            toast(ctx, R.string.yt_playlist_loading)
+            return
+        }
+        val pl = resolveList(ctx, id)
+        var tracks = pl?.tracks.orEmpty().filter { !it.missing }
+        if (shuffle) tracks = tracks.shuffled()
+        val svc = service ?: MusicService.instance
+        if (tracks.isEmpty() || svc == null) { toast(ctx, R.string.playlist_empty_tracks); return }
+        MusicPrefs.setLastPlayedList(ctx, id)
+        if (MusicPrefs.videoMode(ctx)) { playAsVideo(tracks, 0); return }
+        svc.setQueueAndPlay(withVideosAsAudio(tracks), 0, fromPlaylist = if (id == PlaylistStore.LIKED_ID) getString(R.string.playlist_liked) else pl?.name)
     }
 
     /** Plays every song of the playlists in folder [folderId], optionally in random order. */
@@ -917,10 +936,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (openList == null) { listAccent = null; applyCoverBg() }
         // Create (+) shows on the overview only; the three-dot menu on the overview and inside an opened list.
         // Inside a folder only (+) stays: it creates a playlist right there.
-        val headerButtons = if (openList == null) View.VISIBLE else View.GONE
-        b.plAddButton.visibility = if (openSource != null) View.GONE else headerButtons
-        // Overview, and inside an opened playlist (its menu holds Move / Export / Share link / Shared playlist).
-        b.plMoreButton.visibility = if (openList != null || (openFolder == null && openSource == null)) View.VISIBLE else View.GONE
+        // Inside one of the user's folders the (+) is replaced by the ⋮ menu (Add playlist / Select playlists / Rename folder).
+        b.plAddButton.visibility = if (openSource != null || openFolder != null || openList != null) View.GONE else View.VISIBLE
+        // Overview, inside a folder, and inside an opened playlist (its menu holds Move / Export / Share link / Shared playlist).
+        b.plMoreButton.visibility = if (openSource != null) View.GONE else View.VISIBLE // no ⋮ in a source folder or in a playlist opened from one
         b.plPlayBtn.visibility = if (openList == null && (openFolder == null || openSource != null)) View.GONE else View.VISIBLE
         if (openList == null) { b.plPlayBtn.isEnabled = true; b.plPlayBtn.alpha = 1f }
         if (openList == null) b.plEditBtn.visibility = View.GONE // inside a list bindDetail decides
@@ -932,7 +951,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         )
         val q = b.plSearchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         val id = openList
-        if (id == null || isRemoteList(id)) exitSelection()
+        // Selection lives in an opened own list (songs) or inside one of the user's folders (playlists), nowhere else.
+        if (if (id == null) (openFolder == null || openSource != null) else isRemoteList(id)) exitSelection()
 
         if (id == null) {
             syncSelectionUi(null)
@@ -1073,6 +1093,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 else -> others.filter { it.kind == ROW_LIST }.asReversed() + others.filter { it.kind != ROW_LIST }
             } + folderRows + sourceRows
             rowAdapter.submit(pinned + ordered)
+            if (selecting) { selected.retainAll((pinned + ordered).filter { it.kind == ROW_LIST }.map { it.id }.toSet()); syncSelectionUi(null) }
             shown = emptyList()
             if (srcView != null) {
                 b.plTitle.text = getString(srcName(srcView))
@@ -1082,7 +1103,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 val inside = ordered.size + pinned.size
                 b.plTitle.text = PlaylistFolders.get(ctx, folderId)?.name.orEmpty()
                 b.plCount.text = getString(R.string.playlist_overview_count, inside)
-                if (inside == 0 && q.isEmpty()) { showEmpty(R.string.folder_empty); return }
+                if (inside == 0 && q.isEmpty()) { exitSelection(); syncSelectionUi(null); showEmpty(R.string.folder_empty); return }
             } else {
                 b.plTitle.text = getString(R.string.source_playlist)
                 b.plCount.text = getString(R.string.playlist_overview_count, lists.size + ytCount)
@@ -1186,6 +1207,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     }
 
     private fun onRowClicked(row: Row) {
+        if (selecting && openList == null) { if (row.kind == ROW_LIST) toggleSelectedList(row.id); return } // picking playlists in a folder
         if (row.kind == ROW_GENERATE) { showGenerateDialog(); return }
         if (row.kind == ROW_CONVERT) { showConvertDialog(); return }
         if (row.kind == ROW_FOLDER) {
@@ -1383,6 +1405,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     private fun onRowLongClicked(row: Row) {
         val ctx = requireContext()
+        if (selecting && openList == null) { if (row.kind == ROW_LIST) toggleSelectedList(row.id); return }
         if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT || row.kind == ROW_SOURCE) return
         if (row.kind == ROW_FOLDER) {
             val f = PlaylistFolders.get(ctx, row.id) ?: return
@@ -1394,12 +1417,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
         val pinLabel = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
         if (row.kind == ROW_YT || row.kind == ROW_DRIVE || row.kind == ROW_DEVICE) {
-            PlaylistUi.pinOnly(ctx, row.name, pinLabel) { togglePin(row) }
+            PlaylistUi.pinOnly(ctx, row.name, pinLabel, { shuffle -> playRow(row.id, shuffle) }) { togglePin(row) }
             return
         }
         val pl = PlaylistStore.get(ctx, row.id) ?: return
         if (row.kind == ROW_LIKED) {
-            PlaylistUi.exportActions(ctx, getString(R.string.playlist_liked), { exportM3u(pl) }, { shareLink(pl) })
+            PlaylistUi.exportActions(ctx, getString(R.string.playlist_liked), { exportM3u(pl) }, { shareLink(pl) }, onPlay = { shuffle -> playRow(row.id, shuffle) })
             return
         }
         PlaylistUi.playlistActions(
@@ -1408,7 +1431,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             onCollab = { // Shared playlist / Blend: long-press only
                 if (PlaylistBlend.isBlend(ctx, it.id)) PlaylistBlendUi.manage(ctx, it) { if (_binding != null) refresh() }
                 else CollabUi.manage(ctx, it) { if (_binding != null) refresh() }
-            }
+            },
+            onPlay = { shuffle -> playRow(row.id, shuffle) }
         ) { if (_binding != null) refresh() }
     }
 
@@ -1473,8 +1497,20 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         PlaylistUi.trackActions(
             requireContext(), t, openList.takeUnless { isRemoteList(it) },
             onSelect = if (editable) ({ startSelection(t) }) else null,
-            onMove = if (editable) ({ moveTrack(t) }) else null
+            onMove = if (editable) ({ moveTrack(t) }) else null,
+            onCopy = if (editable) ({ copyTrack(t) }) else null
         ) { if (_binding != null) refresh() }
+    }
+
+    /** Adds one song of the open playlist to another playlist; it stays in this one too. */
+    private fun copyTrack(t: Track) {
+        val ctx = context ?: return
+        val id = openList ?: return
+        PlaylistUi.pickPlaylist(ctx, getString(R.string.track_copy_title, t.title), id) { target ->
+            val added = PlaylistStore.addTracks(ctx, target.id, listOf(t)) > 0
+            toast(ctx, getString(if (added) R.string.playlist_added else R.string.playlist_already, target.name))
+            if (_binding != null) refresh()
+        }
     }
 
     /** Moves one song of the open playlist to another playlist (the multi-select "Move" does the same for several). */
@@ -1512,6 +1548,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     /** Selects every song currently shown (respects search / filter); a second tap clears the selection. */
     private fun toggleSelectAll() {
+        if (openList == null) { // playlists of the open folder
+            val ids = rowAdapter.selectableIds()
+            if (ids.isNotEmpty() && selected.containsAll(ids)) selected.removeAll(ids.toSet()) else selected.addAll(ids)
+            syncSelectionUi(null)
+            return
+        }
         val keys = shown.map { it.syncKey }
         if (keys.isNotEmpty() && selected.containsAll(keys)) selected.removeAll(keys.toSet()) else selected.addAll(keys)
         syncSelectionUi(openList?.let { resolveList(requireContext(), it) })
@@ -1526,8 +1568,66 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         b.plSelectBtn.visibility = View.GONE // Select songs lives in the ⋮ menu now (showMoreMenu)
         b.plSelCount.text = getString(R.string.select_count, selected.size)
         val any = selected.isNotEmpty()
-        for (v in listOf(b.plSelMove, b.plSelDelete)) { v.isEnabled = any; v.alpha = if (any) 1f else 0.4f }
-        trackAdapter.setSelection(selecting, selected.toSet())
+        for (v in listOf(b.plSelAdd, b.plSelMove, b.plSelDelete)) { v.isEnabled = any; v.alpha = if (any) 1f else 0.4f }
+        if (openList == null) { // picking playlists inside a folder: all / move / delete only
+            b.plSelAdd.visibility = View.GONE
+            trackAdapter.setSelection(false, emptySet())
+            rowAdapter.setSelection(selecting, selected.toSet())
+        } else {
+            b.plSelAdd.visibility = View.VISIBLE
+            rowAdapter.setSelection(false, emptySet())
+            trackAdapter.setSelection(selecting, selected.toSet())
+        }
+    }
+
+    // ------------------------------------------------------------------ multi-select inside a folder: move / delete several playlists
+
+    private fun startListSelection() {
+        if (openList != null || openFolder == null || openSource != null) return
+        selecting = true
+        selected.clear()
+        refresh()
+    }
+
+    private fun toggleSelectedList(id: String) {
+        if (!selected.remove(id)) selected += id
+        syncSelectionUi(null)
+    }
+
+    private fun moveSelectedLists() {
+        val ctx = context ?: return
+        val folderId = openFolder ?: return
+        val ids = selected.toList()
+        if (ids.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one_playlist, Toast.LENGTH_SHORT).show(); return }
+        PlaylistUi.moveManyToFolder(ctx, ids, folderId) {
+            exitSelection()
+            if (_binding != null) refresh()
+        }
+    }
+
+    private fun deleteSelectedLists() {
+        val ctx = context ?: return
+        val ids = selected.toList()
+        if (ids.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one_playlist, Toast.LENGTH_SHORT).show(); return }
+        AlertDialog.Builder(ctx)
+            .setMessage(getString(R.string.select_playlists_delete_confirm, ids.size))
+            .setPositiveButton(R.string.playlist_delete) { _, _ ->
+                ids.forEach { PlaylistStore.delete(ctx, it) }
+                Toast.makeText(ctx, getString(R.string.select_playlists_deleted, ids.size), Toast.LENGTH_SHORT).show()
+                exitSelection()
+                if (_binding != null) refresh()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun renameOpenFolder() {
+        val ctx = context ?: return
+        val f = openFolder?.let { PlaylistFolders.get(ctx, it) } ?: return
+        PlaylistUi.promptNameText(ctx, getString(R.string.folder_rename), f.name, R.string.folder_name_hint) { name ->
+            PlaylistFolders.rename(ctx, f.id, name)
+            if (_binding != null) refresh()
+        }
     }
 
     private fun selectedTracks(): List<Track> {
@@ -1551,6 +1651,20 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
+    }
+
+    /** Adds the picked songs to another playlist; they stay in this one too. */
+    private fun addSelected() {
+        val ctx = context ?: return
+        val id = openList ?: return
+        val tracks = selectedTracks()
+        if (tracks.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one, Toast.LENGTH_SHORT).show(); return }
+        PlaylistUi.pickPlaylist(ctx, getString(R.string.select_add_title, tracks.size), id) { target ->
+            val added = PlaylistStore.addTracks(ctx, target.id, tracks)
+            Toast.makeText(ctx, getString(R.string.select_added, added, target.name), Toast.LENGTH_SHORT).show()
+            exitSelection()
+            if (_binding != null) refresh()
+        }
     }
 
     /** Moves the picked songs to another playlist: added there first, then taken out of this one. */
@@ -1613,6 +1727,25 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 .show()
             return
         }
+        val folderId = openFolder
+        if (folderId != null) { // inside one of the user's folders: Add playlist / Select playlists / Rename folder
+            val labels = arrayOf(
+                getString(R.string.folder_add_playlist),
+                getString(R.string.folder_select_playlists),
+                getString(R.string.folder_rename)
+            )
+            AlertDialog.Builder(ctx)
+                .setTitle(PlaylistFolders.get(ctx, folderId)?.name.orEmpty())
+                .setItems(labels) { _, which ->
+                    when (which) {
+                        0 -> showAddMenu()
+                        1 -> if (rowAdapter.selectableIds().isEmpty()) toast(ctx, R.string.folder_empty) else startListSelection()
+                        else -> renameOpenFolder()
+                    }
+                }
+                .show()
+            return
+        }
         val labels = arrayOf(
             getString(R.string.convert_title),
             getString(R.string.playlist_menu_import_link),
@@ -1631,7 +1764,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             .show()
     }
 
-    /** The "+" button: 1) create a playlist yourself, 2) have one generated (what used to be in the "⋮" menu). */
+    /** The "+" button (and "Add playlist" in a folder's ⋮ menu): 1) create a playlist yourself, 2) have one generated (what used to be in the "⋮" menu). */
     private fun showAddMenu() {
         val ctx = requireContext()
         val folderId = openFolder
@@ -1899,12 +2032,25 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     ) : RecyclerView.Adapter<RowAdapter.VH>() {
 
         private var items: List<Row> = emptyList()
+        private var selecting = false
+        private var selectedIds: Set<String> = emptySet()
+
+        /** Multi-select mode (inside a folder): own playlist rows show a check box. */
+        fun setSelection(active: Boolean, ids: Set<String>) {
+            if (active == selecting && ids == selectedIds) return
+            selecting = active
+            selectedIds = ids
+            notifyDataSetChanged()
+        }
+
+        fun selectableIds(): List<String> = items.filter { it.kind == ROW_LIST }.map { it.id }
 
         class VH(view: View) : RecyclerView.ViewHolder(view) {
             val art: ImageView = view.findViewById(R.id.playlistArt)
             val name: TextView = view.findViewById(R.id.playlistName)
             val sub: TextView = view.findViewById(R.id.playlistOwner)
             val trailing: ImageView = view.findViewById(R.id.playlistTrailing)
+            val check: android.widget.CheckBox = view.findViewById(R.id.playlistCheck)
 
             init {
                 // Round the corners of a cover picture like the placeholder background.
@@ -1974,6 +2120,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val ctx = holder.itemView.context
             holder.name.text = row.name
             holder.sub.text = row.subtitle
+            holder.check.visibility = if (selecting && row.kind == ROW_LIST) View.VISIBLE else View.GONE
+            holder.check.isChecked = selecting && row.id in selectedIds
             if (row.pinned) {
                 holder.trailing.setImageResource(R.drawable.ic_pin)
                 holder.trailing.imageTintList = ColorStateList.valueOf(attrColor(ctx, androidx.appcompat.R.attr.colorAccent))

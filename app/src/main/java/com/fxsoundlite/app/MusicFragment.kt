@@ -1701,9 +1701,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             else -> false
         }
         val track = shown[position]
-        val onDelete: (() -> Unit)? =
-            if (track.source == Track.SOURCE_LOCAL && !track.missing) ({ confirmDeleteLocal(track) }) else null
-        PlaylistUi.trackActions(requireContext(), track, null, inHistory, onDelete) {
+        PlaylistUi.trackActions(requireContext(), track, null, inHistory) {
             if (inHistory) showOnline()
         }
     }

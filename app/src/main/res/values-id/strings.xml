@@ -318,6 +318,7 @@
     <string name="playlist_already">Sudah ada di “%s”</string>
     <string name="playlist_removed">Dihapus dari playlist</string>
     <string name="playlist_remove_song">Hapus dari playlist ini</string>
+    <string name="playlist_remove_song_confirm">Hapus “%s” dari playlist ini?</string>
     <string name="select_songs">Pilih beberapa lagu</string>
     <string name="select_count">%d dipilih</string>
     <string name="select_all">Pilih semua</string>
@@ -328,6 +329,9 @@
     <string name="select_remove_confirm">Hapus %1$d lagu dari “%2$s”?</string>
     <string name="select_removed">%d lagu dihapus</string>
     <string name="select_moved">%1$d lagu dipindahkan ke “%2$s”</string>
+    <string name="select_add">Tambah ke playlist</string>
+    <string name="select_add_title">Tambahkan %d lagu ke…</string>
+    <string name="select_added">%1$d lagu ditambahkan ke “%2$s”</string>
     <string name="select_pick_one">Pilih minimal satu lagu</string>
     <string name="select_exit">Keluar dari mode pilih</string>
     <string name="playlist_rename">Ganti nama</string>
@@ -1129,12 +1133,14 @@
     <string name="folder_new_item">+ Buat folder</string>
     <string name="folder_moved">Dipindah ke “%s”</string>
     <string name="folder_moved_out">Dipindah ke daftar utama</string>
-    <string name="folder_empty">Folder ini kosong. Ketuk + untuk membuat playlist di sini, atau tekan lama sebuah playlist lalu pilih “Pindah ke folder”.</string>
+    <string name="folder_empty">Folder ini kosong. Ketuk ⋮ lalu pilih “Tambah playlist” untuk membuat playlist di sini, atau tekan lama sebuah playlist lalu pilih “Pindah ke folder”.</string>
     <string name="folder_play">Putar</string>
     <string name="folder_shuffle">Putar acak</string>
     <string name="folder_no_songs">Tidak ada lagu di folder ini</string>
     <string name="track_move_playlist">Pindahkan ke playlist lain</string>
     <string name="track_move_title">Pindahkan “%s” ke…</string>
+    <string name="track_copy_playlist">Tambah ke playlist lain</string>
+    <string name="track_copy_title">Tambahkan “%s” ke…</string>
     <string name="track_moved">“%1$s” dipindah ke “%2$s”</string>
     <string name="net_slow_loading">Jaringan lambat, lagu masih dimuat…</string>
     <string name="auto_fullscreen_title">Layar penuh otomatis</string>
@@ -1272,4 +1278,11 @@
     <string name="collab_create_menu">Buat playlist bersama</string>
     <string name="blend_create_menu">Buat Blend</string>
     <string name="blend_join_menu">Gabung Blend</string>
+    <string name="folder_add_playlist">Tambah playlist</string>
+    <string name="folder_select_playlists">Pilih playlist</string>
+    <string name="select_pick_one_playlist">Pilih minimal satu playlist</string>
+    <string name="select_playlists_move_title">Pindahkan %d playlist ke…</string>
+    <string name="select_playlists_moved">%d playlist dipindahkan</string>
+    <string name="select_playlists_delete_confirm">Hapus %d playlist? Lagu-lagunya ikut terhapus.</string>
+    <string name="select_playlists_deleted">%d playlist dihapus</string>
 </resources>

@@ -137,7 +137,8 @@ object PlaylistUi {
      *  [fromHistory] = the row is in the YouTube "recently played" list, which adds delete options. */
     fun trackActions(
         c: Context, t: Track, openListId: String?, fromHistory: Boolean = false,
-        onDelete: (() -> Unit)? = null, onSelect: (() -> Unit)? = null, onMove: (() -> Unit)? = null, onChanged: () -> Unit
+        onDelete: (() -> Unit)? = null, onSelect: (() -> Unit)? = null, onMove: (() -> Unit)? = null,
+        onCopy: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
         val liked = PlaylistStore.isLiked(c, t)
         val labels = mutableListOf<String>()
@@ -166,12 +167,22 @@ object PlaylistUi {
             labels += c.getString(R.string.track_move_playlist)
             actions += { onMove() }
         }
+        if (onCopy != null) { // inside an editable playlist: add this song to another playlist (it stays here too)
+            labels += c.getString(R.string.track_copy_playlist)
+            actions += { onCopy() }
+        }
         if (openListId != null && openListId != PlaylistStore.LIKED_ID) {
             labels += c.getString(R.string.playlist_remove_song)
             actions += {
-                PlaylistStore.removeTrack(c, openListId, t)
-                toast(c, c.getString(R.string.playlist_removed))
-                onChanged()
+                AlertDialog.Builder(c)
+                    .setMessage(c.getString(R.string.playlist_remove_song_confirm, t.title))
+                    .setPositiveButton(R.string.select_remove) { _, _ ->
+                        PlaylistStore.removeTrack(c, openListId, t)
+                        toast(c, c.getString(R.string.playlist_removed))
+                        onChanged()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
             }
         }
         if (onDelete != null) { // a song file of this device: delete it from the storage
@@ -211,10 +222,14 @@ object PlaylistUi {
     /** Export / share choices that every playlist (and "Liked songs") offers. */
     fun exportActions(
         c: Context, title: String, onExport: () -> Unit, onShare: () -> Unit,
-        pinLabel: String? = null, onPin: (() -> Unit)? = null
+        pinLabel: String? = null, onPin: (() -> Unit)? = null, onPlay: ((Boolean) -> Unit)? = null
     ) {
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
+        if (onPlay != null) {
+            labels += c.getString(R.string.folder_play); actions += { onPlay(false) }
+            labels += c.getString(R.string.folder_shuffle); actions += { onPlay(true) }
+        }
         if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
         labels += c.getString(R.string.playlist_menu_export_m3u); actions += onExport
         labels += c.getString(R.string.playlist_menu_share_link); actions += onShare
@@ -225,20 +240,32 @@ object PlaylistUi {
     }
 
     /** Menu with just the pin / unpin choice (YouTube and Drive playlists, which are read-only here). */
-    fun pinOnly(c: Context, title: String, pinLabel: String, onPin: () -> Unit) {
+    fun pinOnly(c: Context, title: String, pinLabel: String, onPlay: ((Boolean) -> Unit)? = null, onPin: () -> Unit) {
+        val labels = mutableListOf<String>()
+        val actions = mutableListOf<() -> Unit>()
+        if (onPlay != null) {
+            labels += c.getString(R.string.folder_play); actions += { onPlay(false) }
+            labels += c.getString(R.string.folder_shuffle); actions += { onPlay(true) }
+        }
+        labels += pinLabel; actions += onPin
         AlertDialog.Builder(c)
             .setTitle(title)
-            .setItems(arrayOf(pinLabel)) { _, _ -> onPin() }
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
             .show()
     }
 
     /** Long-press menu of a playlist row: pin / shared playlist / edit / move to folder / export / share / delete. */
     fun playlistActions(
         c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit,
-        pinLabel: String? = null, onPin: (() -> Unit)? = null, onCollab: ((Playlist) -> Unit)? = null, onChanged: () -> Unit
+        pinLabel: String? = null, onPin: (() -> Unit)? = null, onCollab: ((Playlist) -> Unit)? = null,
+        onPlay: ((Boolean) -> Unit)? = null, onChanged: () -> Unit
     ) {
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
+        if (onPlay != null) {
+            labels += c.getString(R.string.folder_play); actions += { onPlay(false) }
+            labels += c.getString(R.string.folder_shuffle); actions += { onPlay(true) }
+        }
         if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
         if (onCollab != null) { labels += c.getString(R.string.collab_menu); actions += { onCollab(pl) } }
         labels += c.getString(R.string.playlist_menu_edit); actions += { onEdit(pl) }
@@ -309,6 +336,15 @@ object PlaylistUi {
 
     private fun movedToast(c: Context, f: PlaylistFolder?) =
         toast(c, if (f == null) c.getString(R.string.folder_moved_out) else c.getString(R.string.folder_moved, f.name))
+
+    /** "Move to folder" for several playlists at once (multi-select inside a folder). [currentId] = the folder they are in now. */
+    fun moveManyToFolder(c: Context, ids: List<String>, currentId: String?, onChanged: () -> Unit) {
+        pickFolder(c, c.getString(R.string.select_playlists_move_title, ids.size), currentId) { f ->
+            ids.forEach { PlaylistFolders.move(c, it, f?.id) }
+            toast(c, c.getString(R.string.select_playlists_moved, ids.size))
+            onChanged()
+        }
+    }
 
     /** "Move to folder" for a playlist. */
     fun moveToFolder(c: Context, pl: Playlist, onChanged: () -> Unit) {
