@@ -638,7 +638,13 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         h.plDesc.alpha = if (pl.description.isBlank()) 0.6f else 1f
         h.plDesc.visibility = if (h.plDesc.text.isNullOrBlank()) View.GONE else View.VISIBLE
         val minutes = ((pl.tracks.sumOf { it.durationMs } + 59_999L) / 60_000L).toInt()
-        val people = if (CollabPlaylist.isShared(ctx, pl.id)) getString(R.string.collab_badge, CollabPlaylist.info(pl.id)?.members ?: 1) else ""
+        val people = when {
+            PlaylistBlend.isBlend(ctx, pl.id) -> PlaylistBlend.percentOf(ctx, pl.id).let { p ->
+                if (p > 0) getString(R.string.blend_badge, p) else getString(R.string.blend_badge_waiting)
+            }
+            CollabPlaylist.isShared(ctx, pl.id) -> getString(R.string.collab_badge, CollabPlaylist.info(pl.id)?.members ?: 1)
+            else -> ""
+        }
         h.plMeta.text = listOf(songCount(pl.tracks.size), if (minutes > 0) getString(R.string.playlist_total_min, minutes) else "", people)
             .filter { it.isNotBlank() }.joinToString(" \u00B7 ")
         b.plPlayBtn.isEnabled = pl.tracks.any { !it.missing }
@@ -1396,7 +1402,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         PlaylistUi.playlistActions(
             ctx, pl, { showEditDialog(it.id) }, { exportM3u(it) }, { shareLink(it) },
             pinLabel, { togglePin(row) },
-            onCollab = { CollabUi.manage(ctx, it) { if (_binding != null) refresh() } } // Shared playlist: long-press only
+            onCollab = { // Shared playlist / Blend: long-press only
+                if (PlaylistBlend.isBlend(ctx, it.id)) PlaylistBlendUi.manage(ctx, it) { if (_binding != null) refresh() }
+                else CollabUi.manage(ctx, it) { if (_binding != null) refresh() }
+            }
         ) { if (_binding != null) refresh() }
     }
 
@@ -1554,7 +1563,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val actions = mutableListOf<() -> Unit>()
             fun item(label: String, action: () -> Unit) { labels += label; actions += action }
             // Shared playlist sits at the top, above Select songs (same dialog as the long-press on the overview).
-            if (!liked && !remote) item(getString(R.string.collab_menu)) {
+            if (!liked && !remote && PlaylistBlend.isBlend(ctx, id)) item(getString(R.string.blend_menu)) {
+                PlaylistBlendUi.manage(ctx, pl) { if (_binding != null) refresh() }
+            }
+            if (!liked && !remote && !PlaylistBlend.isBlend(ctx, id)) item(getString(R.string.collab_menu)) {
                 CollabUi.manage(ctx, pl) { if (_binding != null) refresh() }
             }
             // Select songs and Edit used to be header buttons; they live in this menu now.
@@ -1608,7 +1620,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             getString(R.string.playlist_create),
             getString(R.string.playlist_generate) + if (generating) " \u2026" else "",
             getString(R.string.folder_new),
-            getString(R.string.collab_join_menu)
+            getString(R.string.collab_join_menu),
+            getString(R.string.blend_menu)
         )
         AlertDialog.Builder(ctx)
             .setItems(labels) { _, which ->
@@ -1616,7 +1629,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                     0 -> PlaylistUi.createPlaylist(ctx) { pl -> if (_binding != null) open(pl.id) }
                     1 -> if (generating) toast(ctx, R.string.playlist_generating) else showGenerateDialog()
                     2 -> PlaylistUi.createFolder(ctx) { if (_binding != null) refresh() }
-                    else -> CollabUi.promptJoin(ctx) { id -> if (_binding != null) open(id) }
+                    3 -> CollabUi.promptJoin(ctx) { id -> if (_binding != null) open(id) }
+                    else -> PlaylistBlendUi.start(ctx) { id -> if (_binding != null) { refresh(); open(id) } else openList = id }
                 }
             }
             .show()

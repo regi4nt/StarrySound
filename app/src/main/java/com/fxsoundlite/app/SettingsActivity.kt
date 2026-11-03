@@ -422,7 +422,48 @@ class SettingsActivity : AppCompatActivity() {
             ThemeHelper.setMode(this, mode) // recreates this activity to apply immediately
         }
 
+        setupSceneChips()
         setupAccentSwatches()
+    }
+
+    /** "None" + the four scene themes (Rain / Night Sky / Starfield / Night Water), as chips; the picked one is filled. */
+    private fun setupSceneChips() {
+        val box = binding.sceneContainer
+        box.removeAllViews()
+        val dp = resources.displayMetrics.density
+        val current = ThemeHelper.currentScene(this)
+        fun chip(label: String, scene: ThemeHelper.Scene?, dot: Int?) {
+            val tv = TextView(this).apply {
+                text = label
+                textSize = 13f
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setBackgroundResource(R.drawable.chip_bg)
+                isSelected = scene == current
+                setTextColor(ContextCompat.getColorStateList(this@SettingsActivity, R.color.chip_text_color))
+                setPadding((14 * dp).toInt(), 0, (14 * dp).toInt(), 0)
+                isClickable = true
+                isFocusable = true
+                if (dot != null) {
+                    val d = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                        setColor(ContextCompat.getColor(this@SettingsActivity, dot))
+                        setStroke((1 * dp).toInt(), 0x66FFFFFF)
+                        setSize((14 * dp).toInt(), (14 * dp).toInt())
+                    }
+                    setCompoundDrawablesRelativeWithIntrinsicBounds(d, null, null, null)
+                    compoundDrawablePadding = (8 * dp).toInt()
+                }
+                setOnClickListener {
+                    ThemeHelper.setScene(this@SettingsActivity, scene)
+                    recreate() // re-applies the scene overlay from onCreate()
+                }
+            }
+            box.addView(tv, android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, (38 * dp).toInt()
+            ).apply { marginEnd = (8 * dp).toInt() })
+        }
+        chip(getString(R.string.scene_none), null, null)
+        ThemeHelper.Scene.entries.forEach { chip(getString(it.labelRes), it, it.bgRes) }
     }
 
     private fun setupAccentSwatches() {
@@ -459,6 +500,10 @@ class SettingsActivity : AppCompatActivity() {
         ThemeHelper.Accent.ORANGE -> R.color.accent_orange
         ThemeHelper.Accent.GREEN -> R.color.accent_green
         ThemeHelper.Accent.PURPLE -> R.color.accent_purple
+        ThemeHelper.Accent.RAIN -> R.color.scene_rain_accent
+        ThemeHelper.Accent.NIGHT_SKY -> R.color.scene_nightsky_accent
+        ThemeHelper.Accent.STARFIELD -> R.color.scene_starfield_accent
+        ThemeHelper.Accent.WATER -> R.color.scene_water_accent
     }
 
     private fun accentLabelRes(accent: ThemeHelper.Accent) = when (accent) {
@@ -469,6 +514,10 @@ class SettingsActivity : AppCompatActivity() {
         ThemeHelper.Accent.ORANGE -> R.string.accent_orange
         ThemeHelper.Accent.GREEN -> R.string.accent_green
         ThemeHelper.Accent.PURPLE -> R.string.accent_purple
+        ThemeHelper.Accent.RAIN -> R.string.animated_rain
+        ThemeHelper.Accent.NIGHT_SKY -> R.string.animated_night_sky
+        ThemeHelper.Accent.STARFIELD -> R.string.animated_starfield
+        ThemeHelper.Accent.WATER -> R.string.animated_water
     }
 
     private fun setupLanguagePicker() {

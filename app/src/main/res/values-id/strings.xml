@@ -1047,4 +1047,42 @@
     <string name="collab_badge">👥 %1$d orang</string>
     <string name="spotify_auto_import_start">Mengimpor %1$d playlist Spotify di latar belakang…</string>
     <string name="spotify_auto_import_more">%1$d playlist Spotify lagi akan diimpor saat kamu membuka Playlist berikutnya.</string>
+
+    <!-- Blend -->
+    <string name="blend_menu">Blend</string>
+    <string name="blend_intro">Blend memadukan selera musikmu dengan temanmu jadi satu playlist, lengkap dengan skor kecocokan.
+
+Buat Blend lalu kirim kodenya ke teman, atau gabung ke Blend temanmu. Hanya lagu online (YouTube, radio, tab Online) yang dicampur, karena teman tidak bisa memutar file dari perangkatmu.</string>
+    <string name="blend_new_btn">Buat Blend</string>
+    <string name="blend_join_btn">Gabung dengan kode</string>
+    <string name="blend_creating">Membuat Blend…</string>
+    <string name="blend_mixing">Memadukan selera kalian…</string>
+    <string name="blend_created_msg">Blend-mu sudah siap. Kirim kode ini ke teman supaya dia bisa gabung:
+
+%1$s
+
+Playlist akan terisi begitu dia bergabung.</string>
+    <string name="blend_share_text">Yuk bikin Blend di StarrySound! Buka Playlist, ketuk +, pilih \"Blend\" > \"Gabung dengan kode\" lalu masukkan: %1$s</string>
+    <string name="blend_code_hint">Kode (6 karakter)</string>
+    <string name="blend_joined">Blend siap · kecocokan %1$d%%</string>
+    <string name="blend_already">Kamu sudah punya Blend ini</string>
+    <string name="blend_not_found">Kode Blend tidak ditemukan</string>
+    <string name="blend_ended">Blend ini sudah ditutup. Playlist-mu tetap tersimpan.</string>
+    <string name="blend_left">Kamu keluar dari Blend. Playlist tetap tersimpan.</string>
+    <string name="blend_leave_confirm">Keluar dari Blend ini? Playlist tetap ada, tapi tidak diperbarui lagi.</string>
+    <string name="blend_you">Kamu</string>
+    <string name="blend_anon">Teman</string>
+    <string name="blend_playlist_name">Blend: %1$s</string>
+    <string name="blend_desc">Kecocokan %1$d%%</string>
+    <string name="blend_desc_shared">Artis yang kalian berdua suka: %1$s</string>
+    <string name="blend_desc_waiting">Menunggu teman bergabung. Bagikan kodenya dari menu Blend.</string>
+    <string name="blend_match">Kecocokan %1$d%%</string>
+    <string name="blend_people">Blend dari: %1$s</string>
+    <string name="blend_shared">Sama-sama suka: %1$s</string>
+    <string name="blend_code_line">Kode: %1$s
+Buka menu ini kapan saja untuk menyegarkan campurannya.</string>
+    <string name="blend_badge">💞 Cocok %1$d%%</string>
+    <string name="blend_badge_waiting">💞 Blend</string>
+    <string name="scene_theme_label">Tema suasana</string>
+    <string name="scene_none">Tidak ada (biasa)</string>
 </resources>

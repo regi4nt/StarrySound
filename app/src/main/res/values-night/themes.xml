@@ -5,6 +5,7 @@
          palette differs from values/themes.xml — accent overlays are
          defined once and reused for both. -->
     <style name="Theme.FXSoundLite" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowAnimationStyle">@style/WindowAnim.Fade</item>
         <item name="colorPrimary">@color/accent_default</item>
         <item name="colorPrimaryDark">@color/dark_bg</item>
         <item name="colorAccent">@color/accent_default</item>
@@ -20,5 +21,17 @@
         <item name="colorDanger">@color/danger</item>
         <item name="colorHeaderIcon">?attr/colorTextSecondary</item>
         <item name="colorOnAccent">@color/dark_on_accent</item>
+    </style>
+
+    <!-- Simple cross-fade between screens (no sideways sliding). Screens that slide up like the player set their own. -->
+    <style name="WindowAnim.Fade" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/fade_out</item>
+        <item name="android:taskOpenEnterAnimation">@anim/fade_in</item>
+        <item name="android:taskOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:taskCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:taskCloseExitAnimation">@anim/fade_out</item>
     </style>
 </resources>

@@ -244,6 +244,20 @@ object PlaylistStore {
         CollabPlaylist.localChanged(c, id)
     }
 
+    /** Replaces the songs of [id] with [tracks] (keeps the time a song was added when it stays). Used by Blend refreshes. */
+    @Synchronized
+    fun replaceTracks(c: Context, id: String, tracks: List<Track>) {
+        val now = System.currentTimeMillis()
+        saveLists(c, rawPlaylists(c).map {
+            if (it.id != id) it else {
+                val old = it.tracks.associateBy { x -> x.syncKey }
+                it.copy(tracks = tracks.distinctBy { x -> x.syncKey }.map { x ->
+                    x.copy(addedAt = old[x.syncKey]?.addedAt?.takeIf { a -> a != 0L } ?: now, missing = false)
+                })
+            }
+        })
+    }
+
     // ---- custom cover image: a small JPEG in the app's own folder (device only)
 
     fun coverFile(c: Context, id: String): java.io.File =
@@ -262,6 +276,7 @@ object PlaylistStore {
     fun delete(c: Context, id: String) {
         coverFile(c, id).delete()
         CollabPlaylist.localDeleted(c, id)
+        PlaylistBlend.localDeleted(c, id)
         PlaylistPins.unpin(c, id)
         PlaylistFolders.forget(c, id)
         SpotifyLists.forget(c, id)

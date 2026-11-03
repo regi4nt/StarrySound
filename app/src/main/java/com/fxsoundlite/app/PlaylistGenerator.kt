@@ -38,17 +38,7 @@ object PlaylistGenerator {
         // ---- taste profile: normalized artist -> (weight, display name)
         val weight = HashMap<String, Int>()
         val display = HashMap<String, String>()
-        fun bump(artist: String, by: Int) {
-            val n = normArtist(artist)
-            if (n.isEmpty()) return
-            weight[n] = (weight[n] ?: 0) + by
-            display.putIfAbsent(n, cleanArtist(artist))
-        }
-        liked.forEach { if (it.source != Track.SOURCE_RADIO) bump(it.artist, 3) }
-        history.forEach { bump(it.artist, 1) }
-        StatsStore.artistCounts(context).forEach { (a, n) -> bump(a, n) }
-        TasteSignals.addTo(context) { a, n -> bump(a, n) } // other apps (YouTube Music) + YouTube account likes / subscriptions
-        LastFm.cachedTaste(context).artists.forEachIndexed { i, a -> bump(a, maxOf(1, 10 - i / 2)) } // Last.fm top artists, by rank
+        tasteWeights(context, liked, history, weight, display)
 
         val topArtists = weight.entries.sortedByDescending { it.value }.take(TOP_ARTISTS).map { it.key }
         val usedTaste = topArtists.isNotEmpty()
@@ -102,14 +92,35 @@ object PlaylistGenerator {
         return Result(picked.values.toList().shuffled(Random(System.nanoTime())), usedTaste)
     }
 
+    /**
+     * Fills [weight] (normalized artist -> points) and [display] (normalized artist -> shown name) from everything
+     * the app knows about the user's taste. Shared by the generator and by Blend (see [PlaylistBlend]).
+     */
+    internal fun tasteWeights(
+        context: Context, liked: List<Track>, history: List<Track>,
+        weight: MutableMap<String, Int>, display: MutableMap<String, String>
+    ) {
+        fun bump(artist: String, by: Int) {
+            val n = normArtist(artist)
+            if (n.isEmpty()) return
+            weight[n] = (weight[n] ?: 0) + by
+            if (!display.containsKey(n)) display[n] = cleanArtist(artist)
+        }
+        liked.forEach { if (it.source != Track.SOURCE_RADIO) bump(it.artist, 3) }
+        history.forEach { bump(it.artist, 1) }
+        StatsStore.artistCounts(context).forEach { (a, n) -> bump(a, n) }
+        TasteSignals.addTo(context) { a, n -> bump(a, n) } // other apps (YouTube Music) + YouTube account likes / subscriptions
+        LastFm.cachedTaste(context).artists.forEachIndexed { i, a -> bump(a, maxOf(1, 10 - i / 2)) } // Last.fm top artists, by rank
+    }
+
     /** "Artist - Topic" / "ArtistVEVO" channel names -> plain artist. */
-    private fun cleanArtist(s: String): String =
+    internal fun cleanArtist(s: String): String =
         s.replace(Regex("\\s*-\\s*Topic$", RegexOption.IGNORE_CASE), "")
             .replace(Regex("VEVO$", RegexOption.IGNORE_CASE), "")
             .trim()
 
-    private fun normArtist(s: String): String = cleanArtist(s).lowercase(Locale.ROOT)
+    internal fun normArtist(s: String): String = cleanArtist(s).lowercase(Locale.ROOT)
 
-    private fun normTitle(s: String): String =
+    internal fun normTitle(s: String): String =
         s.lowercase(Locale.ROOT).replace(Regex("[\\(\\[].*?[\\)\\]]"), "").replace(Regex("[^a-z0-9 ]"), "").trim()
 }

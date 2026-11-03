@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             if (target == currentPage) { isEnabled = false; return }
             goingBack = true
-            binding.mainPager.setCurrentItem(target, target == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER)
+            binding.mainPager.setCurrentItem(target, false)
         }
     }
 
@@ -117,6 +117,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
     // was killed and relaunched. Track what was applied at creation time so
     // onResume() can notice a mismatch and recreate this Activity too.
     private var appliedAccent: ThemeHelper.Accent = ThemeHelper.Accent.DEFAULT
+    private var appliedScene: ThemeHelper.Scene? = null
 
     // Without notification permission (Android 13+) the ongoing notification, and
     // its On/Off button, are hidden from the shade even though the service runs.
@@ -128,6 +129,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         ThemeHelper.applyAccent(this)
         ThemeHelper.watchAuto(this)
         appliedAccent = ThemeHelper.currentAccent(this)
+        appliedScene = ThemeHelper.currentScene(this)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -138,6 +140,11 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         // showing -- avoids a black flash from tearing it down/rebuilding
         // the VideoView on every swipe.
         binding.mainPager.offscreenPageLimit = 4
+        // Simple like Spotify: pages stay in place and cross-fade instead of sliding sideways.
+        binding.mainPager.setPageTransformer { page, position ->
+            page.translationX = -position * page.width
+            page.alpha = (1f - kotlin.math.abs(position)).coerceIn(0f, 1f)
+        }
         onBackPressedDispatcher.addCallback(this, pageBackCallback)
         onBackPressedDispatcher.addCallback(this, lockBackCallback)
         setupBottomNav()
@@ -446,8 +453,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
             }
             return
         }
-        val animate = page == PAGE_SCREENSAVER || currentPage == PAGE_SCREENSAVER
-        binding.mainPager.setCurrentItem(page, animate)
+        binding.mainPager.setCurrentItem(page, false) // instant: no scrolling past the pages in between
     }
 
     private fun askNotificationPermissionOnce() {
@@ -468,7 +474,7 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         // Pulls playlist/history changes made on another device (throttled, no-op when signed out).
         DriveSync.syncOnStartup(this)
         // Catches returning from Settings after the accent was changed there.
-        if (ThemeHelper.currentAccent(this) != appliedAccent) {
+        if (ThemeHelper.currentAccent(this) != appliedAccent || ThemeHelper.currentScene(this) != appliedScene) {
             recreate()
         }
     }

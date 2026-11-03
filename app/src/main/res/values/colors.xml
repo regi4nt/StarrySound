@@ -50,4 +50,42 @@
     <color name="accent_orange">#FF8A3D</color>
     <color name="accent_green">#3DDC6B</color>
     <color name="accent_purple">#B266FF</color>
+
+    <!-- Scene themes: palettes matching the 4 animated Screensaver backgrounds -->
+    <color name="scene_rain_bg">#0B1218</color>
+    <color name="scene_rain_surface">#141E27</color>
+    <color name="scene_rain_raised">#1C2833</color>
+    <color name="scene_rain_text">#E6EEF5</color>
+    <color name="scene_rain_text2">#7F93A6</color>
+    <color name="scene_rain_divider">#22303C</color>
+    <color name="scene_rain_track">#2C3C4A</color>
+    <color name="scene_rain_accent">#7FA8D0</color>
+    <color name="scene_rain_on">#08121C</color>
+    <color name="scene_nightsky_bg">#060F1E</color>
+    <color name="scene_nightsky_surface">#0F1B2E</color>
+    <color name="scene_nightsky_raised">#16253B</color>
+    <color name="scene_nightsky_text">#EAF1FF</color>
+    <color name="scene_nightsky_text2">#8399B8</color>
+    <color name="scene_nightsky_divider">#1E2E47</color>
+    <color name="scene_nightsky_track">#2A3C58</color>
+    <color name="scene_nightsky_accent">#EBDDAE</color>
+    <color name="scene_nightsky_on">#0A1424</color>
+    <color name="scene_starfield_bg">#07060D</color>
+    <color name="scene_starfield_surface">#12101C</color>
+    <color name="scene_starfield_raised">#1A1727</color>
+    <color name="scene_starfield_text">#F0EEFA</color>
+    <color name="scene_starfield_text2">#8D88A8</color>
+    <color name="scene_starfield_divider">#25213A</color>
+    <color name="scene_starfield_track">#322D4A</color>
+    <color name="scene_starfield_accent">#8FA4FF</color>
+    <color name="scene_starfield_on">#0A0A18</color>
+    <color name="scene_water_bg">#04141A</color>
+    <color name="scene_water_surface">#0B222B</color>
+    <color name="scene_water_raised">#112C37</color>
+    <color name="scene_water_text">#E4F5F8</color>
+    <color name="scene_water_text2">#7FA3AD</color>
+    <color name="scene_water_divider">#17353F</color>
+    <color name="scene_water_track">#21444F</color>
+    <color name="scene_water_accent">#4FD1C5</color>
+    <color name="scene_water_on">#03181B</color>
 </resources>

@@ -4,6 +4,7 @@
          this out for values-night/themes.xml automatically based on
          AppCompatDelegate's night mode — see ThemeHelper.applyMode(). -->
     <style name="Theme.FXSoundLite" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowAnimationStyle">@style/WindowAnim.Fade</item>
         <item name="colorPrimary">@color/accent_default</item>
         <item name="colorPrimaryDark">@color/light_bg</item>
         <item name="colorAccent">@color/accent_default</item>
@@ -73,5 +74,95 @@
         <item name="android:textSize">11sp</item>
         <item name="android:shadowColor">#99000000</item>
         <item name="android:shadowRadius">3</item>
+    </style>
+
+    <!-- Simple cross-fade between screens (no sideways sliding). Screens that slide up like the player set their own. -->
+    <style name="WindowAnim.Fade" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:activityCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/fade_out</item>
+        <item name="android:taskOpenEnterAnimation">@anim/fade_in</item>
+        <item name="android:taskOpenExitAnimation">@anim/fade_out</item>
+        <item name="android:taskCloseEnterAnimation">@anim/fade_in</item>
+        <item name="android:taskCloseExitAnimation">@anim/fade_out</item>
+    </style>
+
+    <!-- Scene themes: whole-app palette + matching accent, one per animated Screensaver background. -->
+    <style name="ThemeOverlay.Scene.Rain" parent="">
+        <item name="colorBg">@color/scene_rain_bg</item>
+        <item name="android:windowBackground">@color/scene_rain_bg</item>
+        <item name="colorPrimaryDark">@color/scene_rain_bg</item>
+        <item name="colorSurface">@color/scene_rain_surface</item>
+        <item name="colorSurfaceRaised">@color/scene_rain_raised</item>
+        <item name="colorTextPrimary">@color/scene_rain_text</item>
+        <item name="colorTextSecondary">@color/scene_rain_text2</item>
+        <item name="colorDivider">@color/scene_rain_divider</item>
+        <item name="colorTrackBg">@color/scene_rain_track</item>
+        <item name="colorAccent">@color/scene_rain_accent</item>
+        <item name="colorPrimary">@color/scene_rain_accent</item>
+        <item name="colorOnAccent">@color/scene_rain_on</item>
+    </style>
+    <style name="ThemeOverlay.Scene.Nightsky" parent="">
+        <item name="colorBg">@color/scene_nightsky_bg</item>
+        <item name="android:windowBackground">@color/scene_nightsky_bg</item>
+        <item name="colorPrimaryDark">@color/scene_nightsky_bg</item>
+        <item name="colorSurface">@color/scene_nightsky_surface</item>
+        <item name="colorSurfaceRaised">@color/scene_nightsky_raised</item>
+        <item name="colorTextPrimary">@color/scene_nightsky_text</item>
+        <item name="colorTextSecondary">@color/scene_nightsky_text2</item>
+        <item name="colorDivider">@color/scene_nightsky_divider</item>
+        <item name="colorTrackBg">@color/scene_nightsky_track</item>
+        <item name="colorAccent">@color/scene_nightsky_accent</item>
+        <item name="colorPrimary">@color/scene_nightsky_accent</item>
+        <item name="colorOnAccent">@color/scene_nightsky_on</item>
+    </style>
+    <style name="ThemeOverlay.Scene.Starfield" parent="">
+        <item name="colorBg">@color/scene_starfield_bg</item>
+        <item name="android:windowBackground">@color/scene_starfield_bg</item>
+        <item name="colorPrimaryDark">@color/scene_starfield_bg</item>
+        <item name="colorSurface">@color/scene_starfield_surface</item>
+        <item name="colorSurfaceRaised">@color/scene_starfield_raised</item>
+        <item name="colorTextPrimary">@color/scene_starfield_text</item>
+        <item name="colorTextSecondary">@color/scene_starfield_text2</item>
+        <item name="colorDivider">@color/scene_starfield_divider</item>
+        <item name="colorTrackBg">@color/scene_starfield_track</item>
+        <item name="colorAccent">@color/scene_starfield_accent</item>
+        <item name="colorPrimary">@color/scene_starfield_accent</item>
+        <item name="colorOnAccent">@color/scene_starfield_on</item>
+    </style>
+    <style name="ThemeOverlay.Scene.Water" parent="">
+        <item name="colorBg">@color/scene_water_bg</item>
+        <item name="android:windowBackground">@color/scene_water_bg</item>
+        <item name="colorPrimaryDark">@color/scene_water_bg</item>
+        <item name="colorSurface">@color/scene_water_surface</item>
+        <item name="colorSurfaceRaised">@color/scene_water_raised</item>
+        <item name="colorTextPrimary">@color/scene_water_text</item>
+        <item name="colorTextSecondary">@color/scene_water_text2</item>
+        <item name="colorDivider">@color/scene_water_divider</item>
+        <item name="colorTrackBg">@color/scene_water_track</item>
+        <item name="colorAccent">@color/scene_water_accent</item>
+        <item name="colorPrimary">@color/scene_water_accent</item>
+        <item name="colorOnAccent">@color/scene_water_on</item>
+    </style>
+    <style name="ThemeOverlay.Accent.SceneRain" parent="">
+        <item name="colorAccent">@color/scene_rain_accent</item>
+        <item name="colorPrimary">@color/scene_rain_accent</item>
+        <item name="colorOnAccent">@color/scene_rain_on</item>
+    </style>
+    <style name="ThemeOverlay.Accent.SceneNightsky" parent="">
+        <item name="colorAccent">@color/scene_nightsky_accent</item>
+        <item name="colorPrimary">@color/scene_nightsky_accent</item>
+        <item name="colorOnAccent">@color/scene_nightsky_on</item>
+    </style>
+    <style name="ThemeOverlay.Accent.SceneStarfield" parent="">
+        <item name="colorAccent">@color/scene_starfield_accent</item>
+        <item name="colorPrimary">@color/scene_starfield_accent</item>
+        <item name="colorOnAccent">@color/scene_starfield_on</item>
+    </style>
+    <style name="ThemeOverlay.Accent.SceneWater" parent="">
+        <item name="colorAccent">@color/scene_water_accent</item>
+        <item name="colorPrimary">@color/scene_water_accent</item>
+        <item name="colorOnAccent">@color/scene_water_on</item>
     </style>
 </resources>

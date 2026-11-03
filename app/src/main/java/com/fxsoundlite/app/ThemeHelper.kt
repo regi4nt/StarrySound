@@ -49,11 +49,45 @@ object ThemeHelper {
         BLUE("blue", R.style.ThemeOverlay_Accent_Blue),
         ORANGE("orange", R.style.ThemeOverlay_Accent_Orange),
         GREEN("green", R.style.ThemeOverlay_Accent_Green),
-        PURPLE("purple", R.style.ThemeOverlay_Accent_Purple);
+        PURPLE("purple", R.style.ThemeOverlay_Accent_Purple),
+        // Accents of the scene themes (shown as extra swatches; picking a scene selects its own one).
+        RAIN("rain", R.style.ThemeOverlay_Accent_SceneRain),
+        NIGHT_SKY("night_sky", R.style.ThemeOverlay_Accent_SceneNightsky),
+        STARFIELD("starfield", R.style.ThemeOverlay_Accent_SceneStarfield),
+        WATER("water", R.style.ThemeOverlay_Accent_SceneWater);
 
         companion object {
             fun fromTag(tag: String?): Accent = entries.firstOrNull { it.tag == tag } ?: DEFAULT
         }
+    }
+
+    /**
+     * App themes matching the four animated Screensaver backgrounds (Rain / Night Sky / Starfield / Night Water).
+     * Each one repaints the whole UI with a dark palette taken from its background and selects its own [accent].
+     * They are always dark (the backgrounds are night scenes), whatever the Light / Dark / Auto setting says.
+     */
+    enum class Scene(val tag: String, val overlayStyleRes: Int, val accent: Accent, val bgRes: Int, val labelRes: Int) {
+        RAIN("rain", R.style.ThemeOverlay_Scene_Rain, Accent.RAIN, R.color.scene_rain_bg, R.string.animated_rain),
+        NIGHT_SKY("night_sky", R.style.ThemeOverlay_Scene_Nightsky, Accent.NIGHT_SKY, R.color.scene_nightsky_bg, R.string.animated_night_sky),
+        STARFIELD("starfield", R.style.ThemeOverlay_Scene_Starfield, Accent.STARFIELD, R.color.scene_starfield_bg, R.string.animated_starfield),
+        WATER("water", R.style.ThemeOverlay_Scene_Water, Accent.WATER, R.color.scene_water_bg, R.string.animated_water);
+
+        companion object {
+            fun fromTag(tag: String?): Scene? = entries.firstOrNull { it.tag == tag }
+        }
+    }
+
+    private const val KEY_SCENE = "scene_theme"
+
+    /** The active scene theme, or null for the normal Light / Dark palette. */
+    fun currentScene(context: Context): Scene? = Scene.fromTag(prefs(context).getString(KEY_SCENE, null))
+
+    /** Selects a scene theme (with its matching accent) or, with null, goes back to the normal palette. */
+    fun setScene(context: Context, scene: Scene?) {
+        val e = prefs(context).edit()
+        if (scene == null) e.remove(KEY_SCENE) else { e.putString(KEY_SCENE, scene.tag).putString(KEY_ACCENT, scene.accent.tag) }
+        e.apply()
+        applyMode(context) // a scene forces dark; leaving it restores the saved mode
     }
 
     private fun prefs(context: Context) =
@@ -71,6 +105,7 @@ object ThemeHelper {
     fun applyMode(context: Context, mode: String = currentMode(context)) {
         AppCompatDelegate.setDefaultNightMode(
             when {
+                currentScene(context) != null -> AppCompatDelegate.MODE_NIGHT_YES
                 isAuto(context) -> if (isNightNow()) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
                 else -> when (mode) {
                 MODE_LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
@@ -141,6 +176,7 @@ object ThemeHelper {
 
     /** Must be called in every Activity's onCreate(), before setContentView(). */
     fun applyAccent(activity: Activity) {
-        activity.theme.applyStyle(currentAccent(activity).overlayStyleRes, true)
+        currentScene(activity)?.let { activity.theme.applyStyle(it.overlayStyleRes, true) } // palette first...
+        activity.theme.applyStyle(currentAccent(activity).overlayStyleRes, true) // ...then the accent on top (a scene stores its own)
     }
 }
