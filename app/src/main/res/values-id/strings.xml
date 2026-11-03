@@ -33,7 +33,9 @@
     <string name="notif_action_off">Matikan</string>
     <string name="notif_action_on">Nyalakan</string>
     <string name="notif_fx_off">Efek audio mati</string>
-    <string name="notif_channel_idle_name">Screensaver saat mengisi daya (efek mati)</string>
+    <string name="notif_channel_idle_name">Latar belakang StarrySound (minimal)</string>
+    <string name="preset_notif_section">Notifikasi preset</string>
+    <string name="preset_notif_subtitle">Tampilkan preset saat ini beserta tombol sebelumnya / berikutnya / nyala-mati di notifikasi. Jika dimatikan, hanya tersisa notifikasi minimal tanpa suara agar efek tetap berjalan.</string>
 
     <!-- Layar Pengaturan -->
     <string name="settings_title">Pengaturan</string>
@@ -246,6 +248,9 @@
     <string name="saver_mode_on">Hemat</string>
     <string name="saver_on_toast">Mode hemat: audio bitrate rendah, tanpa thumbnail, pembaruan latar lebih jarang. Cadangan video dimatikan.</string>
     <string name="saver_off_toast">Mode normal: kualitas audio terbaik, thumbnail dan cadangan pemutar aktif.</string>
+    <string name="saver_auto_title">Hemat data otomatis di data seluler</string>
+    <string name="saver_auto_desc">Mode hemat menyala sendiri saat memakai data seluler (atau jaringan berbayar) dan mati lagi di Wi-Fi. Daftar radio dibatasi ke stasiun hingga 96 kbps.</string>
+    <string name="data_used_reset_toast">Penghitung data direset</string>
     <string name="bedtime_section_suggest">SARAN</string>
     <string name="np_more">Opsi lainnya</string>
     <string name="np_sleep_timer">Timer tidur</string>
@@ -279,10 +284,12 @@
     <string name="np_queue">Antrean</string>
     <string name="np_queue_title">Antrean · %d lagu</string>
     <string name="np_queue_empty">Antrean kosong.</string>
+    <string name="np_play_next">Putar berikutnya</string>
+    <string name="np_play_next_add">Tambah ke antrean berikutnya</string>
+    <string name="np_play_next_done">Akan diputar berikutnya</string>
     <string name="np_queue_remove">Hapus dari antrean</string>
     <string name="np_queue_removed">Dihapus dari antrean</string>
-    <string name="np_play_next">Putar berikutnya</string>
-    <string name="np_play_next_done">Akan diputar berikutnya</string>
+    <string name="np_queue_row_menu">Opsi lagu</string>
     <string name="online_history_title">Terakhir diputar · %d</string>
     <string name="np_speed">Kecepatan putar</string>
     <string name="np_speed_fmt">Kecepatan putar (%1$s)</string>
@@ -436,9 +443,9 @@
     <string name="cover_save_failed">Foto tidak bisa digunakan</string>
 
     <!-- Screensaver lock -->
-    <string name="screensaver_lock_desc">Kunci geser</string>
+    <string name="screensaver_lock_desc">Kunci geser dan sentuh</string>
     <string name="screensaver_player_desc">Buka pemutar</string>
-    <string name="screensaver_locked_toast">Terkunci: geser dinonaktifkan, efek sentuh tetap berfungsi. Tahan lama ikon kunci untuk membuka.</string>
+    <string name="screensaver_locked_toast">Terkunci: geser dan sentuh dinonaktifkan. Tahan lama ikon kunci untuk membuka.</string>
     <string name="screensaver_unlocked_toast">Kunci dibuka</string>
     <string name="screensaver_locked_hint">Terkunci. Tahan lama ikon kunci untuk membuka.</string>
     <!-- Widget pencarian musik -->
@@ -466,6 +473,9 @@
     <string name="quick_empty">Gagal memuat lagu. Periksa koneksi internetmu.</string>
     <string name="quick_retry">Coba lagi</string>
     <string name="quick_refresh">Segarkan</string>
+    <string name="quick_lock_desc">Kunci scroll hanya atas dan bawah</string>
+    <string name="quick_lock_on">Terkunci: Quick hanya bisa scroll atas dan bawah. Ketuk gembok lagi untuk membuka kunci.</string>
+    <string name="quick_lock_off">Kunci dibuka: geser ke samping untuk keluar dari Quick.</string>
     <string name="quick_play_pause">Putar / jeda pratinjau</string>
     <string name="quick_action_playlist">Playlist</string>
     <string name="quick_action_queue">Antrean</string>
@@ -608,6 +618,61 @@
     <string name="ai_err_bad_answer">Jawaban AI tidak bisa dibaca.</string>
     <string name="ai_err_http">Permintaan AI gagal (%1$s).</string>
     <string name="ai_err_generic">Tidak bisa mendapat pilihan AI.</string>
+
+    <!-- Impor / ekspor playlist -->
+    <string name="playlist_more">Opsi lainnya</string>
+    <string name="playlist_menu_import_link">Impor dari link</string>
+    <string name="playlist_menu_import_file">Impor dari file (M3U atau cadangan)</string>
+    <string name="playlist_menu_backup">Cadangkan semua playlist ke file</string>
+    <string name="playlist_menu_export_m3u">Ekspor ke file M3U</string>
+    <string name="playlist_menu_share_link">Bagikan lewat link</string>
+    <string name="playlist_import_link_hint">Tempel link di sini</string>
+    <string name="playlist_import_link_help">Link playlist YouTube, YouTube Music, atau Spotify, atau link yang dibagikan dari StarrySound.</string>
+    <string name="playlist_import_fetching">Mengambil playlist…</string>
+    <string name="playlist_import_name_title">Impor %1$d lagu sebagai…</string>
+    <string name="playlist_import_default_name">Playlist impor</string>
+    <string name="playlist_import_done">%1$d lagu diimpor</string>
+    <string name="playlist_import_done_skipped">%1$d lagu diimpor, %2$d dilewati (tidak tersedia atau tidak bisa diputar di sini)</string>
+    <string name="playlist_import_empty">Tidak ada lagu yang bisa diputar.</string>
+    <string name="playlist_import_bad_link">Itu bukan link playlist yang bisa dibaca StarrySound.</string>
+    <string name="playlist_import_err_network">Tidak ada koneksi. Periksa internetmu lalu coba lagi.</string>
+    <string name="playlist_import_err_failed">Playlist tidak bisa dibaca. Mungkin privat, tidak tersedia, atau berupa mix otomatis.</string>
+    <string name="playlist_import_err_file">File tidak bisa dibaca.</string>
+    <string name="playlist_backup_done">Cadangan disimpan</string>
+    <string name="playlist_backup_restored">Cadangan digabungkan ke playlist-mu</string>
+    <string name="playlist_export_done">“%s” diekspor</string>
+    <string name="playlist_export_failed">File tidak bisa ditulis.</string>
+    <string name="playlist_share_none">Playlist ini tidak punya lagu YouTube untuk dibagikan. Pakai ekspor M3U atau cadangan.</string>
+    <string name="playlist_share_partial">%d lagu tidak disertakan (file lokal, atau link jadi terlalu panjang).</string>
+    <string name="playlist_share_text">“%1$s” · %2$d lagu di StarrySound. Buka link ini di StarrySound, atau salin lalu pakai Impor dari link:\n%3$s</string>
+    <string name="playlist_share_chooser">Bagikan playlist</string>
+
+    <!-- Last.fm -->
+    <string name="lastfm_section">Last.fm (scrobbling)</string>
+    <string name="lastfm_section_subtitle">Opsional dan gratis. Buat akun API di last.fm/api/account/create (callback URL boleh dikosongkan), lalu tempel API key dan shared secret-nya di sini. Lagu yang kamu dengar tercatat di riwayat Last.fm, dan artis teratas serta lagu favoritmu memperkaya pilihan AI dan playlist otomatis (kalau kamu pakai key Gemini, nama artis dan lagu itu ikut dikirim ke sana). Login disetujui di last.fm, jadi kata sandimu tidak pernah diketik di sini. Key, secret, dan login disimpan di perangkat ini saja (tidak ikut cadangan Drive).</string>
+    <string name="lastfm_key_hint">API key</string>
+    <string name="lastfm_secret_hint">Shared secret</string>
+    <string name="lastfm_status_off">Belum terhubung.</string>
+    <string name="lastfm_status_pending">Setujui StarrySound di halaman browser yang terbuka, lalu kembali ke sini dan ketuk “Sudah saya setujui”.</string>
+    <string name="lastfm_status_on">Terhubung sebagai %s</string>
+    <string name="lastfm_status_queue">%d scrobble menunggu dikirim</string>
+    <string name="lastfm_connect_btn">Hubungkan ke Last.fm</string>
+    <string name="lastfm_finish_btn">Sudah saya setujui</string>
+    <string name="lastfm_disconnect_btn">Putuskan</string>
+    <string name="lastfm_cancel_btn">Batal</string>
+    <string name="lastfm_scrobble_title">Scrobble lagu yang kuputar</string>
+    <string name="lastfm_scrobble_desc">Lagu lokal dan YouTube, bukan radio. Dihitung setelah separuh lagu atau 4 menit. Dikirim nanti kalau sedang offline.</string>
+    <string name="lastfm_taste_title">Pakai selera Last.fm-ku</string>
+    <string name="lastfm_taste_desc">Artis teratas dan lagu favorit dipakai untuk pilihan AI dan playlist otomatis.</string>
+    <string name="lastfm_need_keys">Tempel dulu API key dan shared secret Last.fm.</string>
+    <string name="lastfm_connected_toast">Terhubung ke Last.fm sebagai %s</string>
+    <string name="lastfm_disconnected_toast">Terputus dari Last.fm</string>
+    <string name="lastfm_err_network">Tidak ada koneksi. Periksa internetmu lalu coba lagi.</string>
+    <string name="lastfm_err_key">Last.fm menolak API key. Periksa lagi.</string>
+    <string name="lastfm_err_signature">Last.fm menolak permintaan. Periksa shared secret.</string>
+    <string name="lastfm_err_not_authorized">Belum disetujui. Ketuk Hubungkan lagi, setujui di last.fm, lalu ketuk “Sudah saya setujui”.</string>
+    <string name="lastfm_err_generic">Kesalahan Last.fm: %s</string>
+    <string name="lastfm_err_no_browser">Tidak ada browser untuk membuka halaman Last.fm.</string>
     <string name="home_recent">Baru diputar</string>
     <string name="home_top_songs">Lagu teratas</string>
     <string name="home_new_releases">Rilis baru</string>
@@ -627,9 +692,6 @@
     <string name="home_playlist_save_msg">Simpan playlist ini ke playlist kamu?</string>
     <string name="home_playlist_save">Simpan</string>
     <string name="home_playlist_saved">Disimpan ke playlist kamu.</string>
-    <string name="saver_auto_title">Hemat data otomatis di data seluler</string>
-    <string name="saver_auto_desc">Mode hemat menyala sendiri saat memakai data seluler (atau jaringan berbayar) dan mati lagi di Wi-Fi. Daftar radio dibatasi ke stasiun hingga 96 kbps.</string>
-    <string name="data_used_reset_toast">Penghitung data direset</string>
     <string name="home_song_loading">Mencari lagunya…</string>
     <string name="home_song_not_found">Lagu ini tidak ditemukan.</string>
     <string name="cache_section">Penyimpanan</string>
@@ -646,6 +708,23 @@
     <string name="playlist_cover_choose">Pilih gambar sampul</string>
     <string name="playlist_cover_remove">Hapus sampul</string>
     <string name="playlist_cover_failed">Gambar ini tidak bisa dibaca.</string>
+    <string name="playlist_sort">Urutkan lagu</string>
+    <string name="playlist_sort_title">Urutkan berdasarkan</string>
+    <string name="playlist_sort_default">Urutan playlist</string>
+    <string name="playlist_sort_newest">Terakhir ditambahkan</string>
+    <string name="playlist_sort_oldest">Pertama ditambahkan</string>
+    <string name="playlist_sort_title_az">Judul A–Z</string>
+    <string name="playlist_sort_title_za">Judul Z–A</string>
+    <string name="playlist_sort_artist">Artis A–Z</string>
+    <string name="playlist_sort_longest">Terpanjang dulu</string>
+    <string name="playlist_sort_shortest">Terpendek dulu</string>
+    <string name="np_download_permission">Izin penyimpanan diperlukan untuk menyimpan lagu. Izinkan, lalu ketuk Unduh lagi.</string>
+    <string name="np_download_done">Unduhan selesai: Music/StarrySound</string>
+    <string name="np_download_channel">Unduhan</string>
+    <string name="np_download_notif_running">Mengunduh…</string>
+    <string name="np_bg_plain">Latar: Polos (ketuk untuk Screensaver)</string>
+    <string name="np_bg_screensaver">Latar: Screensaver (ketuk untuk Polos)</string>
+    <string name="nav_show">Tampilkan navigasi</string>
     <string name="np_add_queue">Tambah ke antrean</string>
     <string name="np_bg_toggle">Latar: Screensaver / Polos</string>
     <string name="radio_retrying">Belum tersambung ke stasiun, mencoba lagi…</string>
@@ -675,7 +754,7 @@
     <string name="convert_no_songs">Playlist itu tidak berisi lagu.</string>
     <string name="convert_done_local">%1$d lagu disimpan sebagai playlist lokal “%2$s” (%3$d dari perangkat ini).</string>
     <string name="yt_noshorts_title">Blokir Shorts</string>
-    <string name="yt_noshorts_desc">Sembunyikan video pendek vertikal (Shorts) dari hasil pencarian YouTube. Selain itu semua ditampilkan, tidak hanya musik.</string>
+    <string name="yt_noshorts_desc">Sembunyikan video pendek vertikal (Shorts) dari hasil pencarian YouTube dan dari Quick. Pencarian menampilkan semua selain itu, tidak hanya musik.</string>
     <string name="yt_local_title">Hanya negaraku</string>
     <string name="yt_local_desc">Utamakan video populer di negara perangkatmu (pengaturan wilayah).</string>
     <string name="yt_sort_title">Urutkan hasil</string>
@@ -701,6 +780,39 @@
     <string name="diag_off">mati</string>
     <string name="net_online">● Online</string>
     <string name="net_offline">● Offline</string>
+
+    <!-- Taste signals (TasteSignals) -->
+    <string name="taste_section">Pelajari selera Anda</string>
+    <string name="taste_section_subtitle">Dipakai oleh Quick, rak di Home, pilihan AI, dan playlist otomatis. Semuanya tetap di ponsel ini.</string>
+    <string name="taste_ext_title">Dari YouTube, YouTube Music, dan Spotify di ponsel ini</string>
+    <string name="taste_ext_desc">Mengingat artis dari lagu yang Anda putar di aplikasi itu (didengar 30 detik atau lebih). Hanya dihitung sejak fitur dinyalakan, dan tidak pernah saat mode pribadi aktif.</string>
+    <string name="taste_ext_need_access">Perlu \'Akses notifikasi\' untuk StarrySound (isi notifikasi tidak pernah dibaca).</string>
+    <string name="taste_ext_waiting">Aktif. Belum ada yang tercatat: putar lagu di YouTube Music.</string>
+    <string name="taste_ext_status">%1$d lagu dari %2$d artis, sejak %3$s.</string>
+    <string name="taste_acc_title">Dari akun YouTube Anda</string>
+    <string name="taste_acc_desc">Membaca musik yang Anda sukai dan channel musik yang Anda langgani (hanya baca). Ini tidak menunjukkan seberapa sering Anda memutar sesuatu.</string>
+    <string name="taste_acc_need_signin">Masuk dengan Google dulu di bagian Akun Google.</string>
+    <string name="taste_acc_syncing">Membaca akun YouTube Anda…</string>
+    <string name="taste_acc_never">Aktif. Belum dibaca.</string>
+    <string name="taste_acc_status">%1$d artis dari lagu yang disukai, %2$d channel musik. Diperbarui %3$s.</string>
+    <string name="taste_acc_failed">Akun YouTube tidak bisa dibaca. Periksa koneksi lalu coba lagi.</string>
+    <string name="taste_clear_btn">Lupakan yang sudah dipelajari</string>
+    <string name="taste_cleared">Sudah dilupakan.</string>
+    <!-- Android Auto / Bluetooth browse -->
+    <string name="auto_liked">Lagu disukai</string>
+    <string name="auto_playlists">Playlist</string>
+    <string name="auto_recent">Baru diputar (YouTube)</string>
+    <string name="auto_device">Di perangkat ini</string>
+    <string name="auto_queue">Berikutnya</string>
+    <plurals name="auto_song_count">
+        <item quantity="other">%d lagu</item>
+    </plurals>
+
+    <!-- Settings > Player -->
+    <string name="cover_theme_title">Warna dari cover</string>
+    <string name="cover_theme_desc">Cahaya di sekitar cover, latar pemutar penuh, dan latar mini player mendapat semburat warna dari cover lagu yang sedang diputar. Cover tanpa warna yang jelas tetap polos.</string>
+    <string name="skip_segments_title">Lewati bagian non-musik lagu YouTube</string>
+    <string name="skip_segments_desc">Melompati intro, outro, sponsor, dan promosi diri yang ditandai komunitas pada video (SponsorBlock). Menghubungi sponsor.ajay.app; hanya sebagian kecil hash ID video yang dikirim. Kebanyakan lagu musik otomatis tidak punya bagian yang ditandai.</string>
 
     <!-- Wake-up alarm -->
     <string name="alarm_title">Alarm bangun tidur</string>
@@ -809,10 +921,14 @@
     <string name="listen_channel_fmt">Ruang %s</string>
     <string name="listen_connected">Terhubung</string>
     <string name="listen_you">Kamu</string>
+    <string name="listen_name_title">Namamu</string>
+    <string name="listen_name_hint">Nama yang dilihat orang lain</string>
+    <string name="listen_name_row">Namamu: %s</string>
+    <string name="listen_name_none">belum diisi</string>
     <string name="listen_host_tag">Host</string>
     <string name="listen_guest_fmt">Pendengar %d</string>
     <string name="listen_np_label">MENDENGARKAN BARENG</string>
-    <string name="listen_np_empty_host">Putar lagu YouTube dan semua orang di ruang ini ikut mendengarnya.</string>
+    <string name="listen_np_empty_host">Putar lagu YouTube, Online, atau radio dan semua orang di ruang ini ikut mendengarnya.</string>
     <string name="listen_np_empty_guest">Menunggu host memutar lagu…</string>
     <string name="listen_np_guest_hint">Hanya host yang mengatur pemutaran.</string>
     <string name="listen_copy_code">Salin kode</string>
@@ -827,7 +943,56 @@
     <string name="listen_search_none">Lagu tidak ditemukan</string>
     <string name="listen_request_sent">Terkirim ke antrean host</string>
     <string name="listen_remove_song">Hapus dari antrean</string>
+    <string name="np_info_quality">Kualitas</string>
+    <string name="radio_origin_browser">Radio Browser</string>
+    <string name="radio_origin_collection">Koleksi StarryNight</string>
+    <string name="radio_origin_link">Tautan langsung</string>
+    <string name="radio_origin_from">dari %1$s</string>
+    <string name="quality_youtube_player">Lossy · pemutar YouTube</string>
+    <!-- Pengaturan > Musik online > Kualitas audio -->
+    <string name="audio_quality_title">Kualitas audio</string>
+    <string name="audio_quality_auto">Otomatis</string>
+    <string name="audio_quality_low">Rendah</string>
+    <string name="audio_quality_normal">Normal</string>
+    <string name="audio_quality_high">Tinggi</string>
+    <string name="audio_quality_auto_desc">Mengikuti Hemat data: rendah saat hemat, tertinggi jika tidak</string>
+    <string name="audio_quality_low_desc">Sekitar 48–70 kbps · paling hemat data</string>
+    <string name="audio_quality_normal_desc">Sekitar 128 kbps · seimbang</string>
+    <string name="audio_quality_high_desc">Tertinggi yang tersedia · paling boros data</string>
+    <string name="audio_quality_applies_next">Berlaku mulai lagu berikutnya. File lokal selalu diputar dengan kualitas aslinya.</string>
+    <string name="audio_quality_row_desc">Kualitas streaming untuk YouTube dan radio</string>
+    <!-- Pengaturan > Musik online > Tab pencarian -->
+    <string name="search_tabs_title">Tab pencarian</string>
+    <string name="search_tabs_desc">Pilih tab online yang tampil di layar Cari. Tab Perangkat selalu tampil.</string>
+    <string name="search_tabs_none">Hanya perangkat</string>
+    <string name="source_online">Web</string>
+    <string name="online_archive_hint">Cari di Internet Archive, Audius, Jamendo dan ccMixter, atau tempel link</string>
     <string name="online_src_all">Semua sumber</string>
+    <string name="online_src_archive">Internet Archive</string>
+    <string name="online_src_audius">Audius</string>
+    <string name="online_src_ccmixter">ccMixter</string>
+    <string name="online_src_jamendo">Jamendo</string>
+    <string name="jamendo_key_title">Client ID Jamendo</string>
+    <string name="jamendo_key_hint">Client ID</string>
+    <string name="jamendo_key_msg">Gratis di devportal.jamendo.com (buat aplikasi, salin Client ID-nya). Diperlukan untuk mencari di Jamendo, yang berisi musik Creative Commons berdurasi penuh.</string>
+    <string name="online_need_jamendo_key">Tambahkan Client ID Jamendo di Pengaturan untuk mencari di Jamendo.</string>
+    <string name="online_no_results">Tidak ada hasil.</string>
+    <string name="online_player_not_ready">Pemutar belum siap. Coba lagi.</string>
+    <string name="online_filter_desc">Filter</string>
+    <string name="online_filter_any">Semua durasi</string>
+    <string name="online_filter_1min">Lebih dari 1 mnt</string>
+    <string name="online_filter_3min">Lebih dari 3 mnt</string>
+    <string name="online_filter_az">A–Z</string>
+    <string name="online_filter_lossless">Hanya lossless</string>
+    <string name="online_filter_commercial">Boleh komersial</string>
+    <string name="jamendo_key_not_set">Belum diisi</string>
+    <string name="jamendo_key_set">Sudah diisi</string>
+    <string name="online_source_label">Sumber: %s ▾</string>
+    <string name="online_genre_label">Genre: %s ▾</string>
+    <string name="online_genre_all">Semua</string>
+    <string name="online_source_title">Sumber online</string>
+    <string name="online_genre_title">Genre</string>
+    <string name="online_filter_title">Opsi</string>
     <string name="yt_row_playlist">Playlist</string>
     <string name="yt_row_mix">Mix</string>
     <string name="yt_row_mix_title">Mix – %s</string>
@@ -868,6 +1033,7 @@
     <string name="video_not_available">Lagu ini tidak punya video. Hanya lagu YouTube yang bisa diganti ke video.</string>
     <string name="video_error">Video ini tidak bisa diputar di dalam aplikasi. Membuka YouTube.</string>
     <string name="video_error_file">File video ini tidak bisa diputar.</string>
+    <string name="video_error_tv">Channel ini tidak bisa diputar saat ini.</string>
     <string name="np_video">Ganti ke video</string>
     <string name="quick_action_video">Preview video</string>
     <string name="private_mode_settings_desc">Jangan ingat apa yang kamu putar (riwayat, selera, scrobble).</string>
@@ -878,6 +1044,10 @@
     <string name="video_back_portrait">Kembali ke potret</string>
     <string name="video_error_drive">Video Drive tidak bisa dibuka</string>
     <string name="video_skipped">%d lagu tanpa video dilewati</string>
+    <string name="video_to_music">Beralih ke musik</string>
+    <string name="video_music_unavailable">Hanya video YouTube yang bisa beralih ke musik.</string>
+    <string name="video_music_not_ready">Pemutar musik belum siap. Coba lagi sebentar lagi.</string>
+    <string name="video_timer_set">Video berhenti dalam %d menit.</string>
     <string name="source_tv">TV</string>
     <string name="tv_search_hint">Cari channel atau tempel link M3U</string>
     <string name="tv_source_label">TV: %1$s</string>
@@ -947,6 +1117,26 @@
     <string name="storage_scan_all">Pindai seluruh %1$s</string>
     <string name="storage_added">Folder ditambahkan. Membaca lagu…</string>
     <string name="storage_add_failed">Tidak bisa mengakses folder ini</string>
+    <string name="external_open_failed">Tidak bisa membuka file ini.</string>
+    <string name="folder_new">Buat folder</string>
+    <string name="folder_name_hint">Nama folder</string>
+    <string name="folder_rename">Ganti nama folder</string>
+    <string name="folder_delete">Hapus folder</string>
+    <string name="folder_delete_confirm">Hapus folder “%s”? Playlist di dalamnya tetap ada dan kembali ke daftar utama.</string>
+    <string name="folder_move">Pindah ke folder</string>
+    <string name="folder_move_title">Pindahkan “%s” ke</string>
+    <string name="folder_none">Pindah ke daftar utama</string>
+    <string name="folder_new_item">+ Buat folder</string>
+    <string name="folder_moved">Dipindah ke “%s”</string>
+    <string name="folder_moved_out">Dipindah ke daftar utama</string>
+    <string name="folder_empty">Folder ini kosong. Ketuk + untuk membuat playlist di sini, atau tekan lama sebuah playlist lalu pilih “Pindah ke folder”.</string>
+    <string name="folder_play">Putar</string>
+    <string name="folder_shuffle">Putar acak</string>
+    <string name="folder_no_songs">Tidak ada lagu di folder ini</string>
+    <string name="track_move_playlist">Pindahkan ke playlist lain</string>
+    <string name="track_move_title">Pindahkan “%s” ke…</string>
+    <string name="track_moved">“%1$s” dipindah ke “%2$s”</string>
+    <string name="net_slow_loading">Jaringan lambat, lagu masih dimuat…</string>
     <string name="auto_fullscreen_title">Layar penuh otomatis</string>
     <string name="auto_fullscreen_desc">Menyembunyikan bilah status dan bilah navigasi di semua halaman app. Geser dari tepi atas atau bawah layar untuk menampilkannya sebentar. Halaman video, screensaver, dan alarm tetap memakai pengaturannya sendiri.</string>
     <string name="app_lock_title">Kunci app</string>

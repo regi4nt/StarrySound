@@ -1062,13 +1062,16 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val folderRows = rest.filter { it.kind == ROW_FOLDER }.sortedWith { a, b -> java.text.Collator.getInstance().compare(a.name.trim(), b.name.trim()) }
             val collator = java.text.Collator.getInstance()
             val others = rest.filter { it.kind != ROW_FOLDER && it.kind != ROW_SOURCE }
-            val ordered = sourceRows + folderRows + when (listSort) {
+            // Default order: regular playlists newest first (own playlists are stored oldest first, so reverse them;
+            // YouTube / Device / Drive rows keep their order after them), then the user's own folders, and the
+            // automatic source folders at the very bottom.
+            val ordered = when (listSort) {
                 LSORT_NAME_AZ -> others.sortedWith { a, b -> collator.compare(a.name.trim(), b.name.trim()) }
                 LSORT_NAME_ZA -> others.sortedWith { a, b -> collator.compare(b.name.trim(), a.name.trim()) }
                 LSORT_MOST -> others.sortedByDescending { it.count }
                 LSORT_FEWEST -> others.sortedBy { it.count }
-                else -> others
-            }
+                else -> others.filter { it.kind == ROW_LIST }.asReversed() + others.filter { it.kind != ROW_LIST }
+            } + folderRows + sourceRows
             rowAdapter.submit(pinned + ordered)
             shown = emptyList()
             if (srcView != null) {

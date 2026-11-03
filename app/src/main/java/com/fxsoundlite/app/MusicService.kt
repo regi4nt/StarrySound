@@ -1655,16 +1655,23 @@ class MusicService : MediaBrowserService() {
      * song stayed paused for good. After a loss we look again a few times: once nothing else is playing music and
      * the phone is not in a call, the song continues. Another music app that really took over keeps playing, so we stay out.
      */
-    private fun scheduleLossResume() {
+    private fun scheduleLossResume(permanent: Boolean = false) {
         val my = ++lossToken
-        for (delay in longArrayOf(3_500L, 8_000L, 16_000L)) {
+        // A permanent loss usually means another app took over on purpose: only a notification-length gap is retried
+        // (3.5 s). Waiting longer would start the song by itself when the user pauses that other app a few seconds later.
+        val delays = if (permanent) longArrayOf(3_500L) else longArrayOf(3_500L, 8_000L, 16_000L)
+        for (delay in delays) {
             handler.postDelayed({
                 if (my != lossToken || !resumeAfterLoss || isPlaying || current == null) return@postDelayed
+                if (videoOpen()) return@postDelayed // the video owns the sound now: a gap while it re-opens (rotation, buffering) is not "nothing playing"
                 val idle = audioManager.mode == AudioManager.MODE_NORMAL && !audioManager.isMusicActive
                 if (idle) { resumeAfterLoss = false; resumeOnFocusGain = false; play() }
             }, delay)
         }
     }
+
+    /** True while the full-screen video player is open (it brings its own sound and takes the audio focus). */
+    private fun videoOpen(): Boolean = VideoPlayerActivity.live?.isFinishing == false
 
     private fun onFocusChange(change: Int) {
         when (change) {
@@ -1672,7 +1679,7 @@ class MusicService : MediaBrowserService() {
                 val wasPlaying = isPlaying
                 resumeOnFocusGain = false
                 pause(keepForeground = true)
-                if (wasPlaying) { resumeAfterLoss = true; scheduleLossResume() }
+                if (wasPlaying) { resumeAfterLoss = true; scheduleLossResume(permanent = true) }
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 val wasPlaying = isPlaying
@@ -1688,7 +1695,9 @@ class MusicService : MediaBrowserService() {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 player?.setVolume(1f, 1f)
                 remote?.setVolume(1f)
-                if (resumeOnFocusGain) {
+                // The video player lets go of the focus for a moment when its surface is rebuilt (rotation): the
+                // song must not start under it. The flag stays set, so the song still continues once the video closes.
+                if (resumeOnFocusGain && !videoOpen()) {
                     resumeOnFocusGain = false
                     play()
                 }

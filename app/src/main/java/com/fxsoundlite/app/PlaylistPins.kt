@@ -5,7 +5,7 @@ import android.content.Context
 /**
  * Pinned playlists on the Playlist page (like Spotify): at most [MAX] rows stay on top of the list.
  * Works for own, YouTube and Drive playlists. "Liked songs" is always first and cannot be pinned.
- * Pinned rows sit right below it and above the last played playlist.
+ * Pinned rows sit right below it, followed by the last played playlist.
  * Stored on this device only, as an ordered list of row ids (the first pinned stays first).
  */
 object PlaylistPins {

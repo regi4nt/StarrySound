@@ -6,6 +6,11 @@ import android.content.Intent
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_TIMEZONE_CHANGED || intent.action == Intent.ACTION_TIME_CHANGED) {
+            // The alarm is stored as wall-clock time but armed as an absolute instant: recompute it.
+            WakeAlarm.schedule(context)
+            return
+        }
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             WakeAlarm.schedule(context) // alarms do not survive a reboot
             val mgr = AudioEffectManager(context)

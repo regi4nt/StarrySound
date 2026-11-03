@@ -57,7 +57,7 @@ object PlaylistGenerator {
             try {
                 YouTubeApi.search(context, "${display[a]} official audio", maxResults = 15)
                     .filter { it.durationMs in MIN_MS..MAX_MS && it.key !in likedKeys }
-                    .filter { normArtist(it.artist).let { c -> c.contains(a) || a.contains(c) || normTitle(it.title).contains(a) } }
+                    .filter { normArtist(it.artist).let { c -> c.isNotEmpty() && (c.contains(a) || a.contains(c)) || normTitle(it.title).contains(a) } }
                     .toMutableList()
             } catch (e: Exception) {
                 mutableListOf()

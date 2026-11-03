@@ -79,13 +79,14 @@ class LinkDownloadActivity : AppCompatActivity() {
         val link = LinkDownloader.linkIn(input.text.toString())
         (getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager)?.hideSoftInputFromWindow(input.windowToken, 0)
         result.visibility = View.GONE
+        val my = ++token // also invalidates any lookup still in flight
         if (link == null) {
+            progress.visibility = View.INVISIBLE
             showMessage(getString(R.string.link_download_invalid))
             return
         }
         showMessage(null)
         progress.visibility = View.VISIBLE
-        val my = ++token
         try {
             io.execute {
                 val info = try { LinkDownloader.resolve(link) } catch (e: Throwable) { android.util.Log.d("LinkDownload", "resolve failed: $e"); null }
