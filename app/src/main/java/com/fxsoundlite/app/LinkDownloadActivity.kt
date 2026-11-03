@@ -38,6 +38,7 @@ class LinkDownloadActivity : AppCompatActivity() {
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_link_download)
+        AppNavBar.attach(this)
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
         findViewById<View>(R.id.linkPaste).setOnClickListener { paste(go = true) }
         findViewById<View>(R.id.linkGo).setOnClickListener { check() }

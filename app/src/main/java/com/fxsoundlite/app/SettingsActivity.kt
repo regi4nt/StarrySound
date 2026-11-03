@@ -205,6 +205,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        AppNavBar.attach(this)
 
         binding.backButton.setOnClickListener { if (page != PAGE_HUB) showPage(PAGE_HUB, true) else finish() }
         onBackPressedDispatcher.addCallback(this, backToCards)

@@ -102,6 +102,7 @@ class SongDetectActivity : AppCompatActivity() {
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_song_detect)
+        AppNavBar.attach(this)
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
         bound = applicationContext.bindService(
             Intent(applicationContext, MusicService::class.java), connection, Context.BIND_AUTO_CREATE

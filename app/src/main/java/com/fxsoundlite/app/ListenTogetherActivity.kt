@@ -114,6 +114,7 @@ class ListenTogetherActivity : AppCompatActivity(), MusicService.Listener {
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(cBg))
 
         setContentView(buildFrame())
+        AppNavBar.attach(this)
         wasActive = ListenTogether.active
     }
 

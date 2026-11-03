@@ -44,6 +44,7 @@ class WrappedActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWrappedBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        AppNavBar.attach(this)
 
         binding.backButton.setOnClickListener { finish() }
         binding.tabMonthly.setOnClickListener { if (yearly) { yearly = false; refresh() } }

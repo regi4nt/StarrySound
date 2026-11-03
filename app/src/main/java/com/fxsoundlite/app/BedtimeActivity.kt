@@ -133,6 +133,7 @@ class BedtimeActivity : AppCompatActivity() {
         ThemeHelper.applyAccent(this)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_bedtime)
+        AppNavBar.attach(this)
         minutes = prefs.getInt(KEY_MINUTES, 30)
         findViewById<View>(R.id.backButton).setOnClickListener { finish() }
         alarmPanel = AlarmPanel(this, findViewById(R.id.alarmPanel))

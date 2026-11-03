@@ -51,6 +51,9 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
          *  the fragment consumes it, see MusicFragment.applyLaunchRequest(). */
         @Volatile var pendingMusicSearch: Int? = null
 
+        /** Sent by the nav bar of the screens opened on top of the pager (AppNavBar): jump to this page (PAGE_*). */
+        const val EXTRA_PAGE = "com.fxsoundlite.app.EXTRA_PAGE"
+
         const val PAGE_HOME = 0
         const val PAGE_MUSIC = 1
         const val PAGE_PLAYLIST = 2
@@ -370,7 +373,9 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
      *  cleared afterwards so a later recreate() (rotation, accent change) doesn't jump again. */
     private fun handleLaunchIntent(launchIntent: Intent?) {
         val launch = launchIntent ?: return
-        val page = when (launch.action) {
+        val navPage = launch.getIntExtra(EXTRA_PAGE, -1).takeIf { it in PAGE_HOME..PAGE_SCREENSAVER }
+        launch.removeExtra(EXTRA_PAGE)
+        val page = navPage ?: when (launch.action) {
             ACTION_OPEN_SCREENSAVER -> PAGE_SCREENSAVER
             ACTION_OPEN_QUICK -> PAGE_QUICK
             ACTION_OPEN_PLAYLIST -> PAGE_PLAYLIST

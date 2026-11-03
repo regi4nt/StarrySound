@@ -85,12 +85,13 @@ class WebVideoActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityWebVideoBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        AppNavBar.attach(this)
 
         // The page has its own sound: never play it on top of the music.
         MusicService.instance?.let { if (it.isPlaying) it.pause() }
 
         setupWebView()
-        binding.webClose.setOnClickListener { finish() }
+        binding.webClose.setOnClickListener { onBackPressedDispatcher.onBackPressed() } // same as the Back button
         binding.webReload.setOnClickListener {
             if (loading) binding.webView.stopLoading() else if (!onHome) binding.webView.reload()
         }
@@ -116,8 +117,7 @@ class WebVideoActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this) {
             when {
                 customView != null -> hideCustomView()
-                !onHome && binding.webView.canGoBack() -> binding.webView.goBack()
-                !onHome -> showHome()
+                !onHome -> showHome() // Back from any page: straight to the start page (saved + recent sites), no step-by-step
                 else -> finish()
             }
         }
@@ -202,6 +202,7 @@ class WebVideoActivity : AppCompatActivity() {
                 )
                 binding.webFullscreen.visibility = View.VISIBLE
                 binding.webMain.visibility = View.GONE
+                AppNavBar.setShown(this@WebVideoActivity, false) // no nav bar over a fullscreen video
                 enterFullscreen()
             }
 
@@ -231,6 +232,7 @@ class WebVideoActivity : AppCompatActivity() {
         binding.webFullscreen.removeView(v)
         binding.webFullscreen.visibility = View.GONE
         binding.webMain.visibility = View.VISIBLE
+        AppNavBar.setShown(this, true)
         requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // With "Automatic full screen" on, the bars stay hidden; otherwise they come back.

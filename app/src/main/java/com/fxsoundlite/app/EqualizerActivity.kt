@@ -77,6 +77,7 @@ class EqualizerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityEqualizerBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        AppNavBar.attach(this)
         binding.backButton.setOnClickListener { finish() }
     }
 
