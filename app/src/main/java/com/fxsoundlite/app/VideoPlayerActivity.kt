@@ -385,6 +385,7 @@ class VideoPlayerActivity : AppCompatActivity() {
 
     override fun onStop() {
         binding.vpBgAnimated.stop() // no animation loop while off screen
+        stopBgVideo() // no video decoding while off screen; onStart loads it again
         if (musicBound) { musicBound = false; unbindService(musicConn) }
         super.onStop()
         // The X of the PiP window: on some Android versions the mode change arrives before onStop (page still
@@ -561,7 +562,7 @@ class VideoPlayerActivity : AppCompatActivity() {
      * the controls lie over it (tap to show / hide).
      */
     private fun applyOrientation() {
-        if (inPip) { applyPipLayout(); return }
+        if (inPip) { applyPipLayout(); applyPlayerBackground(); return }
         val land = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val immersive = land || full
         val controller = WindowInsetsControllerCompat(window, window.decorView)
@@ -585,6 +586,7 @@ class VideoPlayerActivity : AppCompatActivity() {
         else binding.vpRoot.setBackgroundColor(color(R.attr.colorBg))
         placeControls(immersive)
         applyVideoSize()
+        applyPlayerBackground() // the Screensaver background only shows in portrait
     }
 
     /** Top-left button in landscape / full screen: always returns to portrait. */
@@ -811,25 +813,145 @@ class VideoPlayerActivity : AppCompatActivity() {
         binding.vpTouch.layoutParams = tl
     }
 
-    /** Same player background as the music player: the Screensaver's animated style, or the plain theme colour. */
+    private var bgToken = 0
+    private var bgImageUri: String? = null
+    private var bgVideoUri: String? = null // the video currently loaded into vpBgVideo (null = none)
+    private val bgExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
+
+    /**
+     * Same player background as the music player: plain theme colour, or whatever the Screensaver page uses
+     * (an animated style, a picked photo or a picked video). The video loops muted while the player is on screen;
+     * [onStop] stops it. Hidden in landscape / full screen / PiP, where the video fills the screen on black.
+     */
     private fun applyPlayerBackground() {
+        val b = binding
+        bgToken++
+        val token = bgToken
         val bgOn = MusicPrefs.playerBgScreensaver(this)
-        binding.vpBg.imageTintList = ColorStateList.valueOf(if (bgOn) themeAccent() else color(R.attr.colorTextSecondary))
-        val animated = bgOn && ScreensaverPrefs.mediaType(this) == ScreensaverPrefs.TYPE_ANIMATED
-        if (!animated) {
-            binding.vpBgAnimated.stop()
-            binding.vpBgAnimated.visibility = View.GONE
+        b.vpBg.imageTintList = ColorStateList.valueOf(if (bgOn) themeAccent() else color(R.attr.colorTextSecondary))
+        val showBg = bgOn && !inPip &&
+            resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE && !full
+        val type = ScreensaverPrefs.mediaType(this)
+        val uri = ScreensaverPrefs.videoUri(this)
+        val wantsAnimated = showBg && type == ScreensaverPrefs.TYPE_ANIMATED
+        val wantsImage = showBg && type == ScreensaverPrefs.TYPE_IMAGE && !uri.isNullOrBlank()
+        val wantsVideo = showBg && type == ScreensaverPrefs.TYPE_VIDEO && !uri.isNullOrBlank()
+
+        if (!wantsImage) {
+            b.vpBgImage.visibility = View.GONE
+            b.vpBgImage.setImageDrawable(null)
+            bgImageUri = null
+        }
+        if (!wantsAnimated) {
+            b.vpBgAnimated.stop()
+            b.vpBgAnimated.visibility = View.GONE
+        }
+        if (!wantsVideo) stopBgVideo()
+
+        if (wantsVideo) { startBgVideo(uri!!); return }
+        if (wantsAnimated) {
+            b.vpBgAnimated.style = when (ScreensaverPrefs.animatedStyle(this)) {
+                ScreensaverPrefs.STYLE_RAIN -> SleepBackgroundView.Style.RAIN
+                ScreensaverPrefs.STYLE_STARFIELD -> SleepBackgroundView.Style.STARFIELD
+                ScreensaverPrefs.STYLE_WATER -> SleepBackgroundView.Style.WATER
+                else -> SleepBackgroundView.Style.NIGHT_SKY
+            }
+            b.vpBgAnimated.visibility = View.VISIBLE
+            b.vpBgAnimated.start()
             return
         }
-        binding.vpBgAnimated.style = when (ScreensaverPrefs.animatedStyle(this)) {
-            ScreensaverPrefs.STYLE_RAIN -> SleepBackgroundView.Style.RAIN
-            ScreensaverPrefs.STYLE_STARFIELD -> SleepBackgroundView.Style.STARFIELD
-            ScreensaverPrefs.STYLE_WATER -> SleepBackgroundView.Style.WATER
-            else -> SleepBackgroundView.Style.NIGHT_SKY
+        if (!wantsImage) return
+        // Photo: decode off the main thread, shrunk to about the screen size.
+        if (uri == bgImageUri && b.vpBgImage.drawable != null) {
+            b.vpBgImage.visibility = View.VISIBLE
+            return
         }
-        binding.vpBgAnimated.visibility = View.VISIBLE
-        binding.vpBgAnimated.start()
+        bgImageUri = uri
+        val dm = resources.displayMetrics
+        val app = applicationContext
+        bgExecutor.execute {
+            val bmp = decodeBackground(app, Uri.parse(uri), dm.widthPixels, dm.heightPixels)
+            handler.post {
+                if (isDestroyed || token != bgToken) return@post
+                if (bmp == null) { bgImageUri = null; return@post }
+                b.vpBgImage.setImageBitmap(bmp)
+                b.vpBgImage.visibility = View.VISIBLE
+            }
+        }
     }
+
+    /** Plays the Screensaver video as the player background: looping, muted, never touching audio focus. */
+    private fun startBgVideo(uri: String) {
+        val v = binding.vpBgVideo
+        if (uri == bgVideoUri && v.visibility == View.VISIBLE) {
+            if (!v.isPlaying) v.start()
+            return
+        }
+        bgVideoUri = uri
+        v.visibility = View.VISIBLE
+        // VideoView grabs audio focus on start(), which would pause / duck the playback even though it is muted.
+        v.setAudioFocusRequest(AudioManager.AUDIOFOCUS_NONE)
+        v.setOnPreparedListener { mp ->
+            mp.isLooping = true
+            mp.setVolume(0f, 0f)
+            scaleBgVideoToCover(mp.videoWidth, mp.videoHeight)
+            v.start()
+        }
+        v.setOnErrorListener { _, _, _ ->
+            stopBgVideo()
+            Toast.makeText(this, R.string.background_load_failed, Toast.LENGTH_LONG).show()
+            true
+        }
+        try {
+            v.setVideoURI(Uri.parse(uri))
+        } catch (e: Exception) {
+            stopBgVideo()
+        }
+    }
+
+    private fun stopBgVideo() {
+        val v = binding.vpBgVideo
+        bgVideoUri = null
+        if (v.visibility == View.VISIBLE || v.isPlaying) {
+            try { v.stopPlayback() } catch (e: Exception) { android.util.Log.d("VideoPlayer", "ignored: " + e) }
+        }
+        v.visibility = View.GONE // a hidden SurfaceView cannot leave a frozen frame behind
+    }
+
+    /** Like CSS "background-size: cover": the VideoView fills the screen and the overflow is cropped. */
+    private fun scaleBgVideoToCover(videoWidth: Int, videoHeight: Int) {
+        if (videoWidth <= 0 || videoHeight <= 0) return
+        val v = binding.vpBgVideo
+        val dm = resources.displayMetrics
+        val w = binding.vpRoot.width.takeIf { it > 0 } ?: dm.widthPixels
+        val h = binding.vpRoot.height.takeIf { it > 0 } ?: dm.heightPixels
+        val scale = maxOf(w.toFloat() / videoWidth, h.toFloat() / videoHeight)
+        val lp = v.layoutParams
+        lp.width = (videoWidth * scale).toInt()
+        lp.height = (videoHeight * scale).toInt()
+        v.layoutParams = lp
+    }
+
+    private fun decodeBackground(ctx: Context, uri: Uri, reqW: Int, reqH: Int): android.graphics.Bitmap? = try {
+        fun sample(w: Int, h: Int): Int {
+            var s = 1
+            while (w / (s * 2) >= reqW && h / (s * 2) >= reqH) s *= 2
+            return s
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val src = android.graphics.ImageDecoder.createSource(ctx.contentResolver, uri)
+            android.graphics.ImageDecoder.decodeBitmap(src) { dec, info, _ ->
+                dec.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+                val s = sample(info.size.width, info.size.height)
+                if (s > 1) dec.setTargetSampleSize(s)
+            }
+        } else {
+            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            ctx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, bounds) }
+            val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample(bounds.outWidth, bounds.outHeight) }
+            ctx.contentResolver.openInputStream(uri)?.use { android.graphics.BitmapFactory.decodeStream(it, null, opts) }
+        }
+    } catch (e: Throwable) { null }
 
     // ------------------------------------------------------------------ sources
 
@@ -1648,6 +1770,7 @@ class VideoPlayerActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        bgExecutor.shutdown()
         if (live === this) live = null
         if (listenGuest && !syncClosing) queue.getOrNull(index)?.let {
             ListenTogether.guestVideoClosed(if (it.source == Track.SOURCE_TV) "u:" + it.remoteId else it.remoteId)

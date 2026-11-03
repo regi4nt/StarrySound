@@ -9,7 +9,23 @@
     android:layout_height="match_parent"
     android:background="?attr/colorBg">
 
-    <!-- Same optional background as the music player (Screensaver animated style). -->
+    <!-- Same optional background as the music player: the Screensaver's looping muted video, picked photo or animated
+         style (see VideoPlayerActivity.applyPlayerBackground). -->
+    <VideoView
+        android:id="@+id/vpBgVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/vpBgImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:importantForAccessibility="no"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
     <com.fxsoundlite.app.SleepBackgroundView
         android:id="@+id/vpBgAnimated"
         android:layout_width="match_parent"
