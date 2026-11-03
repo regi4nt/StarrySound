@@ -134,17 +134,19 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         MusicService.removeGlobalListener(this)
         handler.removeCallbacks(tick)
         binding.npBgAnimated.stop() // no animation loop while the player is off screen
+        stopBgVideo() // no video decoding while the player is off screen; onStart loads it again
         stopCoverLoop()
         super.onStop()
     }
 
     private var bgToken = 0
     private var bgImageUri: String? = null
+    private var bgVideoUri: String? = null // the video currently loaded into npBgVideo (null = none)
 
     /**
      * Player background: plain theme colour, or whatever the Screensaver page uses (an animated
-     * style, or a picked photo). A picked video is not played here (it would keep decoding behind
-     * the player), so that case stays plain.
+     * style, a picked photo or a picked video). The video loops muted for as long as the player is on
+     * screen; [onStop] stops it so nothing keeps decoding behind other apps.
      */
     /** True while the Screensaver's animated style / photo is the player background (shown without any filter). */
     private var screensaverBgShown = false
@@ -161,6 +163,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         val uri = ScreensaverPrefs.videoUri(this)
         val wantsAnimated = MusicPrefs.playerBgScreensaver(this) && type == ScreensaverPrefs.TYPE_ANIMATED
         val wantsImage = MusicPrefs.playerBgScreensaver(this) && type == ScreensaverPrefs.TYPE_IMAGE && !uri.isNullOrBlank()
+        val wantsVideo = MusicPrefs.playerBgScreensaver(this) && type == ScreensaverPrefs.TYPE_VIDEO && !uri.isNullOrBlank()
 
         if (!wantsImage) {
             b.npBgImage.visibility = View.GONE
@@ -171,13 +174,19 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
             b.npBgAnimated.stop()
             b.npBgAnimated.visibility = View.GONE
         }
+        if (!wantsVideo) stopBgVideo()
         // The Screensaver background is shown as it is: no dimming / white filter over it.
         b.npBgScrim.visibility = View.GONE
-        if (!wantsAnimated && !wantsImage) {
+        if (!wantsAnimated && !wantsImage && !wantsVideo) {
             screensaverBgShown = false
             return
         }
         screensaverBgShown = true
+
+        if (wantsVideo) {
+            startBgVideo(uri!!)
+            return
+        }
 
         if (wantsAnimated) {
             b.npBgAnimated.style = when (ScreensaverPrefs.animatedStyle(this)) {
@@ -212,6 +221,63 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 b.npBgImage.visibility = View.VISIBLE
             }
         }
+    }
+
+    /** Plays the Screensaver video as the player background: looping, muted, never touching audio focus. */
+    private fun startBgVideo(uri: String) {
+        val v = binding.npBgVideo
+        if (uri == bgVideoUri && v.visibility == View.VISIBLE) { // already loaded (e.g. the toggle was tapped twice)
+            if (!v.isPlaying) v.start()
+            return
+        }
+        bgVideoUri = uri
+        v.visibility = View.VISIBLE
+        // VideoView grabs audio focus on start(), which would pause / duck the music even though the video is muted.
+        v.setAudioFocusRequest(android.media.AudioManager.AUDIOFOCUS_NONE)
+        v.setOnPreparedListener { mp ->
+            mp.isLooping = true
+            mp.setVolume(0f, 0f) // the video's own sound is never played
+            scaleBgVideoToCover(mp.videoWidth, mp.videoHeight)
+            v.start()
+        }
+        v.setOnErrorListener { _, _, _ ->
+            // Picked video became unreadable (moved, permission revoked, codec issue): back to the plain background.
+            stopBgVideo()
+            screensaverBgShown = false
+            syncWash()
+            Toast.makeText(this, R.string.background_load_failed, Toast.LENGTH_LONG).show()
+            true
+        }
+        try {
+            v.setVideoURI(android.net.Uri.parse(uri))
+        } catch (e: Exception) {
+            stopBgVideo()
+            screensaverBgShown = false
+            syncWash()
+        }
+    }
+
+    private fun stopBgVideo() {
+        val v = binding.npBgVideo
+        bgVideoUri = null
+        if (v.visibility == View.VISIBLE || v.isPlaying) {
+            try { v.stopPlayback() } catch (e: Exception) { android.util.Log.d("NowPlaying", "ignored: " + e) }
+        }
+        v.visibility = View.GONE // a hidden SurfaceView cannot leave a frozen frame behind
+    }
+
+    /** Like CSS "background-size: cover": scales the VideoView so the video fills the screen and the overflow is cropped. */
+    private fun scaleBgVideoToCover(videoWidth: Int, videoHeight: Int) {
+        if (videoWidth <= 0 || videoHeight <= 0) return
+        val v = binding.npBgVideo
+        val dm = resources.displayMetrics
+        val w = binding.root.width.takeIf { it > 0 } ?: dm.widthPixels
+        val h = binding.root.height.takeIf { it > 0 } ?: dm.heightPixels
+        val scale = maxOf(w.toFloat() / videoWidth, h.toFloat() / videoHeight)
+        val lp = v.layoutParams
+        lp.width = (videoWidth * scale).toInt()
+        lp.height = (videoHeight * scale).toInt()
+        v.layoutParams = lp
     }
 
     private fun decodeBackground(ctx: Context, uri: android.net.Uri, reqW: Int, reqH: Int): android.graphics.Bitmap? = try {

@@ -5,6 +5,15 @@
     android:layout_height="match_parent"
     android:background="?attr/colorBg">
 
+    <!-- Optional player background: the Screensaver's looping, muted video. Sized in code to fill the screen
+         (center-crop); stopped and hidden while the player is off screen (see NowPlayingActivity.applyPlayerBackground). -->
+    <VideoView
+        android:id="@+id/npBgVideo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
     <!-- Optional player background: the Screensaver's picture / animated style (see NowPlayingActivity.applyPlayerBackground). -->
     <ImageView
         android:id="@+id/npBgImage"
