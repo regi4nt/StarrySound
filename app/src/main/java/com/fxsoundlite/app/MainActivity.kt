@@ -146,6 +146,9 @@ class MainActivity : AppCompatActivity(), MusicService.Listener {
         binding.mainPager.setPageTransformer { page, position ->
             page.translationX = -position * page.width
             page.alpha = (1f - kotlin.math.abs(position)).coerceIn(0f, 1f)
+            // All pages sit on top of each other now, and a transparent view still takes touches: hide the pages
+            // that are not showing, otherwise the last one (Screensaver) swallows every tap and swipe.
+            page.visibility = if (kotlin.math.abs(position) < 1f) android.view.View.VISIBLE else android.view.View.INVISIBLE
         }
         onBackPressedDispatcher.addCallback(this, pageBackCallback)
         onBackPressedDispatcher.addCallback(this, lockBackCallback)
