@@ -45,6 +45,14 @@ object QuickBar {
         return p.getString(KEY, "").orEmpty().split(',').mapNotNull { Item.fromId(it.trim()) }.distinct()
     }
 
+    private const val KEY_HIDDEN = "hidden"
+
+    /** The whole bar (AI chat, chat, themes and the pencil) switched off from the Quick page's three-dot menu. */
+    fun hidden(c: Context): Boolean = prefs(c).getBoolean(KEY_HIDDEN, false)
+
+    /** One switch for every shortcut; the chosen shortcuts and their order are kept for when it is switched on again. */
+    fun setHidden(c: Context, v: Boolean) = prefs(c).edit().putBoolean(KEY_HIDDEN, v).apply()
+
     private fun save(c: Context, items: List<Item>) {
         prefs(c).edit().putString(KEY, items.joinToString(",") { it.id }).apply()
     }
@@ -54,6 +62,8 @@ object QuickBar {
     /** Fills [host] (the bar's row, as wide as the screen) with the chips: they share the width equally. */
     fun render(host: LinearLayout, a: Activity) {
         host.removeAllViews()
+        host.visibility = if (hidden(a)) View.GONE else View.VISIBLE
+        if (hidden(a)) return
         enabled(a).forEach { item ->
             host.addView(chip(a, item.iconRes, a.getString(item.labelRes)) { open(a, item) })
         }

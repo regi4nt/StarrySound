@@ -1294,6 +1294,7 @@
     <string name="quickbar_theme">Tema</string>
     <string name="quickbar_edit">Atur bar</string>
     <string name="quickbar_edit_title">Atur bar Quick</string>
+    <string name="quickbar_toggle_all">Tampilkan bar (Chat AI, Chat, Tema)</string>
     <string name="quickbar_edit_hint">Centang menu yang ingin tampil di bar, lalu geser urutannya dengan tanda panah.</string>
     <string name="aichat_title">Chat AI</string>
     <string name="aichat_hint">Tulis pesan…</string>

@@ -48,6 +48,7 @@ class QuickFragment : Fragment(), QuickActions {
         private const val MENU_INFO = 3
         private const val MENU_LYRICS = 4
         private const val MENU_VOLUME = 5
+        private const val MENU_BAR = 6
         private const val TICK_MS = 250L
 
         // Survives the fragment being re-created (rotation, accent change) within the process.
@@ -758,13 +759,18 @@ class QuickFragment : Fragment(), QuickActions {
         val t = feed.getOrNull(pos) ?: return
         val popup = android.widget.PopupMenu(requireContext(), anchor, android.view.Gravity.END)
         popup.menu.add(0, MENU_VOLUME, 0, R.string.quick_volume)
-        popup.menu.add(0, MENU_LYRICS, 1, R.string.quick_lyrics_toggle).apply {
+        // One tick for the whole bar under the title (AI chat, chat, themes).
+        popup.menu.add(0, MENU_BAR, 1, R.string.quickbar_toggle_all).apply {
+            isCheckable = true
+            isChecked = !QuickBar.hidden(requireContext())
+        }
+        popup.menu.add(0, MENU_LYRICS, 2, R.string.quick_lyrics_toggle).apply {
             isCheckable = true
             isChecked = MusicPrefs.quickLyrics(requireContext())
         }
-        if (SongDownloader.canDownload(t)) popup.menu.add(0, MENU_DOWNLOAD, 2, R.string.np_download)
-        popup.menu.add(0, MENU_SHARE, 3, R.string.np_share)
-        popup.menu.add(0, MENU_INFO, 4, R.string.np_info)
+        if (SongDownloader.canDownload(t)) popup.menu.add(0, MENU_DOWNLOAD, 3, R.string.np_download)
+        popup.menu.add(0, MENU_SHARE, 4, R.string.np_share)
+        popup.menu.add(0, MENU_INFO, 5, R.string.np_info)
         popup.setOnMenuItemClickListener {
             when (it.itemId) {
                 MENU_VOLUME -> showVolumeDialog()
@@ -772,6 +778,10 @@ class QuickFragment : Fragment(), QuickActions {
                 MENU_DOWNLOAD -> downloadReel(pos)
                 MENU_SHARE -> shareReel(pos)
                 MENU_INFO -> showSongInfo(pos)
+                MENU_BAR -> activity?.let { act ->
+                    QuickBar.setHidden(act, it.isChecked) // it was ticked: now off
+                    _binding?.let { b -> QuickBar.render(b.quickBarRow, act) }
+                }
             }
             true
         }

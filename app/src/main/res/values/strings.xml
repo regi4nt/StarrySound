@@ -1303,6 +1303,7 @@
     <string name="quickbar_theme">Themes</string>
     <string name="quickbar_edit">Edit bar</string>
     <string name="quickbar_edit_title">Edit Quick bar</string>
+    <string name="quickbar_toggle_all">Show bar (AI Chat, Chat, Themes)</string>
     <string name="quickbar_edit_hint">Tick what should show in the bar and move it with the arrows.</string>
     <string name="aichat_title">AI Chat</string>
     <string name="aichat_hint">Write a message…</string>
