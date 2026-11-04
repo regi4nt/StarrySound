@@ -926,7 +926,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         }
     } catch (e: Exception) { null }
 
-    private fun songCount(n: Int) = resources.getQuantityString(R.plurals.music_song_count, n, n)
+    private fun songCount(n: Int) = resources.getQuantityString(R.plurals.playlist_file_count, n, n)
 
     private fun refresh() {
         val b = _binding ?: return

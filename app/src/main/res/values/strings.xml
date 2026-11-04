@@ -150,6 +150,10 @@
         <item quantity="one">%d song</item>
         <item quantity="other">%d songs</item>
     </plurals>
+    <plurals name="playlist_file_count">
+        <item quantity="one">%d file</item>
+        <item quantity="other">%d files</item>
+    </plurals>
     <string name="music_search_hint">Search songs, artists, albums</string>
     <string name="video_search_hint">Search videos</string>
     <string name="music_need_permission">Allow access to audio files so StarrySound can show and play the music on this device.</string>

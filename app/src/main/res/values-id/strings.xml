@@ -145,6 +145,9 @@
     <plurals name="music_song_count">
         <item quantity="other">%d lagu</item>
     </plurals>
+    <plurals name="playlist_file_count">
+        <item quantity="other">%d file</item>
+    </plurals>
     <string name="music_search_hint">Cari lagu, artis, album</string>
     <string name="video_search_hint">Cari video</string>
     <string name="music_need_permission">Izinkan akses ke file audio agar StarrySound bisa menampilkan dan memutar musik di perangkat ini.</string>
