@@ -129,11 +129,13 @@
         <activity
             android:name=".AiChatActivity"
             android:exported="false"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:label="@string/aichat_title"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".RoomChatActivity"
             android:exported="false"
+            android:theme="@style/Theme.FXSoundLite.NoAnim"
             android:label="@string/roomchat_title"
             android:windowSoftInputMode="adjustResize" />
 
