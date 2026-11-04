@@ -63,6 +63,25 @@
             android:tint="#FFFFFF" />
     </LinearLayout>
 
+    <!-- Customizable shortcut bar (chat, theme catalog, ...): filled by QuickBar, edited with the pencil at its end. -->
+    <HorizontalScrollView
+        android:id="@+id/quickBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginTop="66dp"
+        android:overScrollMode="never"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/quickBarRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="18dp"
+            android:paddingEnd="10dp" />
+    </HorizontalScrollView>
+
     <ProgressBar
         android:id="@+id/quickLoading"
         android:layout_width="40dp"

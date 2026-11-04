@@ -768,6 +768,15 @@ class MusicService : MediaBrowserService() {
         if (intent?.action == MediaBrowserService.SERVICE_INTERFACE) super.onBind(intent) else binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // startForegroundService() callers send a plain Intent with no action. Android crashes the app
+        // unless startForeground() follows within ~5 s, even when nothing is playing yet.
+        if (intent?.action == null) {
+            goForeground()
+            if (current == null) { // nothing to play: satisfy the contract, then drop the notification
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                foregroundActive = false
+            }
+        }
         when (intent?.action) {
             ACTION_PLAY_PAUSE -> togglePlayPause()
             ACTION_NEXT -> next()
@@ -1916,6 +1925,7 @@ class MusicService : MediaBrowserService() {
         } catch (e: Exception) {
             // Not allowed to promote right now (rare background-start restriction):
             // playback still works while the app is open.
+            android.util.Log.w("MusicService", "startForeground failed", e)
             foregroundActive = false
         }
     }

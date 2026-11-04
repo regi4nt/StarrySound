@@ -1292,4 +1292,40 @@
     <string name="select_playlists_moved">%d playlists moved</string>
     <string name="select_playlists_delete_confirm">Delete %d playlists? Their songs are deleted with them.</string>
     <string name="select_playlists_deleted">%d playlists deleted</string>
+
+    <!-- Quick bar, chat and theme catalog -->
+    <string name="quickbar_chat_ai">AI Chat</string>
+    <string name="quickbar_chat_room">Chat</string>
+    <string name="quickbar_theme">Themes</string>
+    <string name="quickbar_equalizer">Equalizer</string>
+    <string name="quickbar_sleep">Sleep</string>
+    <string name="quickbar_detect">Detect song</string>
+    <string name="quickbar_edit">Edit bar</string>
+    <string name="quickbar_edit_title">Edit Quick bar</string>
+    <string name="quickbar_edit_hint">Tick what should show in the bar and move it with the arrows.</string>
+    <string name="aichat_title">AI Chat</string>
+    <string name="aichat_hint">Write a message…</string>
+    <string name="aichat_empty">Ask the AI anything about music. It uses the AI key from Settings.</string>
+    <string name="aichat_send">Send</string>
+    <string name="aichat_clear">Clear chat</string>
+    <string name="aichat_clear_confirm">Delete this whole conversation?</string>
+    <string name="aichat_thinking">Typing…</string>
+    <string name="roomchat_title">Chat</string>
+    <string name="roomchat_room_title">Chat · %1$s</string>
+    <string name="roomchat_intro">Chat with other people in a room. Make a room and share its code, or enter a code you got. Inside a Listen together room, its chat opens automatically.</string>
+    <string name="roomchat_create">Make a chat room</string>
+    <string name="roomchat_join">Join</string>
+    <string name="roomchat_code_hint">Room code</string>
+    <string name="roomchat_hint">Write a message…</string>
+    <string name="roomchat_leave">Leave chat</string>
+    <string name="roomchat_you">You</string>
+    <string name="roomchat_anon">Guest %1$s</string>
+    <string name="roomchat_send_failed">Message not sent</string>
+    <string name="theme_catalog_title">Theme catalog</string>
+    <string name="theme_catalog_bundle">Bundles</string>
+    <string name="theme_catalog_bundle_sub">Theme, accent and Screensaver background in one tap</string>
+    <string name="theme_catalog_scene">Theme</string>
+    <string name="theme_catalog_accent">Accent</string>
+    <string name="theme_catalog_screensaver">Screensaver</string>
+    <string name="theme_catalog_touch">Screensaver touch</string>
 </resources>

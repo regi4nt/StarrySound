@@ -1284,4 +1284,40 @@
     <string name="select_playlists_moved">%d playlist dipindahkan</string>
     <string name="select_playlists_delete_confirm">Hapus %d playlist? Lagu-lagunya ikut terhapus.</string>
     <string name="select_playlists_deleted">%d playlist dihapus</string>
+
+    <!-- Bar Quick, chat dan katalog tema -->
+    <string name="quickbar_chat_ai">Chat AI</string>
+    <string name="quickbar_chat_room">Chat</string>
+    <string name="quickbar_theme">Tema</string>
+    <string name="quickbar_equalizer">Equalizer</string>
+    <string name="quickbar_sleep">Tidur</string>
+    <string name="quickbar_detect">Kenali lagu</string>
+    <string name="quickbar_edit">Atur bar</string>
+    <string name="quickbar_edit_title">Atur bar Quick</string>
+    <string name="quickbar_edit_hint">Centang menu yang ingin tampil di bar, lalu geser urutannya dengan tanda panah.</string>
+    <string name="aichat_title">Chat AI</string>
+    <string name="aichat_hint">Tulis pesan…</string>
+    <string name="aichat_empty">Tanyakan apa saja soal musik ke AI. Memakai kunci AI dari Pengaturan.</string>
+    <string name="aichat_send">Kirim</string>
+    <string name="aichat_clear">Hapus percakapan</string>
+    <string name="aichat_clear_confirm">Hapus seluruh percakapan ini?</string>
+    <string name="aichat_thinking">Sedang mengetik…</string>
+    <string name="roomchat_title">Chat</string>
+    <string name="roomchat_room_title">Chat · %1$s</string>
+    <string name="roomchat_intro">Ngobrol dengan orang lain di sebuah ruang. Buat ruang lalu bagikan kodenya, atau masukkan kode yang kamu terima. Di dalam ruang Dengar bareng, chat ruang itu terbuka otomatis.</string>
+    <string name="roomchat_create">Buat ruang chat</string>
+    <string name="roomchat_join">Gabung</string>
+    <string name="roomchat_code_hint">Kode ruang</string>
+    <string name="roomchat_hint">Tulis pesan…</string>
+    <string name="roomchat_leave">Keluar dari chat</string>
+    <string name="roomchat_you">Kamu</string>
+    <string name="roomchat_anon">Tamu %1$s</string>
+    <string name="roomchat_send_failed">Pesan tidak terkirim</string>
+    <string name="theme_catalog_title">Katalog tema</string>
+    <string name="theme_catalog_bundle">Paket</string>
+    <string name="theme_catalog_bundle_sub">Tema, aksen, dan latar screensaver sekaligus dalam satu ketukan</string>
+    <string name="theme_catalog_scene">Tema</string>
+    <string name="theme_catalog_accent">Aksen</string>
+    <string name="theme_catalog_screensaver">Screensaver</string>
+    <string name="theme_catalog_touch">Sentuhan screensaver</string>
 </resources>

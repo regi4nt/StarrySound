@@ -229,7 +229,7 @@ object AiRecommender {
         }
     }
 
-    private fun post(url: String, headers: Map<String, String>, body: String): Http.Response {
+    internal fun post(url: String, headers: Map<String, String>, body: String): Http.Response {
         val r = try {
             Http.request("POST", url, headers, body, "application/json", readTimeoutMs = 60_000)
         } catch (e: java.io.IOException) {

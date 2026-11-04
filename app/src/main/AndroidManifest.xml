@@ -125,6 +125,18 @@
             android:label="@string/listen_title"
             android:windowSoftInputMode="adjustResize" />
 
+        <!-- Quick bar: chat with the AI (Settings > AI key) and chat with people (rooms like Listen together). -->
+        <activity
+            android:name=".AiChatActivity"
+            android:exported="false"
+            android:label="@string/aichat_title"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".RoomChatActivity"
+            android:exported="false"
+            android:label="@string/roomchat_title"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- Spotify sign-in: the browser returns here (OAuth redirect starrysound://spotify-callback). -->
         <activity
             android:name=".SpotifyCallbackActivity"

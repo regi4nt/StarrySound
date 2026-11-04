@@ -192,6 +192,7 @@ class QuickFragment : Fragment(), QuickActions {
             Toast.makeText(requireContext(), if (on) R.string.quick_lock_on else R.string.quick_lock_off, Toast.LENGTH_SHORT).show()
         }
         binding.quickRefresh.setOnClickListener { refresh() }
+        QuickBar.render(binding.quickBarRow, requireActivity())
         binding.quickRetry.setOnClickListener { refresh() }
 
         // Re-created within the same process: show the same songs again instead of new ones.
