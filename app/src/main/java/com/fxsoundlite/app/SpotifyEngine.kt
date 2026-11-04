@@ -8,6 +8,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.SystemClock
+import android.service.notification.NotificationListenerService
 import org.json.JSONObject
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -51,6 +52,10 @@ class SpotifyEngine(
     override val audible: Boolean get() = confirmed
 
     private val pollRun = Runnable { poll() }
+    private var sessionRetries = 0
+    private val reconnectRun = Runnable { connectSessions() }
+    // "Sound appeared / stopped" from the system: play / pause reaches the player even when Spotify's session cannot be read.
+    private val audioWatch = SpotifyAudioWatch(context.applicationContext, handler) { onAudio(it) }
     private val syncRun = Runnable { syncFromSession() }
 
     // ---- Spotify's media session
@@ -82,7 +87,9 @@ class SpotifyEngine(
         loadedAt = SystemClock.elapsedRealtime()
         handler.removeCallbacks(pollRun)
         setClock(0, true) // optimistic, like the other engines
+        sessionRetries = 0
         connectSessions()
+        audioWatch.start()
         if (!SpotifyAuth.isConnected(app)) {
             handler.post { if (my == gen && !released) fail(401) }
             return
@@ -122,6 +129,8 @@ class SpotifyEngine(
         gen++
         handler.removeCallbacks(pollRun)
         handler.removeCallbacks(syncRun)
+        handler.removeCallbacks(reconnectRun)
+        audioWatch.stop()
         disconnectSessions()
         val wasPlaying = playing
         playing = false
@@ -154,8 +163,22 @@ class SpotifyEngine(
             }
             attachSession(m.getActiveSessions(me))
         } catch (e: SecurityException) {
-            sessionsRegistered = false // listener service not connected yet: the Web API poll covers
+            // Access is on but the system has not (re)connected the listener service (after an install / update / crash):
+            // ask for a rebind and try again a few times. Meanwhile the audio signal and the Web API poll cover.
+            sessionsRegistered = false
+            try { NotificationListenerService.requestRebind(me) } catch (_: Exception) {}
+            if (!released && sessionRetries++ < 5) { handler.removeCallbacks(reconnectRun); handler.postDelayed(reconnectRun, 3000L) }
         }
+    }
+
+    /** The phone started / stopped making media sound. Only trusted once Spotify confirmed our song, and not right after our own command. */
+    private fun onAudio(active: Boolean) {
+        if (released || ended || !confirmed) return
+        if (SystemClock.elapsedRealtime() < quietUntil) return
+        if (active == playing) return
+        setClock(position, active)
+        cb.onStateChanged()
+        schedulePoll(1200L) // the poll / session then confirms (or corrects, e.g. when another app made the sound)
     }
 
     private fun disconnectSessions() {

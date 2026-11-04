@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.service.notification.NotificationListenerService
 import android.util.TypedValue
 import android.view.Choreographer
 import android.view.Gravity
@@ -87,6 +88,11 @@ class SpotifyActivity : AppCompatActivity() {
     private var lastTrackKey: String? = null
     private var lastFrameNs = 0L
     private var lastSeekTick = 0L
+    private var sessionRetries = 0
+    private var quietUntil = 0L              // right after our own play / pause tap the sound signal is ignored
+    private val reconnectRun = Runnable { if (alive) connectSessions() }
+    // "Sound appeared / stopped" from the system: the play / pause glyph and the cover neon follow it even without a readable session.
+    private val audioWatch by lazy { SpotifyAudioWatch(this, ui) { onAudio(it) } }
 
     private val sessionsListener =
         MediaSessionManager.OnActiveSessionsChangedListener { list -> attachSession(list.orEmpty()) }
@@ -157,7 +163,9 @@ class SpotifyActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         alive = true
+        sessionRetries = 0
         connectSessions()
+        audioWatch.start()
         if (SpotifyAuth.isConnected(this)) {
             statusText.visibility = View.GONE
             ui.removeCallbacks(poll)
@@ -173,6 +181,8 @@ class SpotifyActivity : AppCompatActivity() {
     override fun onPause() {
         alive = false
         ui.removeCallbacks(poll)
+        ui.removeCallbacks(reconnectRun)
+        audioWatch.stop()
         Choreographer.getInstance().removeFrameCallback(frame)
         disconnectSessions()
         super.onPause()
@@ -305,6 +315,7 @@ class SpotifyActivity : AppCompatActivity() {
             control({ SpotifyApi.post(applicationContext, "/me/player/next") }, { SpotifyRemote.next(applicationContext) })
         }
         playBtn.setOnClickListener {
+            quietUntil = SystemClock.elapsedRealtime() + 1500L
             if (session { if (playing) it.pause() else it.play() }) {
                 setPlaying(!playing)   // instant feedback; the session callback confirms it
                 return@setOnClickListener
@@ -582,7 +593,16 @@ class SpotifyActivity : AppCompatActivity() {
             // Access is on but the listener service is not (re)connected yet; the Web API poll covers until it is.
             sessionsRegistered = false
             attachSession(emptyList())
+            try { NotificationListenerService.requestRebind(me) } catch (_: Exception) {}
+            if (alive && sessionRetries++ < 5) { ui.removeCallbacks(reconnectRun); ui.postDelayed(reconnectRun, 3000L) }
         }
+    }
+
+    /** The phone started / stopped making media sound: update the glyph and the neon at once (the session / poll refine it). */
+    private fun onAudio(active: Boolean) {
+        if (destroyed || !alive) return
+        if (SystemClock.elapsedRealtime() < quietUntil) return
+        if (active != playing) setPlaying(active)
     }
 
     private fun disconnectSessions() {
