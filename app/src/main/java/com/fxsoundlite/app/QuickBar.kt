@@ -25,10 +25,7 @@ object QuickBar {
     enum class Item(val id: String, val iconRes: Int, val labelRes: Int) {
         CHAT_AI("chat_ai", R.drawable.ic_sparkle, R.string.quickbar_chat_ai),
         CHAT_ROOM("chat_room", R.drawable.ic_chat, R.string.quickbar_chat_room),
-        THEME("theme", R.drawable.ic_palette, R.string.quickbar_theme),
-        EQUALIZER("equalizer", R.drawable.ic_equalizer, R.string.quickbar_equalizer),
-        SLEEP("sleep", R.drawable.ic_alarm, R.string.quickbar_sleep),
-        DETECT("detect", R.drawable.ic_mic, R.string.quickbar_detect);
+        THEME("theme", R.drawable.ic_palette, R.string.quickbar_theme);
 
         companion object {
             fun fromId(id: String): Item? = entries.firstOrNull { it.id == id }
@@ -54,7 +51,7 @@ object QuickBar {
 
     // ------------------------------------------------------------------ bar
 
-    /** Fills [host] (the row inside the bar's HorizontalScrollView) with the chips. */
+    /** Fills [host] (the bar's row, as wide as the screen) with the chips: they share the width equally. */
     fun render(host: LinearLayout, a: Activity) {
         host.removeAllViews()
         enabled(a).forEach { item ->
@@ -69,9 +66,9 @@ object QuickBar {
         val dp = a.resources.displayMetrics.density
         val row = LinearLayout(a).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             setBackgroundResource(R.drawable.quick_bar_chip_bg)
-            setPadding((12 * dp).toInt(), (8 * dp).toInt(), (if (label == null) 12 else 14).times(dp).toInt(), (8 * dp).toInt())
+            setPadding((12 * dp).toInt(), (8 * dp).toInt(), (12 * dp).toInt(), (8 * dp).toInt())
             isClickable = true
             isFocusable = true
             contentDescription = desc
@@ -91,9 +88,11 @@ object QuickBar {
                 marginStart = (7 * dp).toInt()
             })
         }
-        row.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            marginEnd = (8 * dp).toInt()
-        }
+        row.layoutParams = if (label == null) {
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        } else {
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }.apply { marginEnd = (8 * dp).toInt() }
         return row
     }
 
@@ -104,9 +103,6 @@ object QuickBar {
             Item.CHAT_AI -> a.startActivity(Intent(a, AiChatActivity::class.java))
             Item.CHAT_ROOM -> a.startActivity(Intent(a, RoomChatActivity::class.java))
             Item.THEME -> ThemeCatalog.show(a)
-            Item.EQUALIZER -> a.startActivity(Intent(a, EqualizerActivity::class.java))
-            Item.SLEEP -> a.startActivity(Intent(a, BedtimeActivity::class.java))
-            Item.DETECT -> a.startActivity(Intent(a, SongDetectActivity::class.java))
         }
     }
 

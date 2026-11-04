@@ -63,24 +63,18 @@
             android:tint="#FFFFFF" />
     </LinearLayout>
 
-    <!-- Customizable shortcut bar (chat, theme catalog, ...): filled by QuickBar, edited with the pencil at its end. -->
-    <HorizontalScrollView
-        android:id="@+id/quickBar"
+    <!-- Customizable shortcut bar (AI chat, chat, themes): filled by QuickBar, edited with the pencil at its end.
+         The chips share the whole width of the screen. -->
+    <LinearLayout
+        android:id="@+id/quickBarRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:layout_marginTop="66dp"
-        android:overScrollMode="never"
-        android:scrollbars="none">
-
-        <LinearLayout
-            android:id="@+id/quickBarRow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingStart="18dp"
-            android:paddingEnd="10dp" />
-    </HorizontalScrollView>
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingEnd="10dp" />
 
     <ProgressBar
         android:id="@+id/quickLoading"

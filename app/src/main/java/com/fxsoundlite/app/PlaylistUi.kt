@@ -163,13 +163,13 @@ object PlaylistUi {
             labels += c.getString(R.string.select_songs)
             actions += { onSelect() }
         }
-        if (onMove != null) { // inside an editable playlist: move this song to another playlist
-            labels += c.getString(R.string.track_move_playlist)
-            actions += { onMove() }
-        }
         if (onCopy != null) { // inside an editable playlist: add this song to another playlist (it stays here too)
             labels += c.getString(R.string.track_copy_playlist)
             actions += { onCopy() }
+        }
+        if (onMove != null) { // inside an editable playlist: move this song to another playlist
+            labels += c.getString(R.string.track_move_playlist)
+            actions += { onMove() }
         }
         if (openListId != null && openListId != PlaylistStore.LIKED_ID) {
             labels += c.getString(R.string.playlist_remove_song)

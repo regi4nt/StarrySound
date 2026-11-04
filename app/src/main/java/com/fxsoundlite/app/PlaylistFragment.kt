@@ -936,7 +936,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (openList == null) { listAccent = null; applyCoverBg() }
         // Create (+) shows on the overview only; the three-dot menu on the overview and inside an opened list.
         // Inside a folder only (+) stays: it creates a playlist right there.
-        // Inside one of the user's folders the (+) is replaced by the ⋮ menu (Add playlist / Select playlists / Rename folder).
+        // Inside one of the user's folders the (+) is replaced by the ⋮ menu (Create playlist / Select playlists / Rename folder).
         b.plAddButton.visibility = if (openSource != null || openFolder != null || openList != null) View.GONE else View.VISIBLE
         // Overview, inside a folder, and inside an opened playlist (its menu holds Move / Export / Share link / Shared playlist).
         b.plMoreButton.visibility = if (openSource != null) View.GONE else View.VISIBLE // no ⋮ in a source folder or in a playlist opened from one
@@ -1728,7 +1728,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             return
         }
         val folderId = openFolder
-        if (folderId != null) { // inside one of the user's folders: Add playlist / Select playlists / Rename folder
+        if (folderId != null) { // inside one of the user's folders: Create playlist / Select playlists / Rename folder
             val labels = arrayOf(
                 getString(R.string.folder_add_playlist),
                 getString(R.string.folder_select_playlists),
