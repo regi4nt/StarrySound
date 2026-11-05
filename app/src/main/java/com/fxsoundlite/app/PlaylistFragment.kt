@@ -1411,7 +1411,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         if (row.kind == ROW_FOLDER) {
             val f = PlaylistFolders.get(ctx, row.id) ?: return
             val label = getString(if (PlaylistPins.isPinned(ctx, row.id)) R.string.playlist_unpin else R.string.playlist_pin)
-            PlaylistUi.folderActions(ctx, f, { shuffle -> playFolder(f.id, shuffle) }, label, { togglePin(row) }) {
+            PlaylistUi.folderActions(ctx, f, { shuffle -> playFolder(f.id, shuffle) }, label, { togglePin(row) }, onSelect = { startListSelection(row.id) }) {
                 if (_binding != null) refresh()
             }
             return
@@ -1433,7 +1433,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 if (PlaylistBlend.isBlend(ctx, it.id)) PlaylistBlendUi.manage(ctx, it) { if (_binding != null) refresh() }
                 else CollabUi.manage(ctx, it) { if (_binding != null) refresh() }
             },
-            onPlay = { shuffle -> playRow(row.id, shuffle) }
+            onPlay = { shuffle -> playRow(row.id, shuffle) },
+            onSelect = { startListSelection(row.id) }
         ) { if (_binding != null) refresh() }
     }
 
@@ -1583,10 +1584,12 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     // ------------------------------------------------------------------ multi-select inside a folder: move / delete several playlists
 
-    private fun startListSelection() {
+    /** [first] = the playlist / folder that was long-pressed: it starts out ticked, like a long-pressed song. */
+    private fun startListSelection(first: String? = null) {
         if (openList != null || openSource != null) return // main list or one of the user's folders
         selecting = true
         selected.clear()
+        first?.let { selected += it }
         refresh()
     }
 

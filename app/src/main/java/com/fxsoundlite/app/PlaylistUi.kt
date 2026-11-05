@@ -254,11 +254,11 @@ object PlaylistUi {
             .show()
     }
 
-    /** Long-press menu of a playlist row: pin / shared playlist / edit / move to folder / export / share / delete. */
+    /** Long-press menu of a playlist row: pin / edit / shared playlist / select / move to folder / export / share / delete. */
     fun playlistActions(
         c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit,
         pinLabel: String? = null, onPin: (() -> Unit)? = null, onCollab: ((Playlist) -> Unit)? = null,
-        onPlay: ((Boolean) -> Unit)? = null, onChanged: () -> Unit
+        onPlay: ((Boolean) -> Unit)? = null, onSelect: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
@@ -267,8 +267,9 @@ object PlaylistUi {
             labels += c.getString(R.string.folder_shuffle); actions += { onPlay(true) }
         }
         if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
-        if (onCollab != null) { labels += c.getString(R.string.collab_menu); actions += { onCollab(pl) } }
         labels += c.getString(R.string.playlist_menu_edit); actions += { onEdit(pl) }
+        if (onCollab != null) { labels += c.getString(R.string.collab_menu); actions += { onCollab(pl) } }
+        if (onSelect != null) { labels += c.getString(R.string.playlist_select_items); actions += { onSelect() } } // start picking several playlists / folders
         labels += c.getString(R.string.folder_move); actions += { moveToFolder(c, pl, onChanged) }
         labels += c.getString(R.string.playlist_menu_export_m3u); actions += { onExport(pl) }
         labels += c.getString(R.string.playlist_menu_share_link); actions += { onShare(pl) }
@@ -358,13 +359,14 @@ object PlaylistUi {
     /** Long-press menu of a folder row play / shuffle / pin / rename / delete (its playlists are kept). */
     fun folderActions(
         c: Context, f: PlaylistFolder, onPlay: (Boolean) -> Unit,
-        pinLabel: String?, onPin: (() -> Unit)?, onChanged: () -> Unit
+        pinLabel: String?, onPin: (() -> Unit)?, onSelect: (() -> Unit)? = null, onChanged: () -> Unit
     ) {
         val labels = mutableListOf<String>()
         val actions = mutableListOf<() -> Unit>()
         labels += c.getString(R.string.folder_play); actions += { onPlay(false) }
         labels += c.getString(R.string.folder_shuffle); actions += { onPlay(true) }
         if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
+        if (onSelect != null) { labels += c.getString(R.string.playlist_select_items); actions += { onSelect() } } // start picking several playlists / folders
         labels += c.getString(R.string.folder_rename)
         actions += {
             promptNameText(c, c.getString(R.string.folder_rename), f.name, R.string.folder_name_hint) { name ->

@@ -832,7 +832,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
                         val inset = (contentW - iconSize) / 2
                         val d = android.graphics.drawable.InsetDrawable(raw, inset, 0, contentW - iconSize - inset, 0)
                         d.setBounds(0, 0, contentW, iconSize)
-                        tv.compoundDrawableTintList = tv.textColors // follows selected / unselected state
+                        tv.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(tv.currentTextColor) // exact colour for the current selected state
                         tv.setCompoundDrawablesRelative(d, null, null, null)
                         tv.compoundDrawablePadding = 0
                         tv.text = ""
@@ -853,7 +853,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
         for ((tv, _) in tabIconMap()) {
             val d = tv.compoundDrawablesRelative[0] ?: continue
             tv.refreshDrawableState()
+            // Like the nav bar (which sets each icon's selected state directly): the icon gets the tab's
+            // current text colour right now, instead of relying on the state change reaching the vector
+            // drawable through the InsetDrawable wrapper (that made the icon lag behind the chip).
+            tv.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(tv.currentTextColor)
             d.setState(tv.drawableState)
+            d.invalidateSelf()
             tv.invalidate()
         }
     }
