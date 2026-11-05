@@ -735,6 +735,14 @@
     <string name="playlist_sort_shortest">Shortest first</string>
     <string name="np_download_permission">Storage permission is needed to save songs. Allow it, then tap Download again.</string>
     <string name="np_download_done">Download complete: Music/StarrySound</string>
+    <string name="playlist_download">Download playlist</string>
+    <string name="playlist_download_none">No YouTube songs in this playlist can be downloaded.</string>
+    <string name="playlist_download_started">Downloading %d songs. Progress is in the notification.</string>
+    <string name="playlist_download_progress">Downloading %1$d of %2$d</string>
+    <string name="playlist_download_done">Done: %1$d saved, %2$d already downloaded, %3$d failed</string>
+    <string name="playlist_download_started_video">Downloading %d videos to Movies/StarrySound. Progress is in the notification.</string>
+    <string name="dl_quality_title">Video quality</string>
+    <string name="dl_quality_best">Highest available</string>
     <string name="np_download_channel">Downloads</string>
     <string name="np_download_notif_running">Downloading…</string>
     <string name="np_bg_plain">Background: Plain (tap for Screensaver)</string>

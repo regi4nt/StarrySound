@@ -35,6 +35,31 @@ object DownloadChooser {
             .show()
     }
 
+    /** "Download playlist": audio of every song, or the videos at one quality (the best each song has up to it). */
+    fun showPlaylist(c: android.content.Context, tracks: List<Track>, name: String) {
+        if (tracks.none { SongDownloader.canDownload(it) }) {
+            SongDownloader.downloadAll(c, tracks, name) // tells the person there is nothing to download
+            return
+        }
+        AlertDialog.Builder(c)
+            .setTitle(R.string.playlist_download)
+            .setItems(arrayOf(c.getString(R.string.dl_choose_audio), c.getString(R.string.dl_choose_video))) { _, which ->
+                if (which == 0) {
+                    SongDownloader.downloadAll(c, tracks, name)
+                } else {
+                    val labels = arrayOf(c.getString(R.string.dl_quality_best), "720p", "480p", "360p")
+                    val heights = intArrayOf(Int.MAX_VALUE, 720, 480, 360)
+                    AlertDialog.Builder(c)
+                        .setTitle(R.string.dl_quality_title)
+                        .setItems(labels) { _, q -> SongDownloader.downloadAll(c, tracks, name, video = true, maxHeight = heights[q]) }
+                        .setNegativeButton(android.R.string.cancel, null)
+                        .show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun downloadVideo(activity: Activity, track: Track) {
         val app = activity.applicationContext
         SongDownloader.toast(app, R.string.np_download_preparing)

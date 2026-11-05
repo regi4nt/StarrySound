@@ -155,9 +155,14 @@ object PlaylistUi {
                 toast(c, c.getString(if (added) R.string.quick_queue_added else R.string.quick_queue_already))
             }
         }
-        if (SongDownloader.canDownload(t)) {
-            labels += c.getString(R.string.np_download)
-            actions += { SongDownloader.download(c, t) }
+        if (SongDownloader.canDownload(t)) { // YouTube track: ask whether to save the audio or the video
+            labels += c.getString(R.string.np_download_media)
+            actions += {
+                var ctx: Context? = c
+                while (ctx is android.content.ContextWrapper && ctx !is android.app.Activity) ctx = ctx.baseContext
+                val act = ctx as? android.app.Activity
+                if (act != null) DownloadChooser.show(act, t) else SongDownloader.download(c, t)
+            }
         }
         if (onSelect != null) { // inside an editable playlist: start picking several songs
             labels += c.getString(R.string.select_songs)
@@ -254,7 +259,7 @@ object PlaylistUi {
             .show()
     }
 
-    /** Long-press menu of a playlist row: pin / edit / shared playlist / select / move to folder / export / share / delete. */
+    /** Long-press menu of a playlist row: pin / edit / shared playlist / download / select / move to folder / export / share / delete. */
     fun playlistActions(
         c: Context, pl: Playlist, onEdit: (Playlist) -> Unit, onExport: (Playlist) -> Unit, onShare: (Playlist) -> Unit,
         pinLabel: String? = null, onPin: (() -> Unit)? = null, onCollab: ((Playlist) -> Unit)? = null,
@@ -269,6 +274,7 @@ object PlaylistUi {
         if (pinLabel != null && onPin != null) { labels += pinLabel; actions += onPin }
         labels += c.getString(R.string.playlist_menu_edit); actions += { onEdit(pl) }
         if (onCollab != null) { labels += c.getString(R.string.collab_menu); actions += { onCollab(pl) } }
+        labels += c.getString(R.string.playlist_download); actions += { DownloadChooser.showPlaylist(c, pl.tracks, pl.name) } // every YouTube song: audio or video
         if (onSelect != null) { labels += c.getString(R.string.playlist_select_items); actions += { onSelect() } } // start picking several playlists / folders
         labels += c.getString(R.string.folder_move); actions += { moveToFolder(c, pl, onChanged) }
         labels += c.getString(R.string.playlist_menu_export_m3u); actions += { onExport(pl) }

@@ -727,6 +727,14 @@
     <string name="playlist_sort_shortest">Terpendek dulu</string>
     <string name="np_download_permission">Izin penyimpanan diperlukan untuk menyimpan lagu. Izinkan, lalu ketuk Unduh lagi.</string>
     <string name="np_download_done">Unduhan selesai: Music/StarrySound</string>
+    <string name="playlist_download">Unduh playlist</string>
+    <string name="playlist_download_none">Tidak ada lagu YouTube di playlist ini yang bisa diunduh.</string>
+    <string name="playlist_download_started">Mengunduh %d lagu. Kemajuan ada di notifikasi.</string>
+    <string name="playlist_download_progress">Mengunduh %1$d dari %2$d</string>
+    <string name="playlist_download_done">Selesai: %1$d tersimpan, %2$d sudah diunduh, %3$d gagal</string>
+    <string name="playlist_download_started_video">Mengunduh %d video ke Movies/StarrySound. Kemajuan ada di notifikasi.</string>
+    <string name="dl_quality_title">Kualitas video</string>
+    <string name="dl_quality_best">Tertinggi yang tersedia</string>
     <string name="np_download_channel">Unduhan</string>
     <string name="np_download_notif_running">Mengunduh…</string>
     <string name="np_bg_plain">Latar: Polos (ketuk untuk Screensaver)</string>

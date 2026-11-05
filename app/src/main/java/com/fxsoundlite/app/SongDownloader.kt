@@ -91,11 +91,16 @@ object SongDownloader {
         }
     }
 
-    private fun run(app: Context, track: Track, notifId: Int) {
+    private const val RES_OK = 0
+    private const val RES_EXISTS = 1
+    private const val RES_FAIL = 2
+
+    /** [quiet] = part of a playlist download: no per-song toasts or notifications (the batch has its own). */
+    private fun run(app: Context, track: Track, notifId: Int, quiet: Boolean = false): Int {
         // Already saved (a second copy would only eat storage): say so before any data is used.
         if (alreadyDownloaded(app, fileName(track))) {
-            toast(app, R.string.np_download_exists)
-            return
+            if (!quiet) toast(app, R.string.np_download_exists)
+            return RES_EXISTS
         }
         val info = StreamInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/watch?v=${track.remoteId}")
         val usable = originalTrackOnly(info.audioStreams.filter { it.isUrl && !it.content.isNullOrBlank() })
@@ -108,15 +113,17 @@ object SongDownloader {
                 ?: pool.firstOrNull()
         } else pool.maxByOrNull { it.averageBitrate }
         if (best == null) {
-            toast(app, R.string.np_download_failed)
-            return
+            if (!quiet) toast(app, R.string.np_download_failed)
+            return RES_FAIL
         }
         val ext = best.format?.suffix?.takeIf { it.isNotBlank() } ?: "m4a"
         val mime = best.format?.mimeType?.takeIf { it.isNotBlank() } ?: "audio/mp4"
         val name = fileName(track) + "." + ext
 
-        toast(app, R.string.np_download_started)
-        showProgress(app, notifId, track.title, 0, true)
+        if (!quiet) {
+            toast(app, R.string.np_download_started)
+            showProgress(app, notifId, track.title, 0, true)
+        }
 
         val sink = openSink(app, name, mime, track)
         var ok = false
@@ -126,8 +133,106 @@ object SongDownloader {
         } finally {
             if (ok) sink.commit() else sink.abort()
         }
-        finishNotification(app, notifId, track.title, true)
-        toast(app, R.string.np_download_done)
+        if (!quiet) {
+            finishNotification(app, notifId, track.title, true)
+            toast(app, R.string.np_download_done)
+        }
+        return RES_OK
+    }
+
+    /**
+     * Saves every YouTube song in [tracks] (a playlist): the audio to Music/StarrySound, or with [video] the video to Movies/StarrySound. Already saved ones are skipped.
+     * One notification for the whole playlist shows "n of total"; the songs are fetched two at a time like single downloads.
+     */
+    fun downloadAll(context: Context, tracks: List<Track>, name: String, video: Boolean = false, maxHeight: Int = Int.MAX_VALUE) {
+        val app = context.applicationContext
+        val list = tracks.filter { canDownload(it) }.distinctBy { it.remoteId }
+        if (list.isEmpty()) {
+            toast(app, R.string.playlist_download_none)
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(app, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+        ) {
+            findActivity(context)?.let { ActivityCompat.requestPermissions(it, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQ_STORAGE) }
+            toast(app, R.string.np_download_permission)
+            return
+        }
+        val total = list.size
+        val startedRes = if (video) R.string.playlist_download_started_video else R.string.playlist_download_started
+        main.post { Toast.makeText(app, app.getString(startedRes, total), Toast.LENGTH_LONG).show() }
+        val batchId = notifIds.incrementAndGet()
+        showBatchProgress(app, batchId, name, 0, total)
+        val finished = AtomicInteger(0)
+        val saved = AtomicInteger(0)
+        val skipped = AtomicInteger(0)
+        val failed = AtomicInteger(0)
+        for (t in list) {
+            io.execute {
+                val r = try {
+                    if (video) runVideo(app, t, maxHeight) else run(app, t, -1, quiet = true)
+                } catch (e: Throwable) {
+                    Log.w(TAG, "playlist download: ${t.title} failed", e)
+                    RES_FAIL
+                }
+                when (r) {
+                    RES_OK -> saved.incrementAndGet()
+                    RES_EXISTS -> skipped.incrementAndGet()
+                    else -> failed.incrementAndGet()
+                }
+                val n = finished.incrementAndGet()
+                if (n < total) showBatchProgress(app, batchId, name, n, total)
+                else finishBatch(app, batchId, name, saved.get(), skipped.get(), failed.get())
+            }
+        }
+    }
+
+    /** One song of a playlist as a video (Movies/StarrySound): the best progressive quality up to [maxHeight] (else the lowest there is). */
+    private fun runVideo(app: Context, track: Track, maxHeight: Int): Int {
+        val info = LinkDownloader.resolve("https://www.youtube.com/watch?v=${track.remoteId}")
+        val videos = info.options.filter { it.video }
+        if (videos.isEmpty()) return RES_FAIL
+        fun height(o: LinkDownloader.Option) = Regex("(\\d+)p").find(o.label)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val opt = videos.filter { height(it) <= maxHeight }.maxByOrNull { height(it) } ?: videos.minByOrNull { height(it) } ?: return RES_FAIL
+        val base = safeName(info.title, "download")
+        if (alreadyDownloaded(app, base, video = true)) return RES_EXISTS
+        val sink = openVideoSink(app, "$base.${opt.ext}", opt.mime, info.title)
+        var ok = false
+        try {
+            sink.out.use { out -> fetch(app, opt.url, out, -1, info.title, opt.referer) }
+            ok = true
+        } finally {
+            if (ok) sink.commit() else sink.abort()
+        }
+        return RES_OK
+    }
+
+    private fun showBatchProgress(app: Context, id: Int, name: String, done: Int, total: Int) {
+        try {
+            val n = NotificationCompat.Builder(app, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_download)
+                .setContentTitle(name)
+                .setContentText(app.getString(R.string.playlist_download_progress, done, total))
+                .setProgress(total, done, false)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .build()
+            nm(app)?.notify(id, n)
+        } catch (e: Exception) { Log.d(TAG, "ignored: $e") }
+    }
+
+    private fun finishBatch(app: Context, id: Int, name: String, saved: Int, skipped: Int, failed: Int) {
+        val text = app.getString(R.string.playlist_download_done, saved, skipped, failed)
+        try {
+            val n = NotificationCompat.Builder(app, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_download)
+                .setContentTitle(name)
+                .setContentText(text)
+                .setAutoCancel(true)
+                .build()
+            nm(app)?.notify(id, n)
+        } catch (e: Exception) { Log.d(TAG, "ignored: $e") }
+        main.post { Toast.makeText(app, text, Toast.LENGTH_LONG).show() }
     }
 
     /** Copies [url] into [out] in 1 MB ranged requests (falls back to one plain request). */
@@ -295,6 +400,7 @@ object SongDownloader {
     }
 
     internal fun showProgress(app: Context, id: Int, title: String, percent: Int, indeterminate: Boolean) {
+        if (id < 0) return // quiet download inside a playlist batch: the batch notification shows the progress
         try {
             val n = NotificationCompat.Builder(app, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_download)
@@ -332,18 +438,20 @@ object SongDownloader {
     }
 
     /** True when a song with this file name (any extension) already sits in Music/StarrySound. */
-    private fun alreadyDownloaded(app: Context, base: String): Boolean = try {
+    private fun alreadyDownloaded(app: Context, base: String, video: Boolean = false): Boolean = try {
+        val root = if (video) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_MUSIC
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val esc = base.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            val uri = if (video) MediaStore.Video.Media.EXTERNAL_CONTENT_URI else MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             app.contentResolver.query(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                arrayOf(MediaStore.Audio.Media._ID),
-                "${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ? ESCAPE '\\' AND ${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?",
-                arrayOf("$esc.%", "${Environment.DIRECTORY_MUSIC}/$FOLDER%"), null
+                uri,
+                arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE ? ESCAPE '\\' AND ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?",
+                arrayOf("$esc.%", "$root/$FOLDER%"), null
             )?.use { it.count > 0 } ?: false
         } else {
             @Suppress("DEPRECATION")
-            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), FOLDER)
+            val dir = File(Environment.getExternalStoragePublicDirectory(root), FOLDER)
             dir.listFiles { f -> f.isFile && f.name.startsWith("$base.") }?.isNotEmpty() ?: false
         }
     } catch (e: Exception) { false }
