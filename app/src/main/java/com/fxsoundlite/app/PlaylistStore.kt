@@ -21,6 +21,8 @@ object PlaylistStore {
     private const val KEY_LISTS = "playlists"
     private const val KEY_LIKED = "liked"
     private const val KEY_TOMBS = "deleted"
+    /** JSON map playlistId -> time (ms) a song was last added to it; drives the order of the "add to playlist" pickers. */
+    private const val KEY_LAST_ADD = "last_add"
 
     /** Deletion records older than this are forgotten (a device offline longer than that may resurrect old items). */
     private const val TOMB_TTL_MS = 180L * 24 * 3600 * 1000
@@ -87,6 +89,27 @@ object PlaylistStore {
     /** Local songs matched to this device's files (or flagged [Track.missing]), see [LocalMatcher]. */
     fun playlists(c: Context): List<Playlist> =
         rawPlaylists(c).map { pl -> pl.copy(tracks = pl.tracks.map { LocalMatcher.resolve(c, it) }) }
+
+    /** Remembers "now" as the moment a song was last added to playlist [id]. */
+    private fun markAdded(c: Context, id: String) {
+        val o = try { JSONObject(p(c).getString(KEY_LAST_ADD, null) ?: "{}") } catch (e: Exception) { JSONObject() }
+        o.put(id, System.currentTimeMillis())
+        p(c).edit().putString(KEY_LAST_ADD, o.toString()).apply() // device-only, not part of the Drive backup
+    }
+
+    /**
+     * The user's playlists ordered by when a song was last added to them (most recent first), not by
+     * when the playlist was created. A playlist never added to on this device falls back to the newest
+     * [Track.addedAt] inside it (so songs synced from Drive count too); playlists with neither keep
+     * their creation order at the bottom. "Liked songs" is not part of this list.
+     */
+    @Synchronized
+    fun playlistsByRecentAdd(c: Context): List<Playlist> {
+        val last = try { JSONObject(p(c).getString(KEY_LAST_ADD, null) ?: "{}") } catch (e: Exception) { JSONObject() }
+        fun recency(pl: Playlist): Long =
+            maxOf(last.optLong(pl.id, 0L), pl.tracks.maxOfOrNull { it.addedAt } ?: 0L)
+        return playlists(c).sortedByDescending { recency(it) } // sortedBy is stable: ties keep creation order
+    }
 
     fun liked(c: Context): List<Track> = rawLiked(c).map { LocalMatcher.resolve(c, it) }
 
@@ -229,6 +252,7 @@ object PlaylistStore {
             tracks.distinctBy { it.syncKey }.map { if (it.addedAt == 0L) it.copy(addedAt = now) else it }
         )
         saveLists(c, existing + pl)
+        if (pl.tracks.isNotEmpty()) markAdded(c, pl.id)
         return pl
     }
 
@@ -301,7 +325,7 @@ object PlaylistStore {
                 it.copy(tracks = it.tracks + track)
             } else it
         })
-        if (added) CollabPlaylist.localChanged(c, id)
+        if (added) { markAdded(c, id); CollabPlaylist.localChanged(c, id) }
         return added
     }
 
@@ -339,7 +363,7 @@ object PlaylistStore {
                 if (add.isEmpty()) it else it.copy(tracks = it.tracks + add)
             }
         })
-        if (added > 0) CollabPlaylist.localChanged(c, id)
+        if (added > 0) { markAdded(c, id); CollabPlaylist.localChanged(c, id) }
         return added
     }
 

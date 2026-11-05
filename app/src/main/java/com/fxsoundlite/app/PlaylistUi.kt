@@ -48,9 +48,9 @@ object PlaylistUi {
 
     /** Picker: the user's playlists, with a full-width "+ New playlist" button right above Cancel. */
     fun addToPlaylist(c: Context, t: Track, onDone: () -> Unit = {}) {
-        // "Liked songs" always comes first, followed by the user's own playlists.
+        // "Liked songs" always comes first, then the user's playlists, the one a song was added to most recently on top.
         val likedList = Playlist(PlaylistStore.LIKED_ID, c.getString(R.string.playlist_liked), emptyList())
-        val lists = listOf(likedList) + PlaylistStore.playlists(c)
+        val lists = listOf(likedList) + PlaylistStore.playlistsByRecentAdd(c)
         val dp = c.resources.displayMetrics.density
         var dialog: AlertDialog? = null
         val listView = android.widget.ListView(c).apply {
@@ -87,7 +87,7 @@ object PlaylistUi {
     /** Picker for "move": "Liked songs" and the user's playlists except [excludeId], plus "+ New playlist". */
     fun pickPlaylist(c: Context, title: String, excludeId: String?, onPick: (Playlist) -> Unit) {
         val likedList = Playlist(PlaylistStore.LIKED_ID, c.getString(R.string.playlist_liked), emptyList())
-        val lists = (listOf(likedList) + PlaylistStore.playlists(c)).filter { it.id != excludeId }
+        val lists = (listOf(likedList) + PlaylistStore.playlistsByRecentAdd(c)).filter { it.id != excludeId }
         val dp = c.resources.displayMetrics.density
         var dialog: AlertDialog? = null
         val listView = android.widget.ListView(c).apply {

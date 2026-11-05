@@ -602,6 +602,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     /** Back pressed while this page is shown: closes the open list and returns true; false when none is open. */
     fun consumeBack(): Boolean {
+        if (selecting && _binding != null) { exitSelection(); refresh(); return true } // Back first leaves selection mode, also on the main list
         if ((openList == null && openFolder == null && openSource == null) || _binding == null) return false
         goBack()
         return true
@@ -932,7 +933,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         val b = _binding ?: return
         val ctx = context ?: return
         if (openList == null && openFolder != null && PlaylistFolders.get(ctx, openFolder!!) == null) openFolder = null // deleted meanwhile
-        backCallback?.isEnabled = isResumed && (openList != null || openFolder != null || openSource != null)
+        backCallback?.isEnabled = isResumed && (openList != null || openFolder != null || openSource != null || selecting)
         if (openList == null) { listAccent = null; applyCoverBg() }
         // Create (+) shows on the overview only; the three-dot menu on the overview and inside an opened list.
         // Inside a folder only (+) stays: it creates a playlist right there.
@@ -951,8 +952,8 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         )
         val q = b.plSearchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
         val id = openList
-        // Selection lives in an opened own list (songs) or inside one of the user's folders (playlists), nowhere else.
-        if (if (id == null) (openFolder == null || openSource != null) else isRemoteList(id)) exitSelection()
+        // Selection lives in an opened own list (songs), or on the main list / inside one of the user's folders (playlists and folders).
+        if (if (id == null) openSource != null else isRemoteList(id)) exitSelection()
 
         if (id == null) {
             syncSelectionUi(null)
@@ -1093,7 +1094,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
                 else -> others.filter { it.kind == ROW_LIST }.asReversed() + others.filter { it.kind != ROW_LIST }
             } + folderRows + sourceRows
             rowAdapter.submit(pinned + ordered)
-            if (selecting) { selected.retainAll((pinned + ordered).filter { it.kind == ROW_LIST }.map { it.id }.toSet()); syncSelectionUi(null) }
+            if (selecting) { selected.retainAll((pinned + ordered).filter { it.kind == ROW_LIST || it.kind == ROW_FOLDER }.map { it.id }.toSet()); syncSelectionUi(null) }
             shown = emptyList()
             if (srcView != null) {
                 b.plTitle.text = getString(srcName(srcView))
@@ -1207,7 +1208,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     }
 
     private fun onRowClicked(row: Row) {
-        if (selecting && openList == null) { if (row.kind == ROW_LIST) toggleSelectedList(row.id); return } // picking playlists in a folder
+        if (selecting && openList == null) { if (row.kind == ROW_LIST || row.kind == ROW_FOLDER) toggleSelectedList(row.id); return } // picking playlists / folders
         if (row.kind == ROW_GENERATE) { showGenerateDialog(); return }
         if (row.kind == ROW_CONVERT) { showConvertDialog(); return }
         if (row.kind == ROW_FOLDER) {
@@ -1405,7 +1406,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
 
     private fun onRowLongClicked(row: Row) {
         val ctx = requireContext()
-        if (selecting && openList == null) { if (row.kind == ROW_LIST) toggleSelectedList(row.id); return }
+        if (selecting && openList == null) { if (row.kind == ROW_LIST || row.kind == ROW_FOLDER) toggleSelectedList(row.id); return }
         if (row.kind == ROW_GENERATE || row.kind == ROW_CONVERT || row.kind == ROW_SOURCE) return
         if (row.kind == ROW_FOLDER) {
             val f = PlaylistFolders.get(ctx, row.id) ?: return
@@ -1583,7 +1584,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
     // ------------------------------------------------------------------ multi-select inside a folder: move / delete several playlists
 
     private fun startListSelection() {
-        if (openList != null || openFolder == null || openSource != null) return
+        if (openList != null || openSource != null) return // main list or one of the user's folders
         selecting = true
         selected.clear()
         refresh()
@@ -1594,26 +1595,48 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         syncSelectionUi(null)
     }
 
+    /** Ids of the selected user folders (the main list can select folders too); the rest of [selected] are playlists. */
+    private fun selectedFolderIds(ctx: Context): Set<String> {
+        val all = PlaylistFolders.folders(ctx).map { it.id }.toSet()
+        return selected.filter { it in all }.toSet()
+    }
+
+    /** Moves the selected playlists into a folder. Folders do not nest, so selected folders are left out. */
     private fun moveSelectedLists() {
         val ctx = context ?: return
-        val folderId = openFolder ?: return
-        val ids = selected.toList()
-        if (ids.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one_playlist, Toast.LENGTH_SHORT).show(); return }
-        PlaylistUi.moveManyToFolder(ctx, ids, folderId) {
+        val folderIds = selectedFolderIds(ctx)
+        val ids = selected.filter { it !in folderIds }
+        if (ids.isEmpty()) {
+            Toast.makeText(ctx, if (folderIds.isEmpty()) R.string.select_pick_one_playlist else R.string.select_folders_cannot_move, Toast.LENGTH_SHORT).show()
+            return
+        }
+        PlaylistUi.moveManyToFolder(ctx, ids, openFolder) { // openFolder = null on the main list: no folder is hidden from the choices
             exitSelection()
             if (_binding != null) refresh()
         }
     }
 
+    /** Deletes the selected playlists and folders. A deleted folder keeps its playlists (they go back to the main list). */
     private fun deleteSelectedLists() {
         val ctx = context ?: return
-        val ids = selected.toList()
-        if (ids.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one_playlist, Toast.LENGTH_SHORT).show(); return }
+        if (selected.isEmpty()) { Toast.makeText(ctx, R.string.select_pick_one_playlist, Toast.LENGTH_SHORT).show(); return }
+        val folderIds = selectedFolderIds(ctx).toList()
+        val listIds = selected.filter { it !in folderIds }
+        val message = when {
+            folderIds.isEmpty() -> getString(R.string.select_playlists_delete_confirm, listIds.size)
+            listIds.isEmpty() -> getString(R.string.select_folders_delete_confirm, folderIds.size)
+            else -> getString(R.string.select_mixed_delete_confirm, listIds.size, folderIds.size)
+        }
         AlertDialog.Builder(ctx)
-            .setMessage(getString(R.string.select_playlists_delete_confirm, ids.size))
+            .setMessage(message)
             .setPositiveButton(R.string.playlist_delete) { _, _ ->
-                ids.forEach { PlaylistStore.delete(ctx, it) }
-                Toast.makeText(ctx, getString(R.string.select_playlists_deleted, ids.size), Toast.LENGTH_SHORT).show()
+                listIds.forEach { PlaylistStore.delete(ctx, it) }
+                folderIds.forEach { PlaylistPins.unpin(ctx, it); PlaylistFolders.delete(ctx, it) } // playlists inside stay
+                Toast.makeText(ctx, when {
+                    folderIds.isEmpty() -> getString(R.string.select_playlists_deleted, listIds.size)
+                    listIds.isEmpty() -> getString(R.string.select_folders_deleted, folderIds.size)
+                    else -> getString(R.string.select_mixed_deleted, listIds.size, folderIds.size)
+                }, Toast.LENGTH_SHORT).show()
                 exitSelection()
                 if (_binding != null) refresh()
             }
@@ -1747,6 +1770,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             return
         }
         val labels = arrayOf(
+            getString(R.string.playlist_select_items),
             getString(R.string.convert_title),
             getString(R.string.playlist_menu_import_link),
             getString(R.string.playlist_menu_import_file),
@@ -1755,9 +1779,10 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         AlertDialog.Builder(ctx)
             .setItems(labels) { _, which ->
                 when (which) {
-                    0 -> showConvertDialog()
-                    1 -> promptImportLink()
-                    2 -> openFile.launch(arrayOf("*/*"))
+                    0 -> if (rowAdapter.selectableIds().isEmpty()) toast(ctx, R.string.playlist_select_none) else startListSelection()
+                    1 -> showConvertDialog()
+                    2 -> promptImportLink()
+                    3 -> openFile.launch(arrayOf("*/*"))
                     else -> createBackup.launch(PlaylistIo.backupFileName())
                 }
             }
@@ -2035,7 +2060,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
         private var selecting = false
         private var selectedIds: Set<String> = emptySet()
 
-        /** Multi-select mode (inside a folder): own playlist rows show a check box. */
+        /** Multi-select mode (main list or inside a folder): own playlist rows and folder rows show a check box. */
         fun setSelection(active: Boolean, ids: Set<String>) {
             if (active == selecting && ids == selectedIds) return
             selecting = active
@@ -2043,7 +2068,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             notifyDataSetChanged()
         }
 
-        fun selectableIds(): List<String> = items.filter { it.kind == ROW_LIST }.map { it.id }
+        fun selectableIds(): List<String> = items.filter { it.kind == ROW_LIST || it.kind == ROW_FOLDER }.map { it.id }
 
         class VH(view: View) : RecyclerView.ViewHolder(view) {
             val art: ImageView = view.findViewById(R.id.playlistArt)
@@ -2120,7 +2145,7 @@ class PlaylistFragment : Fragment(), MusicService.Listener {
             val ctx = holder.itemView.context
             holder.name.text = row.name
             holder.sub.text = row.subtitle
-            holder.check.visibility = if (selecting && row.kind == ROW_LIST) View.VISIBLE else View.GONE
+            holder.check.visibility = if (selecting && (row.kind == ROW_LIST || row.kind == ROW_FOLDER)) View.VISIBLE else View.GONE
             holder.check.isChecked = selecting && row.id in selectedIds
             if (row.pinned) {
                 holder.trailing.setImageResource(R.drawable.ic_pin)

@@ -844,6 +844,20 @@ class MusicFragment : Fragment(), MusicService.Listener {
         }
     }
 
+    /**
+     * Called right after the tabs' selected state changed: a tab that shows an icon takes the new
+     * (selected / unselected) colour in the same frame. Without this the icon only caught up in the
+     * posted [applyTabIcons] pass, so it visibly lagged behind the chip background.
+     */
+    private fun syncTabIconStates() {
+        for ((tv, _) in tabIconMap()) {
+            val d = tv.compoundDrawablesRelative[0] ?: continue
+            tv.refreshDrawableState()
+            d.setState(tv.drawableState)
+            tv.invalidate()
+        }
+    }
+
     /** The Spotify tab is the one on screen: the mini player then shows up even before a song is chosen. */
     fun isSpotifyTabActive(): Boolean = _binding != null && source == Track.SOURCE_SPOTIFY
 
@@ -895,6 +909,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         binding.tabOnline.isSelected = source == Track.SOURCE_ONLINE
         binding.tabTv.isSelected = source == Track.SOURCE_TV
         binding.tabSpotify.isSelected = source == Track.SOURCE_SPOTIFY
+        syncTabIconStates()
         (activity as? MainActivity)?.onMusicStateChanged() // the Spotify tab shows the mini player right away
         val ctx = requireContext()
         binding.tabDrive.visibility = if (tabAllowed(Track.SOURCE_DRIVE)) View.VISIBLE else View.GONE

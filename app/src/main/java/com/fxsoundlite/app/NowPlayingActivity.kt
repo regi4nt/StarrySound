@@ -842,7 +842,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
         if (src == Track.SOURCE_YOUTUBE) popup.menu.add(0, MENU_QUALITY, 2, R.string.np_audio_quality)
         popup.menu.add(0, MENU_TIMER, 6, R.string.np_sleep_timer)
         if (MusicService.instance?.current?.source != Track.SOURCE_RADIO && src != Track.SOURCE_SPOTIFY) { // Spotify songs cannot be saved
-            popup.menu.add(0, MENU_DOWNLOAD, 7, R.string.np_download)
+            popup.menu.add(0, MENU_DOWNLOAD, 7, if (src == Track.SOURCE_YOUTUBE) R.string.np_download_media else R.string.np_download)
         }
         if (src == Track.SOURCE_YOUTUBE || src == Track.SOURCE_SPOTIFY || src == Track.SOURCE_ONLINE) popup.menu.add(0, MENU_FLAC, 1, R.string.np_find_flac)
         // The empty Spotify player (nothing queued) has no song to open: the item just launches the Spotify app.
@@ -856,7 +856,7 @@ class NowPlayingActivity : AppCompatActivity(), MusicService.Listener {
                 MENU_TIMER -> showSleepTimerDialog()
                 MENU_SHARE -> shareCurrentSong()
                 MENU_LISTEN -> ListenTogetherUi.show(this)
-                MENU_DOWNLOAD -> MusicService.instance?.current?.let { t -> SongDownloader.download(this, t) }
+                MENU_DOWNLOAD -> MusicService.instance?.current?.let { t -> DownloadChooser.show(this, t) }
                 MENU_INFO -> showSongInfo()
                 MENU_OPEN_SPOTIFY -> {
                     val t = MusicService.instance?.current

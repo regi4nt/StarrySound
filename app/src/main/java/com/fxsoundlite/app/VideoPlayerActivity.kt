@@ -1452,7 +1452,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 getString(if (captionsPref()) R.string.np_captions_on else R.string.np_captions_off)))
         }
         popup.menu.add(0, M_TIMER, 6, R.string.np_sleep_timer)
-        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 7, R.string.np_download)
+        if (t.source == Track.SOURCE_YOUTUBE) popup.menu.add(0, M_DOWNLOAD, 7, R.string.np_download_media)
         if (pipSupported()) popup.menu.add(0, M_PIP, 5, R.string.np_pip)
         popup.menu.add(0, M_SHARE, 8, R.string.np_share)
         popup.menu.add(0, M_INFO, 9, R.string.np_info)
@@ -1462,7 +1462,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 M_QUALITY -> showVideoQualityDialog()
                 M_CAPTIONS -> toggleCaptions(t)
                 M_TIMER -> showSleepTimerDialog()
-                M_DOWNLOAD -> SongDownloader.download(this, t)
+                M_DOWNLOAD -> DownloadChooser.show(this, t)
                 M_PIP -> enterPip()
                 M_SHARE -> SongShareCard.share(this, t, null, trackLink(t), getString(R.string.np_share_via))
                 M_INFO -> showInfo(t)

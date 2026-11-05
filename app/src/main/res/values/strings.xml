@@ -1330,4 +1330,14 @@
     <string name="theme_catalog_accent">Accent</string>
     <string name="theme_catalog_screensaver">Screensaver</string>
     <string name="theme_catalog_touch">Screensaver touch</string>
+    <string name="np_download_media">Download</string>
+    <string name="dl_choose_audio">Audio (song)</string>
+    <string name="dl_choose_video">Video</string>
+    <string name="playlist_select_items">Select playlists and folders</string>
+    <string name="playlist_select_none">No playlists or folders to select.</string>
+    <string name="select_folders_cannot_move">Folders cannot be moved into a folder. Pick at least one playlist.</string>
+    <string name="select_folders_delete_confirm">Delete %d folders? Their playlists are kept and go back to the main list.</string>
+    <string name="select_folders_deleted">%d folders deleted</string>
+    <string name="select_mixed_delete_confirm">Delete %1$d playlists (their songs are deleted with them) and %2$d folders? Playlists inside a deleted folder that are not selected are kept.</string>
+    <string name="select_mixed_deleted">%1$d playlists and %2$d folders deleted</string>
 </resources>

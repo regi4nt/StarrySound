@@ -1321,4 +1321,14 @@
     <string name="theme_catalog_accent">Aksen</string>
     <string name="theme_catalog_screensaver">Screensaver</string>
     <string name="theme_catalog_touch">Sentuhan screensaver</string>
+    <string name="np_download_media">Unduh</string>
+    <string name="dl_choose_audio">Audio (lagu)</string>
+    <string name="dl_choose_video">Video</string>
+    <string name="playlist_select_items">Pilih playlist dan folder</string>
+    <string name="playlist_select_none">Tidak ada playlist atau folder untuk dipilih.</string>
+    <string name="select_folders_cannot_move">Folder tidak bisa dipindahkan ke dalam folder. Pilih minimal satu playlist.</string>
+    <string name="select_folders_delete_confirm">Hapus %d folder? Playlist di dalamnya tetap ada dan kembali ke daftar utama.</string>
+    <string name="select_folders_deleted">%d folder dihapus</string>
+    <string name="select_mixed_delete_confirm">Hapus %1$d playlist (lagu-lagunya ikut terhapus) dan %2$d folder? Playlist di dalam folder yang dihapus tetap ada jika tidak ikut dipilih.</string>
+    <string name="select_mixed_deleted">%1$d playlist dan %2$d folder dihapus</string>
 </resources>
