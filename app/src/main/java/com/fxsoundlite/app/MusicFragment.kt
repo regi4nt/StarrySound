@@ -61,11 +61,6 @@ class MusicFragment : Fragment(), MusicService.Listener {
     private var tvChannels: List<Track>? = null
     private var tvFailed = false
     private var tvLoading = false
-    /** A playlist / stream link pasted in the TV search box: its channels, loaded automatically after typing stops. */
-    private var tvLinkQuery: String? = null
-    private var tvLinkResult: List<Track>? = null
-    private var tvLinkFailed: String? = null
-    private val tvLinkRun = Runnable { loadTvLink(binding.searchInput.text?.toString()?.trim().orEmpty()) }
     private var tvToken = 0 // a result that belongs to an older source choice is dropped
     private var tvForce = false
     private var loading = false
@@ -274,12 +269,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             override fun afterTextChanged(s: Editable?) {
                 if (source == Track.SOURCE_LOCAL) { applyFilter(); return }
                 if (source == Track.SOURCE_DRIVE) { applyDriveFilter(); return }
-                if (source == Track.SOURCE_TV) { // the box filters the channel list; a pasted link loads by itself
-                    handler.removeCallbacks(tvLinkRun)
-                    if (TvChannels.isLink(s?.toString()?.trim().orEmpty())) handler.postDelayed(tvLinkRun, 600)
-                    showTv()
-                    return
-                }
+                if (source == Track.SOURCE_TV) { showTv(); return } // the box only filters the channel list
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) { handler.postDelayed(liveSearch, 600); return } // empty box = popular songs
                 val q = s?.toString()?.trim().orEmpty()
@@ -304,7 +294,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
             if (actionId == EditorInfo.IME_ACTION_SEARCH || enter) {
                 handler.removeCallbacks(liveSearch)
                 if (source == Track.SOURCE_ONLINE) runOnlinePage()
-                else if (source == Track.SOURCE_TV) { handler.removeCallbacks(tvLinkRun); tvLinkRun.run() }
+                else if (source == Track.SOURCE_TV) showTv()
                 else if (source != Track.SOURCE_LOCAL && source != Track.SOURCE_DRIVE) runOnlineSearch()
                 hideKeyboard()
                 true
@@ -1351,23 +1341,6 @@ class MusicFragment : Fragment(), MusicService.Listener {
     /** Lists the channels (filtered by the search box); loads them the first time or after the source changed. */
     private fun showTv() {
         if (_binding == null || source != Track.SOURCE_TV) return
-        val typed = binding.searchInput.text?.toString()?.trim().orEmpty()
-        if (TvChannels.isLink(typed)) { // a pasted playlist / stream link: show what it holds
-            val res = tvLinkResult
-            if (tvLinkQuery == typed && res != null) {
-                shown = res
-                adapter.submit(shown)
-                binding.musicCount.text = getString(R.string.tv_count, res.size)
-                showList()
-                adapter.setCurrentKey("")
-            } else {
-                shown = emptyList()
-                adapter.submit(shown)
-                binding.musicCount.text = sourceName(Track.SOURCE_TV)
-                showEmpty(if (tvLinkFailed == typed) R.string.tv_link_failed else R.string.tv_loading)
-            }
-            return
-        }
         val all = tvChannels
         if (all != null) {
             val q = binding.searchInput.text?.toString()?.trim()?.lowercase(Locale.getDefault()).orEmpty()
@@ -1391,10 +1364,25 @@ class MusicFragment : Fragment(), MusicService.Listener {
         loadTv()
     }
 
-    private fun loadTvLink(url: String) {
-        if (_binding == null || source != Track.SOURCE_TV || !TvChannels.isLink(url)) return
-        if (tvLinkQuery == url && tvLinkResult != null) return
-        tvLinkFailed = null
+    /** Asks for an M3U / M3U8 link: a playlist is added to the user's own links, a single stream is opened right away. */
+    private fun askTvLink() {
+        val ctx = requireContext()
+        val input = android.widget.EditText(ctx).apply {
+            setSingleLine()
+            setHint("https://…")
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+        }
+        androidx.appcompat.app.AlertDialog.Builder(ctx)
+            .setTitle(R.string.tv_add_link)
+            .setView(input)
+            .setPositiveButton(R.string.radio_save) { _, _ -> addTvLink(input.text.toString().trim()) }
+            .setNegativeButton(R.string.radio_cancel, null)
+            .show()
+    }
+
+    private fun addTvLink(url: String) {
+        if (_binding == null) return
+        if (!(url.startsWith("http://") || url.startsWith("https://")) || url.any { it.isWhitespace() }) { toast(R.string.tv_link_failed); return }
         binding.searchProgress.visibility = View.VISIBLE
         val app = requireContext().applicationContext
         try {
@@ -1403,17 +1391,12 @@ class MusicFragment : Fragment(), MusicService.Listener {
                 handler.post {
                     if (_binding == null) return@post
                     binding.searchProgress.visibility = View.GONE
-                    if (binding.searchInput.text?.toString()?.trim() != url) return@post // typed on meanwhile
-                    result.onSuccess { (list, isPlaylist) ->
-                        tvLinkQuery = url
-                        tvLinkResult = list
-                        // A playlist is kept with the user's own links, so the TV list has it from now on.
-                        if (isPlaylist && !TvChannels.customUrls(app).contains(url) && TvChannels.addCustom(app, url)) {
-                            tvChannels = null
-                            toast(R.string.tv_link_added)
-                        }
-                    }.onFailure { tvLinkFailed = url }
-                    showTv()
+                    val (list, isPlaylist) = result.getOrNull() ?: run { toast(R.string.tv_link_failed); return@post }
+                    if (isPlaylist) {
+                        if (TvChannels.addCustom(app, url)) { toast(R.string.tv_link_added); tvChanged(force = true) }
+                    } else if (list.isNotEmpty()) {
+                        openVideo(list[0]) // a single stream (e.g. .m3u8): nothing to keep in a list, just play it
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -1453,6 +1436,7 @@ class MusicFragment : Fragment(), MusicService.Listener {
         val items = ArrayList<String>()
         val actions = ArrayList<() -> Unit>()
         items += getString(R.string.tv_pick_country); actions.add { pickTvCountry() }
+        items += getString(R.string.tv_add_link); actions.add { askTvLink() }
         if (TvChannels.customUrls(ctx).isNotEmpty()) { items += getString(R.string.tv_remove_links); actions.add { removeTvLinks() } }
         androidx.appcompat.app.AlertDialog.Builder(ctx)
             .setTitle(R.string.tv_source_title)

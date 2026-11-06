@@ -41,6 +41,8 @@ object PlaylistIo {
     )
     private val YT_LIST_RE = Regex("[?&]list=([A-Za-z0-9_-]{10,})")
     private val YT_ID_RE = Regex("[A-Za-z0-9_-]{11}")
+    /** key="value" attributes of an IPTV-style #EXTINF line (tvg-id, tvg-logo, group-title ...). */
+    private val EXTINF_ATTR = Regex("""([A-Za-z0-9_-]+)="([^"]*)"""")
 
     /** A playlist read from a file / link, not saved yet. [skipped] = entries that could not be used. */
     class Imported(val name: String, val tracks: List<Track>, val skipped: Int)
@@ -114,6 +116,7 @@ object PlaylistIo {
         var durSec = -1L
         var art = ""
         var tv = false
+        var iptv = false // the #EXTINF line carried tvg-* / group-title attributes: an IPTV channel, not a radio station
         val out = ArrayList<Track>()
         var skipped = 0
         for (raw in text.removePrefix("\uFEFF").lineSequence()) {
@@ -125,12 +128,20 @@ object PlaylistIo {
                         line.substring(10).trim().takeIf { it.isNotEmpty() }?.let { name = it }
                     line.startsWith("#EXTINF:", ignoreCase = true) -> {
                         val body = line.substring(8)
-                        val comma = body.indexOf(',')
+                        val attrs = EXTINF_ATTR.findAll(body).toList()
+                        if (attrs.isNotEmpty()) {
+                            iptv = true
+                            attrs.firstOrNull { it.groupValues[1].equals("tvg-logo", true) }
+                                ?.groupValues?.get(2)?.takeIf { it.isNotBlank() }?.let { art = it }
+                        }
+                        // The name follows the first comma AFTER the attributes (a group-title may hold commas itself).
+                        val from = attrs.lastOrNull()?.range?.last?.plus(1) ?: 0
+                        val comma = body.indexOf(',', from)
                         if (comma >= 0) {
                             durSec = body.substring(0, comma).trim().split(' ').firstOrNull()?.toLongOrNull() ?: -1L
                             val label = body.substring(comma + 1).trim()
                             val dash = label.indexOf(" - ")
-                            if (dash > 0) {
+                            if (dash > 0 && !iptv) { // channel names like "CNN - Live" are no "artist - title"
                                 artist = label.substring(0, dash).trim()
                                 title = label.substring(dash + 3).trim()
                             } else {
@@ -144,9 +155,11 @@ object PlaylistIo {
                 }
                 continue
             }
-            val t = trackFromEntry(line, title, artist, durSec, art)?.let { if (tv && it.source == Track.SOURCE_RADIO) PlayerMode.tvToAudio(it) else it }
+            val asTv = tv || iptv
+            val t = trackFromEntry(line.substringBefore('|').trim(), title, artist, durSec, art) // Kodi-style "url|User-Agent=..."
+                ?.let { if (asTv && it.source == Track.SOURCE_RADIO) PlayerMode.tvToAudio(it) else it }
             if (t != null) out.add(t) else skipped++
-            title = ""; artist = ""; durSec = -1L; art = ""; tv = false
+            title = ""; artist = ""; durSec = -1L; art = ""; tv = false; iptv = false
         }
         return Imported(name, out.distinctBy { it.key }.take(MAX_IMPORT_TRACKS), skipped)
     }

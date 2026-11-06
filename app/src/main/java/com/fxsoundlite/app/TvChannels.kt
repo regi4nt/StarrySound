@@ -82,11 +82,8 @@ object TvChannels {
         return out.distinctBy { it.remoteId }
     }
 
-    /** True when [q] (what was typed in the search box) is a link, not a channel name. */
-    fun isLink(q: String): Boolean = (q.startsWith("http://") || q.startsWith("https://")) && !q.any { it.isWhitespace() } && q.length > 12
-
     /**
-     * A link pasted in the search box: a playlist gives its channels (the second value is true), anything else
+     * A link given in the "add M3U link" dialog: a playlist gives its channels (the second value is true), anything else
      * (a single stream such as a .m3u8) is one channel of its own. Throws when the link cannot be read.
      */
     fun loadLink(c: Context, url: String): Pair<List<Track>, Boolean> {
